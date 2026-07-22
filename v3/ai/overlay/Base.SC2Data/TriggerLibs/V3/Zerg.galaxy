@@ -1,0 +1,26 @@
+include "TriggerLibs/V3/ZergRoachHydraUltra"
+include "TriggerLibs/V3/ZergLingBaneUltra"
+
+bool V3RunZergBuild (int player, int phase) {
+    int build = AIGetUserInt(player, 142);
+    if (build != 301 && build != 302) {
+        return false;
+    }
+    if (phase == 0 && AIGetTime() >= 300) {
+        AISetMainState(player, e_mainState_Mid, e_mainSubState_Build);
+        phase = 1;
+    }
+    if (phase == 1 && AIGetTime() >= 720) {
+        AISetMainState(player, e_mainState_Late, e_mainSubState_Build);
+        phase = 2;
+    }
+    if (build == 301) {
+        V3ZergRoachHydraUltraStock(player, phase);
+        AISetAttackStatus(player, c_ZU_Roach, 8, 14, c_continuousMerge);
+    }
+    else {
+        V3ZergLingBaneUltraStock(player, phase);
+        AISetAttackStatus(player, c_ZU_Zergling, 16, 28, c_continuousMerge);
+    }
+    return true;
+}

@@ -1,0 +1,110 @@
+//==================================================================================================
+// V3 Zerg zergling/baneling/ultralisk ground policy
+//
+// Army targets are measured in army supply, not raw unit count.  Zerglings and Banelings cost
+// 0.5 supply and Ultralisks cost 6 supply.  Ultralisks are deliberately absent from phases 0 and 1;
+// the available 50:35 Zergling/Baneling split is normalized in those phases so that the army still
+// reaches the requested total supply.
+//
+//   phase 0:  47 Zergling +  33 Baneling               =  40 supply
+//   phase 1: 141 Zergling +  99 Baneling               = 120 supply
+//   phase 2: 360 Zergling + 252 Baneling + 9 Ultralisk = 360 supply (50% / 35% / 15%)
+//
+// Overlords and Queens are economy/support units.  No air combat unit or air upgrade is stocked.
+//==================================================================================================
+
+void V3ZergLingBaneUltraStock (int player, int phase) {
+    AIClearStock(player);
+
+    // V3_FAST_NATURAL_14_WORKERS_400: bank 400 minerals after fourteen
+    // completed Drones and commit the natural before exposing Spawning Pool.
+    AISetStock( player, 1, c_ZB_Hatchery_Alias );
+    AISetStock( player, 14, c_ZU_Drone );
+    if (AIGetUserInt(player, 144) == 0) {
+        if (AITechCount(player, c_ZB_Hatchery_Alias, c_techCountQueuedOrBetter) >= 2) {
+            AISetUserInt(player, 144, 1);
+        }
+        else {
+            if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) >= 14 &&
+                !AIIsExpandingOrHasExpanded(player) &&
+                AIHasNearbyOpenExpansion(player) &&
+                AIHasRes(player, 400, 0)) {
+                AIExpand(player, AIGetTownLocation(player, c_townMain), c_ZB_Hatchery);
+            }
+            AIEnableStock(player);
+            return;
+        }
+    }
+
+    // Establish supply, gas, and both core unit paths immediately after the natural starts.
+    AISetStock( player, 1, c_ZB_SpawningPool );
+    AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
+    AISetStock( player, 16, c_ZU_Drone );
+    AISetStock( player, 1, c_ZB_Extractor );
+    AISetStockUnitNext( player, 8, c_ZU_Zergling, c_stockAlways );
+    AISetStock( player, 1, c_ZB_BanelingNest );
+    AISetStock( player, 20, c_ZU_Drone );
+    AISetStock( player, 2, c_ZB_Extractor );
+    AISetStockUnitNext( player, 4, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 2, c_ZU_Queen, c_stockAlways );
+    AISetStock( player, 1, c_ZB_EvolutionChamber );
+    AISetStock( player, 1, c_ZR_ZerglingSpeed );
+    AISetStock( player, 1, c_ZR_MeleeAttacks1 );
+    AISetStock( player, 1, c_ZR_GroundCarapace1 );
+
+    if (phase <= 0) {
+        // Two mining bases plus a macro Hatchery sustain the normalized 50:35 opening mix.
+        AISetStockUnitNext( player, 3, c_ZB_Hatchery_Alias, c_stockAlways );
+        AISetStockPeons( player, 32, c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+        AISetStockUnitNext( player, 4, c_ZB_Extractor, c_stockAlways );
+        AISetStockUnitNext( player, 47, c_ZU_Zergling, c_stockAlways );
+        AISetStockUnitNext( player, 33, c_ZU_Baneling, c_stockAlways );
+
+        AIEnableStock(player);
+        return;
+    }
+
+    // Mid game: Lair unlocks Baneling speed while six Hatcheries provide enough larva to replenish
+    // the high-count light ground army.  The third base and six gases support upgrades and morphs.
+    AISetStockExpand( player, c_ZB_Hatchery, 3 );
+    AISetStockUnitNext( player, 6, c_ZB_Hatchery_Alias, c_stockAlways );
+    AISetStockUnitNext( player, 3, c_ZU_Queen, c_stockAlways );
+    AISetStockPeons( player, 60, c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+    AISetStockUnitNext( player, 6, c_ZB_Extractor, c_stockAlways );
+    AISetStock( player, 1, c_ZB_Lair_Alias );
+    AISetStock( player, 2, c_ZB_EvolutionChamber );
+    AISetStock( player, 1, c_ZR_BanelingSpeed );
+    AISetStock( player, 1, c_ZR_MeleeAttacks2 );
+    AISetStock( player, 1, c_ZR_GroundCarapace2 );
+    AISetStockUnitNext( player, 141, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 99, c_ZU_Baneling, c_stockAlways );
+
+    if (phase == 1) {
+        AIEnableStock(player);
+        return;
+    }
+
+    // Late game only: finish the Hive and Ultralisk prerequisite chain before adding any Ultralisk
+    // target.  Six mining bases and twelve total Hatcheries feed the final 621-unit ground force.
+    AISetStockExpand( player, c_ZB_Hatchery, 4 );
+    AISetStockUnitNext( player, 1, c_ZB_InfestationPit, c_stockAlways );
+    AISetStockUnitNext( player, 1, c_ZB_Hive, c_stockAlways );
+    AISetStockUnitNext( player, 1, c_ZB_UltraliskCavern, c_stockAlways );
+    AISetStock( player, 1, c_ZR_ZerglingHaste );
+    AISetStock( player, 1, c_ZR_UltraliskArmor );
+    AISetStock( player, 1, c_ZR_MeleeAttacks3 );
+    AISetStock( player, 1, c_ZR_GroundCarapace3 );
+
+    AISetStockExpand( player, c_ZB_Hatchery, 6 );
+    AISetStockUnitNext( player, 12, c_ZB_Hatchery_Alias, c_stockAlways );
+    AISetStockUnitNext( player, 6, c_ZU_Queen, c_stockAlways );
+    AISetStockPeons( player, 96, c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+    AISetStockUnitNext( player, 12, c_ZB_Extractor, c_stockAlways );
+
+    // Exact late target: 180 + 126 + 54 = 360 army supply.
+    AISetStockUnitNext( player, 360, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 252, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 9, c_ZU_Ultralisk, c_stockAlways );
+
+    AIEnableStock(player);
+}

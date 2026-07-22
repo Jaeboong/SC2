@@ -1,0 +1,127 @@
+//==================================================================================================
+// V3 Protoss gateway army policy
+//
+// Army targets are expressed in supply, not raw unit count:
+//   Zealot 35%, Archon 30%, High Templar 20%, Sentry 15%.
+// The standard melee IDs deliberately allow the map's faction replacement and
+// default-Protoss fallback data to select the concrete faction variants.
+//==================================================================================================
+
+void V3ProtossGatewayStock (int player, int phase) {
+    AIClearStock(player);
+
+    // V3_FAST_NATURAL_14_WORKERS_400: make the first expansion the only opening
+    // spend after fourteen completed workers.  No Gateway target is exposed
+    // until the second Nexus is queued, so the stock system banks 400 minerals.
+    AISetStock( player, 1, c_PB_Nexus );
+    AISetStock( player, 14, c_PU_Probe );
+    if (AIGetUserInt(player, 144) == 0) {
+        if (AITechCount(player, c_PB_Nexus, c_techCountQueuedOrBetter) >= 2) {
+            AISetUserInt(player, 144, 1);
+        }
+        else {
+            if (AITechCount(player, c_PU_Probe, c_techCountCompleteOnly) >= 14 &&
+                !AIIsExpandingOrHasExpanded(player) &&
+                AIHasNearbyOpenExpansion(player) &&
+                AIHasRes(player, 400, 0)) {
+                AIExpand(player, AIGetTownLocation(player, c_townMain), c_PB_Nexus);
+            }
+            AIEnableStock(player);
+            return;
+        }
+    }
+
+    // Start Gateway production immediately after the natural is committed;
+    // gas and the rest of the Probe curve follow it.
+    AISetStock( player, 1, c_PB_Pylon );
+    AISetStock( player, 1, c_PB_Gateway );
+    AISetStock( player, 16, c_PU_Probe );
+    AISetStock( player, 18, c_PU_Probe );
+    AISetStock( player, 1, c_PB_Assimilator );
+    AISetStock( player, 1, c_PB_CyberneticsCore );
+    AISetStock( player, 2, c_PB_Pylon );
+    AISetStockFarms( player, c_PB_Pylon, c_stockNormalFarms );
+
+    if (phase <= 0) {
+        // Opening: two bases, two gases, four Gateways, and the complete
+        // templar path.  The final army block is exactly 40 supply.
+        AISetStock( player, 20, c_PU_Probe );
+        AISetStock( player, 2, c_PB_Gateway );
+        AISetStock( player, 2, c_PB_Assimilator );
+        AISetStock( player, 1, c_PU_Zealot );
+        AISetStock( player, 1, c_PU_Sentry );
+        AISetStock( player, 1, c_PB_TwilightCouncil );
+        AISetStock( player, 1, c_PB_TemplarArchives );
+        AISetStock( player, 1, c_PB_Forge );
+        AISetStock( player, 1, c_PR_WarpGateResearch );
+        AISetStock( player, 1, c_PR_HighTemplarPsiStorm );
+        AISetStock( player, 1, c_PR_ZealotCharge );
+        AISetStock( player, 1, c_PR_GroundWeapons1 );
+        AISetStock( player, 1, c_PR_GroundArmor1 );
+        AISetStockUnitNext( player, 4, c_PB_Gateway, c_stockIdle );
+        AISetStockPeons( player, 32, c_PU_Probe, c_stockMaxPeons, c_stockAlways );
+        AISetStockExpand( player, c_PB_Nexus, 2 );
+
+        AISetStockUnitNext( player, 7, c_PU_Zealot, c_stockAlways );
+        AISetStockUnitNext( player, 3, c_PU_Archon, c_stockAlways );
+        AISetStockUnitNext( player, 4, c_PU_HighTemplar, c_stockAlways );
+        AISetStockUnitNext( player, 3, c_PU_Sentry, c_stockAlways );
+    }
+    else if (phase == 1) {
+        // Mid game: three-base saturation, six gases, eight Gateways, and an
+        // exactly 120-supply army at the same 35/30/20/15 split.
+        AISetStockPeons( player, 24, c_PU_Probe, c_stockMinPeons, c_stockAlways );
+        AISetStockUnitNext( player, 6, c_PB_Assimilator, c_stockAlways );
+        AISetStockUnitNext( player, 1, c_PB_TwilightCouncil, c_stockAlways );
+        AISetStockUnitNext( player, 1, c_PB_TemplarArchives, c_stockAlways );
+        AISetStockUnitNext( player, 2, c_PB_Forge, c_stockAlways );
+        AISetStock( player, 1, c_PR_WarpGateResearch );
+        AISetStock( player, 1, c_PR_HighTemplarPsiStorm );
+        AISetStock( player, 1, c_PR_ZealotCharge );
+        AISetStock( player, 1, c_PR_GroundWeapons1 );
+        AISetStock( player, 1, c_PR_GroundArmor1 );
+        AISetStock( player, 1, c_PR_Shields1 );
+        AISetStock( player, 1, c_PR_GroundWeapons2 );
+        AISetStock( player, 1, c_PR_GroundArmor2 );
+        AISetStockUnitNext( player, 8, c_PB_Gateway, c_stockIdle );
+        AISetStockPeons( player, 60, c_PU_Probe, c_stockMaxPeons, c_stockAlways );
+        AISetStockExpand( player, c_PB_Nexus, 3 );
+
+        AISetStockUnitNext( player, 21, c_PU_Zealot, c_stockAlways );
+        AISetStockUnitNext( player, 9, c_PU_Archon, c_stockAlways );
+        AISetStockUnitNext( player, 12, c_PU_HighTemplar, c_stockAlways );
+        AISetStockUnitNext( player, 9, c_PU_Sentry, c_stockAlways );
+    }
+    else {
+        // Late game: six bases, twelve gases, sixteen Gateways, all
+        // ground/shield upgrades, and an exactly 360-supply army at the
+        // requested split.
+        AISetStockPeons( player, 24, c_PU_Probe, c_stockMinPeons, c_stockAlways );
+        AISetStockUnitNext( player, 12, c_PB_Assimilator, c_stockAlways );
+        AISetStockUnitNext( player, 1, c_PB_TwilightCouncil, c_stockAlways );
+        AISetStockUnitNext( player, 1, c_PB_TemplarArchives, c_stockAlways );
+        AISetStockUnitNext( player, 3, c_PB_Forge, c_stockAlways );
+        AISetStock( player, 1, c_PR_WarpGateResearch );
+        AISetStock( player, 1, c_PR_HighTemplarPsiStorm );
+        AISetStock( player, 1, c_PR_ZealotCharge );
+        AISetStock( player, 1, c_PR_GroundWeapons1 );
+        AISetStock( player, 1, c_PR_GroundArmor1 );
+        AISetStock( player, 1, c_PR_Shields1 );
+        AISetStock( player, 1, c_PR_GroundWeapons2 );
+        AISetStock( player, 1, c_PR_GroundArmor2 );
+        AISetStock( player, 1, c_PR_Shields2 );
+        AISetStock( player, 1, c_PR_GroundWeapons3 );
+        AISetStock( player, 1, c_PR_GroundArmor3 );
+        AISetStock( player, 1, c_PR_Shields3 );
+        AISetStockUnitNext( player, 16, c_PB_Gateway, c_stockIdle );
+        AISetStockPeons( player, 96, c_PU_Probe, c_stockMaxPeons, c_stockAlways );
+        AISetStockExpand( player, c_PB_Nexus, 6 );
+
+        AISetStockUnitNext( player, 63, c_PU_Zealot, c_stockAlways );
+        AISetStockUnitNext( player, 27, c_PU_Archon, c_stockAlways );
+        AISetStockUnitNext( player, 36, c_PU_HighTemplar, c_stockAlways );
+        AISetStockUnitNext( player, 27, c_PU_Sentry, c_stockAlways );
+    }
+
+    AIEnableStock(player);
+}

@@ -1,0 +1,34 @@
+include "TriggerLibs/V3/TerranBionic"
+include "TriggerLibs/V3/TerranMechanic"
+
+bool V3RunTerranBuild (int player, int phase) {
+    int build = AIGetUserInt(player, 142);
+    if (build != 101 && build != 102) {
+        return false;
+    }
+    // These campaign units are connected to real producer abilities by the
+    // map catalog. Register the same maker commands with Blizzard's stock
+    // requirement resolver once per AI player so AISetStock can train them.
+    if (AIGetUserInt(player, 143) == 0) {
+        AIReqAddSpecialMaker("SC2TeamMedic", c_TB_Barracks, "BarracksTrain", 19);
+        AIReqAddSpecialMaker("SC2TeamGoliath", c_TB_Factory, "FactoryTrain", 19);
+        AISetUserInt(player, 143, 1);
+    }
+    if (phase == 0 && AIGetTime() >= 300) {
+        AISetMainState(player, e_mainState_Mid, e_mainSubState_Build);
+        phase = 1;
+    }
+    if (phase == 1 && AIGetTime() >= 720) {
+        AISetMainState(player, e_mainState_Late, e_mainSubState_Build);
+        phase = 2;
+    }
+    if (build == 101) {
+        V3TerranBionicStock(player, phase);
+        AISetAttackStatus(player, c_TU_Marine, 8, 14, c_continuousMerge);
+    }
+    else {
+        V3TerranMechanicStock(player, phase);
+        AISetAttackStatus(player, "SC2TeamGoliath", 6, 10, c_continuousMerge);
+    }
+    return true;
+}

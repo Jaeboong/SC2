@@ -1,0 +1,138 @@
+//==================================================================================================
+//  V3 Zerg ground policy: Roach / Hydralisk / Ultralisk
+//
+//  Core army supply targets:
+//    phase 0:  40 = 11 Roaches (22) +  9 Hydralisks (18)
+//    phase 1: 120 = 32 Roaches (64) + 28 Hydralisks (56)
+//    phase 2: 360 = 81 Roaches (162) + 72 Hydralisks (144) + 9 Ultralisks (54)
+//
+//  Before phase 2 the 45:40 Roach/Hydralisk weights are normalized over the two available units.
+//  Phase 2 is the first and only phase that stocks Ultralisks or their tech and upgrades.
+//  Overlords are supply providers and Queens are production support; neither is part of the core
+//  army-supply target above. No air combat unit is stocked by this policy.
+//==================================================================================================
+
+void V3ZergRoachHydraUltraStock (int player, int phase) {
+    if (phase < 0 || phase > 2) {
+        return;
+    }
+
+    AIClearStock(player);
+
+    // V3_FAST_NATURAL_14_WORKERS_400: bank 400 minerals after fourteen
+    // completed Drones and commit the natural before exposing Spawning Pool.
+    AISetStock(player, 1, c_ZB_Hatchery_Alias);
+    AISetStock(player, 14, c_ZU_Drone);
+    if (AIGetUserInt(player, 144) == 0) {
+        if (AITechCount(player, c_ZB_Hatchery_Alias, c_techCountQueuedOrBetter) >= 2) {
+            AISetUserInt(player, 144, 1);
+        }
+        else {
+            if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) >= 14 &&
+                !AIIsExpandingOrHasExpanded(player) &&
+                AIHasNearbyOpenExpansion(player) &&
+                AIHasRes(player, 400, 0)) {
+                AIExpand(player, AIGetTownLocation(player, c_townMain), c_ZB_Hatchery);
+            }
+            AIEnableStock(player);
+            return;
+        }
+    }
+
+    // Pull the opening tech path forward as soon as the natural is committed.
+    AISetStock(player, 1, c_ZB_SpawningPool);
+    AISetStockFarms(player, c_ZU_Overlord, c_stockNormalFarms);
+    AISetStock(player, 1, c_ZB_Extractor);
+    AISetStock(player, 18, c_ZU_Drone);
+    AISetStock(player, 1, c_ZB_RoachWarren);
+    AISetStockUnitNext(player, 2, c_ZU_Roach, c_stockAlways);
+
+    // The completed natural and Lair unlock the mixed Roach/Hydralisk core.
+    AISetStockUnitNext(player, 2, c_ZU_Queen, c_stockAlways);
+    AISetStock(player, 22, c_ZU_Drone);
+    AISetStock(player, 2, c_ZB_Extractor);
+    AISetStock(player, 1, c_ZB_Lair_Alias);
+    AISetStockUnitNext(player, 4, c_ZU_Roach, c_stockAlways);
+    AISetStock(player, 1, c_ZB_HydraliskDen_Alias);
+    AISetStockUnitNext(player, 4, c_ZU_Hydralisk, c_stockAlways);
+    AISetStock(player, 30, c_ZU_Drone);
+    AISetStock(player, 4, c_ZB_Extractor);
+    AISetStock(player, 1, c_ZB_EvolutionChamber);
+
+    // Opening upgrades and exact 40-supply core target.
+    AISetStock(player, 1, c_ZR_MissileAttacks1);
+    AISetStock(player, 1, c_ZR_GroundCarapace1);
+    AISetStock(player, 1, c_ZR_HydraliskRange);
+    AISetStock(player, 1, c_ZR_RoachSpeed);
+    AISetStockUnitNext(player, 11, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 9, c_ZU_Hydralisk, c_stockAlways);
+    AISetStock(player, 40, c_ZU_Drone);
+    AISetStockUnitNext(player, 3, c_ZU_Queen, c_stockAlways);
+
+    if (phase == 0) {
+        AIEnableStock(player);
+        return;
+    }
+
+    // Mid-game macro and an intermediate army step keep economy and combat growth balanced.
+    AISetStockExpand(player, c_ZB_Hatchery, 3);
+    AISetStock(player, 52, c_ZU_Drone);
+    AISetStock(player, 6, c_ZB_Extractor);
+    AISetStockUnitNext(player, 5, c_ZU_Queen, c_stockAlways);
+    AISetStockUnitNext(player, 21, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 18, c_ZU_Hydralisk, c_stockAlways);
+    AISetStock(player, 2, c_ZB_EvolutionChamber);
+    AISetStock(player, 1, c_ZR_MissileAttacks2);
+    AISetStock(player, 1, c_ZR_GroundCarapace2);
+
+    // Exact 120-supply core target on four bases.
+    AISetStockExpand(player, c_ZB_Hatchery, 4);
+    AISetStock(player, 72, c_ZU_Drone);
+    AISetStock(player, 8, c_ZB_Extractor);
+    AISetStockUnitNext(player, 6, c_ZU_Queen, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 28, c_ZU_Hydralisk, c_stockAlways);
+
+    if (phase == 1) {
+        AIEnableStock(player);
+        return;
+    }
+
+    // Ultralisk prerequisites, upgrades, and stock targets intentionally begin only in phase 2.
+    AISetStock(player, 1, c_ZB_InfestationPit);
+    AISetStock(player, 1, c_ZB_Hive);
+    AISetStock(player, 1, c_ZB_UltraliskCavern);
+    AISetStock(player, 1, c_ZR_MeleeAttacks1);
+    AISetStock(player, 1, c_ZR_UltraliskArmor);
+
+    // First late-game step: 45/40/3 core units = 188 army supply.
+    AISetStockUnitNext(player, 45, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 40, c_ZU_Hydralisk, c_stockAlways);
+    AISetStockUnitNext(player, 3, c_ZU_Ultralisk, c_stockAlways);
+
+    AISetStockExpand(player, c_ZB_Hatchery, 5);
+    AISetStock(player, 84, c_ZU_Drone);
+    AISetStock(player, 10, c_ZB_Extractor);
+    AISetStockUnitNext(player, 8, c_ZU_Queen, c_stockAlways);
+    AISetStock(player, 1, c_ZR_MissileAttacks3);
+    AISetStock(player, 1, c_ZR_MeleeAttacks2);
+    AISetStock(player, 1, c_ZR_GroundCarapace3);
+
+    // Second late-game step: 60/54/6 core units = 264 army supply.
+    AISetStockUnitNext(player, 60, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 54, c_ZU_Hydralisk, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_ZU_Ultralisk, c_stockAlways);
+
+    AISetStockExpand(player, c_ZB_Hatchery, 6);
+    AISetStock(player, 100, c_ZU_Drone);
+    AISetStock(player, 12, c_ZB_Extractor);
+    AISetStockUnitNext(player, 10, c_ZU_Queen, c_stockAlways);
+    AISetStock(player, 1, c_ZR_MeleeAttacks3);
+
+    // Exact late target: 162/144/54 supply = 45/40/15 percent of 360.
+    AISetStockUnitNext(player, 81, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 72, c_ZU_Hydralisk, c_stockAlways);
+    AISetStockUnitNext(player, 9, c_ZU_Ultralisk, c_stockAlways);
+
+    AIEnableStock(player);
+}

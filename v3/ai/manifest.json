@@ -1,0 +1,561 @@
+{
+  "version": 1,
+  "repository": "https://github.com/SC2Mapster/SC2GameData.git",
+  "commit": "6dd323aae4209a01f110719a00b4e8f7a88389bc",
+  "roots": [
+    "TriggerLibs/Computer.galaxy",
+    "TriggerLibs/AI.galaxy"
+  ],
+  "resolution_order": [
+    "core",
+    "void"
+  ],
+  "files": [
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/AI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/AI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/AI.galaxy",
+      "bytes": 48591,
+      "sha256": "422b93d2f8650ec4fe8e1729acf59defb61cd987efa609f3a7d970b25e3ed4eb",
+      "includes": [
+        "TriggerLibs/BaseAI.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/BaseAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/BaseAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/BaseAI.galaxy",
+      "bytes": 18085,
+      "sha256": "3b4c1793e5a80263d3860447806613426bfaf79b05e73b6c84320bccafbd766e",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/BuildAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/BuildAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/BuildAI.galaxy",
+      "bytes": 5507,
+      "sha256": "e3bb1545b7366b088c1bbb47c4262ae2f8393610fcc102b2b4c24cac0ff03aad",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/CampaignAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/CampaignAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/CampaignAI.galaxy",
+      "bytes": 231,
+      "sha256": "f87364ef82cb126e345af3ff53c922382a449e5ddf52d501e75c2dff634a59cd",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Computer.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/Computer.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/Computer.galaxy",
+      "bytes": 240,
+      "sha256": "3f23c0c7c047963d33e6837d0faaf6a1dddebcd6c8b18e714f19a50cbf12c47a",
+      "includes": [
+        "TriggerLibs/DebugAI.galaxy",
+        "TriggerLibs/RequirementsAI.galaxy",
+        "TriggerLibs/BuildAI.galaxy",
+        "TriggerLibs/SharedAI.galaxy",
+        "TriggerLibs/Tactical/TacticalAI.galaxy",
+        "TriggerLibs/CampaignAI.galaxy",
+        "TriggerLibs/MeleeAI.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/DebugAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/DebugAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/DebugAI.galaxy",
+      "bytes": 2671,
+      "sha256": "5dac829045b953b90126e33a8395e94c8abfd66bff572b8aff9bbb33c0e6c008",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/MeleeAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/MeleeAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/MeleeAI.galaxy",
+      "bytes": 20947,
+      "sha256": "924fae531785ed640ef3ea49557b7ef9db6bbc9e67d660b30faed6bd20191b5f",
+      "includes": [
+        "TriggerLibs/MeleeBuildAI.galaxy",
+        "TriggerLibs/MeleeWaveAI.galaxy",
+        "TriggerLibs/MeleeHighAI.galaxy",
+        "TriggerLibs/MeleeLowAI.galaxy",
+        "TriggerLibs/Terran/Terran.galaxy",
+        "TriggerLibs/Protoss/Protoss.galaxy",
+        "TriggerLibs/Zerg/Zerg.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/MeleeBuildAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/MeleeBuildAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/MeleeBuildAI.galaxy",
+      "bytes": 29977,
+      "sha256": "968a65500161a7390bb8551fa71a2f6d7b86ad4c4a54afe25bf7c832cc57ad7a",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/MeleeHighAI.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/MeleeHighAI.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/MeleeHighAI.galaxy",
+      "bytes": 26933,
+      "sha256": "be050551d21b5b59a35263f731f950cbfcdaa5ba3a910661eca1762f9660bf23",
+      "includes": [
+        "TriggerLibs/Protoss/ProtossHigh.galaxy",
+        "TriggerLibs/Terran/TerranHigh.galaxy",
+        "TriggerLibs/Zerg/ZergHigh.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/MeleeLowAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/MeleeLowAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/MeleeLowAI.galaxy",
+      "bytes": 38129,
+      "sha256": "f2e1634c16f1950601b25cfea24faee378312c667886737d9629eb33bfbccb97",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/MeleeWaveAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/MeleeWaveAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/MeleeWaveAI.galaxy",
+      "bytes": 31394,
+      "sha256": "4a42827bbaf92dbfdd9e05e9bfaf295e1fabf01e9389ce305c029655291a660f",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/Protoss.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/Protoss.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/Protoss.galaxy",
+      "bytes": 15636,
+      "sha256": "87653afa8d3f46a833593eb7c3f6e7109816b06bb3bcc5b30b176c2d53063b46",
+      "includes": [
+        "TriggerLibs/Protoss/ProtossVyEy.galaxy",
+        "TriggerLibs/Protoss/ProtossEasy.galaxy",
+        "TriggerLibs/Protoss/ProtossMedi.galaxy",
+        "TriggerLibs/Protoss/ProtossMdHd.galaxy",
+        "TriggerLibs/Protoss/ProtossHard.galaxy",
+        "TriggerLibs/Protoss/ProtossHdVH.galaxy",
+        "TriggerLibs/Protoss/ProtossVyHd.galaxy",
+        "TriggerLibs/Protoss/ProtossChVi.galaxy",
+        "TriggerLibs/Protoss/ProtossChRe.galaxy",
+        "TriggerLibs/Protoss/ProtossChIn.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossChIn.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossChIn.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossChIn.galaxy",
+      "bytes": 111162,
+      "sha256": "2e8ee7c1ae8fb0d0b32b0741cfa7782dc8ae0a54161796abfe8a05698cd7d9b6",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossChRe.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossChRe.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossChRe.galaxy",
+      "bytes": 6231,
+      "sha256": "12df059e4239fe842485daf35645ed4a80c70f2816e0acbfb430972fa3870289",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossChVi.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossChVi.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossChVi.galaxy",
+      "bytes": 6217,
+      "sha256": "ba3a659f7f1c852a3176fed5767892781f8d1199774b6af8a1ce0a1dd21c909f",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossEasy.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossEasy.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossEasy.galaxy",
+      "bytes": 37040,
+      "sha256": "7a0bc7f9788f8782449697c2e46e4be8896c880595255acf5f69e3f61f199ba3",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossHard.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossHard.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossHard.galaxy",
+      "bytes": 58242,
+      "sha256": "389dc081174dc7628bdd8f05153046db9b53da1afb2882f52c9bb12681069189",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossHdVH.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossHdVH.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossHdVH.galaxy",
+      "bytes": 111184,
+      "sha256": "f5f9348331b30f83a03bf34b40df6d639f2de0646326ed6abd9dd538a40c26dd",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossHigh.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossHigh.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossHigh.galaxy",
+      "bytes": 108242,
+      "sha256": "5ee1027b36fa411e81bf9cdd9a32690fd83ee2adbdfa465455c3957e64f0b975",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossMdHd.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossMdHd.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossMdHd.galaxy",
+      "bytes": 54048,
+      "sha256": "c47ddd68bce81101129ee4a4fc8587159975087c2a1cc501c330f68217cf8c61",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossMedi.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossMedi.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossMedi.galaxy",
+      "bytes": 45308,
+      "sha256": "7cf4aa0629be84ac25730246c24f5c790f1e610621ac1ec768b00b7d90f90c17",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossVyEy.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossVyEy.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossVyEy.galaxy",
+      "bytes": 33244,
+      "sha256": "2531b6c5132ad052aa96ead9eac9d9a9a42420a462e7637fb3528783f1011a82",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Protoss/ProtossVyHd.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Protoss/ProtossVyHd.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Protoss/ProtossVyHd.galaxy",
+      "bytes": 113948,
+      "sha256": "7d6b1e0aa5f9aa3a015f45b0be46d333dfdbaa0906d23dceed73e6127d6835ed",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/RequirementsAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/RequirementsAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/RequirementsAI.galaxy",
+      "bytes": 48788,
+      "sha256": "67ef38c9a308dd7784ba92ca386e9da79745d7d14fd59806766ce90fdd27444c",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/SharedAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/SharedAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/SharedAI.galaxy",
+      "bytes": 3865,
+      "sha256": "bf5c0a0bf95b96c98c22650a31c3228886b3a840ba1fcc8c70b3fb106895a059",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Tactical/TactCampAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/Tactical/TactCampAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/Tactical/TactCampAI.galaxy",
+      "bytes": 69,
+      "sha256": "cb0bf23acd357276a348dc82d66304d23422eee1f3aab4a111e0b89bfc208fc8",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Tactical/TacticalAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/Tactical/TacticalAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/Tactical/TacticalAI.galaxy",
+      "bytes": 15444,
+      "sha256": "575254c007de01d178ccd32ba370f12c65d0f855d00cb6a7961db1c6910ddb8b",
+      "includes": [
+        "TriggerLibs/Tactical/TactProtAI.galaxy",
+        "TriggerLibs/Tactical/TactTerrAI.galaxy",
+        "TriggerLibs/Tactical/TactZergAI.galaxy",
+        "TriggerLibs/Tactical/TactCampAI.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Tactical/TactProtAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/Tactical/TactProtAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/Tactical/TactProtAI.galaxy",
+      "bytes": 62412,
+      "sha256": "77c03eac4bc41e6b76087b89f2f69e3b29ca673fb92b3c12176c3a9a1c9c8314",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Tactical/TactTerrAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/Tactical/TactTerrAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/Tactical/TactTerrAI.galaxy",
+      "bytes": 64394,
+      "sha256": "6ac9d254b4d48aeaf9b421326c6c7ac193d6607647ae4d220b9d62f24b3e4e2f",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Tactical/TactZergAI.galaxy",
+      "source_layer": "core",
+      "upstream_path": "mods/core.sc2mod/base.sc2data/TriggerLibs/Tactical/TactZergAI.galaxy",
+      "vendored_path": "upstream/core/Base.SC2Data/TriggerLibs/Tactical/TactZergAI.galaxy",
+      "bytes": 46795,
+      "sha256": "57c1954cef87bd7e4f4b0ca359a428e5be05b7c8a08ff20cf288c95c3450c777",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/Terran.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/Terran.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/Terran.galaxy",
+      "bytes": 15703,
+      "sha256": "e31992378a33e51b885ab0f36a9a5092e5944e063a4d77e0b829c96bf1ec3e46",
+      "includes": [
+        "TriggerLibs/Terran/TerranVyEy.galaxy",
+        "TriggerLibs/Terran/TerranEasy.galaxy",
+        "TriggerLibs/Terran/TerranMedi.galaxy",
+        "TriggerLibs/Terran/TerranMdHd.galaxy",
+        "TriggerLibs/Terran/TerranHard.galaxy",
+        "TriggerLibs/Terran/TerranHdVH.galaxy",
+        "TriggerLibs/Terran/TerranVyHd.galaxy",
+        "TriggerLibs/Terran/TerranChVi.galaxy",
+        "TriggerLibs/Terran/TerranChRe.galaxy",
+        "TriggerLibs/Terran/TerranChIn.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranChIn.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranChIn.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranChIn.galaxy",
+      "bytes": 119760,
+      "sha256": "654cf1463d8ee0751bff20264cc36d5eb441c743ecc72a8cf04767cb7e37a383",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranChRe.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranChRe.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranChRe.galaxy",
+      "bytes": 6029,
+      "sha256": "0877f8684afcbf2420625827f3278784744207fba16008fae1324618b532bfb9",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranChVi.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranChVi.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranChVi.galaxy",
+      "bytes": 6236,
+      "sha256": "ff961039bf5b120caaf886b4b32a984362ed3454107f95312f161e0f6c795e80",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranEasy.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranEasy.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranEasy.galaxy",
+      "bytes": 33990,
+      "sha256": "21782526c6ba3f9bddd46a10d66005eaae0346ad736dd18fa32471b2bb64ceda",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranHard.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranHard.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranHard.galaxy",
+      "bytes": 61781,
+      "sha256": "9a3ffbc598b32d0c1172e31ee30a157b908549884d26613b79e11a33673e7f5c",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranHdVH.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranHdVH.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranHdVH.galaxy",
+      "bytes": 119896,
+      "sha256": "fe99e505b3796a8a899960c44c60c6210cabd77e9125381ac560c42822d8f6fe",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranHigh.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranHigh.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranHigh.galaxy",
+      "bytes": 127584,
+      "sha256": "44870945ef4db7185db18ac061d6fd8b338a5df34f0abbfb1b1e11a6aea8404f",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranMdHd.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranMdHd.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranMdHd.galaxy",
+      "bytes": 58152,
+      "sha256": "eca6da38ec99dcf94c07b87991dbeb42701d7bfcc98f8e248fd5d6b5a4ebc972",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranMedi.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranMedi.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranMedi.galaxy",
+      "bytes": 47009,
+      "sha256": "209d98cb3877efb34f3e5f2415b35dcd08d340c4b8f4e4d3e95a77b810e7bf85",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranVyEy.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranVyEy.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranVyEy.galaxy",
+      "bytes": 30220,
+      "sha256": "8fff523e6f1b39239d9e33f1a5fdbfb7623422f67806a85c1bb9ed24adae1f56",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Terran/TerranVyHd.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Terran/TerranVyHd.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Terran/TerranVyHd.galaxy",
+      "bytes": 122539,
+      "sha256": "2de06861f2448ff212f7d57e2f46e4106a9e03daa485f12192567c698d651b1f",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/Zerg.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/Zerg.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/Zerg.galaxy",
+      "bytes": 16483,
+      "sha256": "175511fe50c8d1fe0afee054acbf27321ebacfe813078b12e1257795156e823e",
+      "includes": [
+        "TriggerLibs/Zerg/ZergVyEy.galaxy",
+        "TriggerLibs/Zerg/ZergEasy.galaxy",
+        "TriggerLibs/Zerg/ZergMedi.galaxy",
+        "TriggerLibs/Zerg/ZergMdHd.galaxy",
+        "TriggerLibs/Zerg/ZergHard.galaxy",
+        "TriggerLibs/Zerg/ZergHdVH.galaxy",
+        "TriggerLibs/Zerg/ZergVyHd.galaxy",
+        "TriggerLibs/Zerg/ZergChVi.galaxy",
+        "TriggerLibs/Zerg/ZergChRe.galaxy",
+        "TriggerLibs/Zerg/ZergChIn.galaxy"
+      ]
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergChIn.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergChIn.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergChIn.galaxy",
+      "bytes": 94920,
+      "sha256": "20bfd629332fd4c761d6b419215e2f439bd1fa6ce1359c23e3018c178c364f3b",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergChRe.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergChRe.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergChRe.galaxy",
+      "bytes": 5968,
+      "sha256": "358e71a58607ec4df15a5ce5b9aff8328e5a0a81e1d8ba449fd05c9a961e2027",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergChVi.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergChVi.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergChVi.galaxy",
+      "bytes": 5954,
+      "sha256": "45a6c38596a9def921074145aad1263d74a4cede65d5fae285b2a8b504fb2155",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergEasy.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergEasy.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergEasy.galaxy",
+      "bytes": 40404,
+      "sha256": "76af59d268c97bd009048ae435f5a89b00e9a400b52fb9fb0f759a01bbcdb52d",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergHard.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergHard.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergHard.galaxy",
+      "bytes": 59655,
+      "sha256": "9562f3e5c235802102b1db9e6c4844add1356521281beab32ef02189f03bc184",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergHdVH.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergHdVH.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergHdVH.galaxy",
+      "bytes": 94892,
+      "sha256": "434903b1031b09c17fec2d05948b5d8e7e1421e34cbd15fbbd08283aeaa42a4c",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergHigh.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergHigh.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergHigh.galaxy",
+      "bytes": 117751,
+      "sha256": "922d3d9cbc246193da09928f1d5b21d29fced3c9546351c901f4cd5edb664871",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergMdHd.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergMdHd.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergMdHd.galaxy",
+      "bytes": 50801,
+      "sha256": "2eb707302466cd7fa357e052a3dedfd25d5b7944e130c0f45e31b7434488869d",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergMedi.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergMedi.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergMedi.galaxy",
+      "bytes": 44687,
+      "sha256": "ddaf8104c5f48554505e25ed9e6bce449d2902c3b7837ff64f8105c1190eaf4e",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergVyEy.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergVyEy.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergVyEy.galaxy",
+      "bytes": 34305,
+      "sha256": "ec21f932f86a01eae4fafc16be1528964470f8f8831eab474015c69ad17bc710",
+      "includes": []
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/ZergVyHd.galaxy",
+      "source_layer": "void",
+      "upstream_path": "mods/void.sc2mod/base.sc2data/TriggerLibs/Zerg/ZergVyHd.galaxy",
+      "vendored_path": "upstream/void/Base.SC2Data/TriggerLibs/Zerg/ZergVyHd.galaxy",
+      "bytes": 97904,
+      "sha256": "5a515a237412b7a2979ca1d946b1e6a94c8e7addd499583eb8260aaef331f2f3",
+      "includes": []
+    }
+  ]
+}

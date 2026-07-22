@@ -1,0 +1,25 @@
+include "TriggerLibs/V3/ProtossGateway"
+include "TriggerLibs/V3/ProtossGatewayRobo"
+
+bool V3RunProtossBuild (int player, int phase) {
+    int build = AIGetUserInt(player, 142);
+    if (build != 201 && build != 202) {
+        return false;
+    }
+    if (phase == 0 && AIGetTime() >= 300) {
+        AISetMainState(player, e_mainState_Mid, e_mainSubState_Build);
+        phase = 1;
+    }
+    if (phase == 1 && AIGetTime() >= 720) {
+        AISetMainState(player, e_mainState_Late, e_mainSubState_Build);
+        phase = 2;
+    }
+    if (build == 201) {
+        V3ProtossGatewayStock(player, phase);
+    }
+    else {
+        V3ProtossGatewayRoboStock(player, phase);
+    }
+    AISetAttackStatus(player, c_PU_Zealot, 6, 10, c_continuousMerge);
+    return true;
+}
