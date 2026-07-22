@@ -1,0 +1,2029 @@
+trigger gt_sc2team_HostileWildAI;
+timer gv_sc2team_HostileWildTimer;
+bool gv_sc2team_HostileWildBuildIssued;
+fixed gv_sc2team_HostileWildNextRaid;
+int gv_sc2team_HostileWildInitialNestCount;
+int gv_sc2team_HostileWildCompletedExpansions;
+bool gv_sc2team_HostileWildExpansionPending;
+// 보급은 플레이어 전역 값이라 둥지 16개가 같은 값을 보고 동시에 대군주를 뽑으면
+// 과잉 생산된다(라바를 병력과 경쟁해서 빼앗는다). 틱당 전역 발주 수를 묶는다.
+int gv_sc2team_HostileWildOverlordsThisTick;
+fixed gv_sc2team_HostileWildExpansionDeadline;
+fixed gv_sc2team_HostileWildNextExpansion;
+// The original map's sole P15 Lair is the deliberately placed 1 o'clock wild
+// Zerg stronghold. Remember it before later Hatcheries morph to Lair.
+point gv_sc2team_HostileWildAlphaPoint;
+fixed gv_sc2team_HostileWildAlphaNextRaid;
+// §88: 둥지 복구 기억. 초기 배치 + 이후 확장으로 생긴 앵커 위치를 기억해 두고,
+// 파괴된 자리는 드론을 보내 해처리를 재건한다(알파 둥지 최우선). §89.4: 파괴
+// 속도가 복구를 압도한 실측(둥지 16→4, 재건 1회)에 따라 동시 2건으로 확대,
+// 마감 180→120초. 마감이 지나면 실패로 보고 다음 틱에 재선정한다.
+point[48] gv_sc2team_HostileWildNestMemory;
+int gv_sc2team_HostileWildNestMemoryCount;
+point[2] gv_sc2team_HostileWildRebuildPoint;
+fixed[2] gv_sc2team_HostileWildRebuildDeadline;
+// §89: 틱 카운터 — 병종 순환 선택(구성비 상한 없는 혼합)에 쓴다.
+int gv_sc2team_HostileWildTickCounter;
+// §90.13: 둥지 순번 커서(라운드로빈). 보급은 플레이어 전역 값이라 한 틱 안에서
+// 먼저 발주한 둥지가 남은 인구를 통째로 가져간다(forceCount 12/24 = "남은 라바
+// 전부"). 둥지 순회는 유닛 그룹 순서(= 유닛 생성 순서)를 그대로 따르므로
+// 선배치 부화장의 에디터 배치 순서가 곧 영구 우선순위가 됐다 — 사용자 실관측
+// "84, 12 좌표에 있는 해처리 2개에서만 병력 생성함"이 정확히 그것이다(그 좌표의
+// 부화장 둘이 Objects 목록 선두다). 이 커서를 매 틱 한 칸씩 밀어 비알파 둥지의
+// 첫 순번을 돌린다 — 알파(핵심 본진)는 커서와 무관하게 언제나 맨 앞이다.
+int gv_sc2team_HostileWildNestCursor;
+// §90.13: 이번 틱의 둥지 좌표 목록. 회전 순회를 유닛 그룹이 아니라 이 배열
+// 위에서 해야 한다. 처음에는 그룹을 두 번(커서 이후 / 커서 이전) 훑었는데,
+// 유닛이 늘자 100초 만에 생산이 죽었다 — 6게임분 계측에서 병력 104→120,
+// 알이 내내 0~2, 그런데 루프 밖에서 도는 알파만 계속 생산했다. §90.7 과
+// 같은 연산 한도 초과이고, 커서가 커질수록 더 많은 둥지가 두 번째 순회로
+// 밀리므로 시간이 갈수록 악화되는 구조였다. 그룹 순회는 한 번만 하고
+// (좌표 수집만), 회전은 최대 48칸짜리 이 배열에서 한다.
+point[48] gv_sc2team_HostileWildNestList;
+int gv_sc2team_HostileWildNestListCount;
+
+bool sc2team_IsHostileWildAnchor (unit candidate) {
+    string unitType = UnitGetType(candidate);
+    return unitType == "Hatchery" || unitType == "Lair" || unitType == "Hive";
+}
+
+bool sc2team_HostileWildIsAlphaNest (point anchor) {
+    return gv_sc2team_HostileWildAlphaPoint != null &&
+        DistanceBetweenPoints(anchor, gv_sc2team_HostileWildAlphaPoint) <= 30.0;
+}
+
+// §90.13: 알파 둥지 = P15 시작 위치의 부화장.
+//
+// 예전에는 "맵에 유일한 Lair" 를 알파로 삼았는데(FindInitialLair), 그 Lair 는
+// (242.5, 120.5) — 3시다. 사용자가 §90.12 에서 시작 위치를 1시 핵심 기지
+// (237.5, 240.5) 로 옮긴 뒤로 둘이 갈라졌다: 밀레 AI 는 시작 위치 기준으로
+// 1시를 본진 삼아 드론·대군주를 그쪽에 몰아주는데, Galaxy 쪽 알파 특혜
+// (forceCount 24, 울트라 테크 체인, 가시촉수 6, 매크로 해처리 5)는 전부 3시에
+// 갔다. 사용자 지시 "핵심 본진인 1시부터 뽑도록 해야해" 는 이 분열을 없애라는
+// 뜻이므로, 알파의 정의 자체를 시작 위치로 바꾼다. 그러면 에디터에서 시작
+// 위치를 옮기는 것만으로 핵심 본진이 따라온다(§90.12 와 같은 원칙).
+//
+// 시작 위치는 §90 에서 빌더가 P15 부화장 위에 보장한다. 없을 때만 옛 Lair 로
+// 되돌아간다(아래 FindAlphaPoint).
+point sc2team_HostileWildFindInitialLair () {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    int unitIndex;
+
+    hostileUnits = UnitGroup("Lair", 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        return UnitGetPosition(currentUnit);
+    }
+    return null;
+}
+
+point sc2team_HostileWildFindAlphaPoint () {
+    point startPoint;
+
+    startPoint = PlayerStartLocation(15);
+    if (startPoint != null) {
+        return startPoint;
+    }
+    return sc2team_HostileWildFindInitialLair();
+}
+
+bool sc2team_IsHostileWildCombatUnit (unit candidate) {
+    string unitType = UnitGetType(candidate);
+
+    // P15 also owns preplaced Protoss/Terran set dressing.  This controller is
+    // for the wild Zerg nests only, so anything not explicitly Zerg stays
+    // entirely untouched: no counting, patrol, defense order, or raid order.
+    if (unitType != "Zergling" && unitType != "Baneling" &&
+        unitType != "Roach" && unitType != "Hydralisk" &&
+        unitType != "Ravager" && unitType != "Ultralisk" &&
+        unitType != "Queen" && unitType != "Infestor" &&
+        unitType != "LurkerMP" && unitType != "SwarmHostMP" &&
+        unitType != "DefilerMP" && unitType != "InfestedTerran" &&
+        unitType != "InfestedCivilian" && unitType != "NydusCanalAttacker") {
+        return false;
+    }
+    return UnitTestPlane(candidate, c_planeGround) &&
+        UnitGetPropertyFixed(candidate, c_unitPropMovementSpeed, c_unitPropCurrent) > 0.0;
+}
+
+int sc2team_HostileWildHomeCount (point anchor) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    int unitIndex;
+    int count = 0;
+
+    nearbyUnits = UnitGroup(null, 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildCombatUnit(currentUnit)) {
+            // §89.9: custom value 24 = "이번 틱에 어느 둥지 품 안에서 보였다".
+            // 휴전 중 이탈 유닛 회수(LeashStrays)가 이 도장만 비교하면 되므로,
+            // 유닛마다 최근접 둥지를 다시 계산하는 비용이 사라진다.
+            UnitSetCustomValue(currentUnit, 24, IntToFixed(gv_sc2team_HostileWildTickCounter));
+            count += 1;
+        }
+    }
+    return count;
+}
+
+int sc2team_HostileWildWorkerCount (point anchor) {
+    return UnitGroupCount(
+        UnitGroup("Drone", 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0),
+        c_unitCountAlive
+    );
+}
+
+bool sc2team_HostileWildHasStructure (point anchor, string structureType) {
+    return UnitGroupCount(
+        UnitGroup(structureType, 15, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0),
+        c_unitCountAll
+    ) > 0;
+}
+
+bool sc2team_HostileWildHasAnyStructure (string structureType) {
+    return UnitGroupCount(
+        UnitGroup(structureType, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0),
+        c_unitCountAll
+    ) > 0;
+}
+
+int sc2team_HostileWildCountType (point anchor, string unitType) {
+    return UnitGroupCount(
+        UnitGroup(unitType, 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0),
+        c_unitCountAlive
+    );
+}
+
+unit sc2team_HostileWildNearestUnit (point anchor, string wantedType, int wantedOwner) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    unit closest;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+
+    closest = null;
+    bestDistance = 0.0;
+    nearbyUnits = UnitGroup(null, wantedOwner, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (UnitGetType(currentUnit) != wantedType) {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(anchor, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = currentUnit;
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+unit sc2team_HostileWildNearestMineral (point anchor, fixed searchRadius) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    unit closest;
+    string unitType;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+
+    closest = null;
+    bestDistance = 0.0;
+    nearbyUnits = UnitGroup(null, c_playerAny, RegionCircle(anchor, searchRadius), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (unitType != "MineralField" && unitType != "RichMineralField" &&
+            unitType != "MineralField750" && unitType != "RichMineralField750") {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(anchor, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = currentUnit;
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+// §90.11: 경제 둥지 판정은 "자기 광물"이어야 한다. 예전에는 반경 20 안에
+// 광물이 하나라도 있으면 경제 둥지로 봤는데, 옆 기지의 광물이 그 안에 들어오는
+// 둥지가 많아 광물 없는 자리에서도 드론을 계속 뽑았다(사용자 실관측 "드론은
+// 여전히 미네랄 필드가 없는 곳에서도 뽑는다"). 실제 기지의 광물은 8 이내에
+// 붙어 있으므로 9 로 조인다.
+bool sc2team_HostileWildIsEconomyNest (point anchor) {
+    return sc2team_HostileWildNearestMineral(anchor, 9.0) != null;
+}
+
+// §90.7: 둥지 좌표에 서 있는 부화장 본체를 돌려준다. ManageNest 는 좌표만
+// 받으므로 랠리처럼 "건물에 직접 내리는 명령"에는 본체가 필요하다.
+unit sc2team_HostileWildAnchorUnit (point anchor) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    int unitIndex;
+
+    nearbyUnits = UnitGroup(null, 15, RegionCircle(anchor, 3.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildAnchor(currentUnit)) {
+            return currentUnit;
+        }
+    }
+    return null;
+}
+
+// §90.7: 랠리 포인트를 둥지마다 지역화한다.
+//
+// P15 가 실제 로비 플레이어가 되면서(§90) 밀레 AI 가 부화장 랠리를 잡기
+// 시작했고, 모든 부화장이 한 곳을 가리켰다(사용자 실관측 "랠리포인트를 모든
+// 해처리를 한곳으로 찍어버려"). 그러면 외곽 둥지에서 나온 병력이 전부 한
+// 지점으로 행군해 둥지가 비고, 7분 휴전 중에도 맵을 가로지른다.
+//
+// RallyHatchery 는 InfoArray 가 둘이다(liberty AbilData): 인덱스 0 은 지면
+// 대상 병력 랠리, 인덱스 1 은 일꾼 랠리로 대상 유닛을 받는다. 일꾼 랠리를
+// 근처 광물로 잡아 두면 새로 부화한 드론이 명령 없이 바로 채취에 붙는다 —
+// Harvest 가 "명령 없는 드론"만 건드리는 구조(§89.6)와 충돌하지 않는다.
+//
+// 갱신 주기는 60초다(부화장 custom value 23 = 다음 갱신 시각). 처음에는 매 틱
+// 다시 걸었는데, 둥지 17곳 × 2건 = 틱당 34건이 둥지 루프 앞쪽에 얹히면서
+// 뒤쪽 병력 블록이 연산 한도로 잘렸다 — 6게임분 계측에서 병력 +5, 알이 내내
+// 0~5였고(정상은 같은 시간 바퀴만 +28), 유닛이 죽어 루프가 싸진 360초에야
+// 알이 22로 튀었다. 호출 위치도 ManageNest 맨 뒤로 옮겨, 무언가 잘린다면
+// 생산이 아니라 랠리가 잘리게 한다.
+//
+// §90.10: 반드시 c_orderQueueReplace 여야 한다. 랠리는 웨이포인트로 이어붙기
+// 때문에 c_orderQueueAddToEnd 로 걸면 밀레 AI 가 찍은 지점 "뒤에" 우리 지점이
+// 추가되어 2단 랠리가 된다 — 새 유닛이 맵 반대편까지 갔다가 자기 둥지로
+// 되돌아온다(사용자 실관측 "밀레 AI가 찍은 곳을 갔다가 본인 기지로 되돌아오도록
+// … 대륙횡단을 해버린다"). Replace 는 랠리 웨이포인트 목록만 비우고 새로
+// 지정하며, 생산 대기열과는 무관하다(§87 의 "멜리 AI 큐를 덮어쓰지 말 것"은
+// 생산 큐 규칙이지 랠리 규칙이 아니다).
+void sc2team_HostileWildSetRally (point anchor, unit hall) {
+    unit mineral;
+    fixed now;
+
+    if (hall == null) {
+        return;
+    }
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    if (UnitGetCustomValue(hall, 23) > now) {
+        return;
+    }
+    UnitSetCustomValue(hall, 23, now + 60.0);
+    // 일꾼 랠리를 먼저, 병력 랠리를 나중에 건다. 둘이 같은 랠리 목록을 공유해
+    // 서로를 덮어쓰더라도 사용자가 지적한 병력 랠리가 살아남게 하기 위함이다.
+    mineral = sc2team_HostileWildNearestMineral(anchor, 20.0);
+    if (mineral != null) {
+        UnitIssueOrder(
+            hall,
+            OrderTargetingUnit(AbilityCommand("RallyHatchery", 1), mineral),
+            c_orderQueueReplace
+        );
+    }
+    UnitIssueOrder(
+        hall,
+        OrderTargetingPoint(
+            AbilityCommand("RallyHatchery", 0),
+            PointWithOffsetPolar(anchor, 5.0, 90.0)
+        ),
+        c_orderQueueReplace
+    );
+}
+
+int sc2team_HostileWildNestCount () {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    int unitIndex;
+    int count = 0;
+
+    hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildAnchor(currentUnit)) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+bool sc2team_HostileWildTownHallNear (point center) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    string unitType;
+    int unitIndex;
+
+    nearbyUnits = UnitGroup(null, c_playerAny, RegionCircle(center, 18.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (unitType == "CommandCenter" || unitType == "OrbitalCommand" ||
+            unitType == "PlanetaryFortress" || unitType == "Nexus" ||
+            unitType == "Hatchery" || unitType == "Lair" || unitType == "Hive") {
+            return true;
+        }
+    }
+    return false;
+}
+
+point sc2team_HostileWildExpansionResource (point home) {
+    unitgroup mapUnits;
+    unit currentUnit;
+    point best;
+    string unitType;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+
+    best = null;
+    bestDistance = 0.0;
+    mapUnits = UnitGroup(null, c_playerAny, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(mapUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(mapUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (unitType != "MineralField" && unitType != "RichMineralField" &&
+            unitType != "MineralField750" && unitType != "RichMineralField750") {
+            continue;
+        }
+        if (sc2team_HostileWildTownHallNear(UnitGetPosition(currentUnit))) {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(home, UnitGetPosition(currentUnit));
+        if (best == null || currentDistance < bestDistance) {
+            best = UnitGetPosition(currentUnit);
+            bestDistance = currentDistance;
+        }
+    }
+    return best;
+}
+
+unit sc2team_HostileWildNearestGeyser (point anchor) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    unit closest;
+    string unitType;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+
+    closest = null;
+    bestDistance = 0.0;
+    nearbyUnits = UnitGroup(null, c_playerAny, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (unitType != "VespeneGeyser" && unitType != "RichVespeneGeyser") {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(anchor, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = currentUnit;
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+// Train up to wantCount units from the Larvae this nest actually has.
+//
+// This used to take the single nearest Larva and issue one order, so a nest
+// produced one unit per tick no matter how many Larvae were banked: a Hatchery
+// holds three, and a Drone finishes in about the tick period, which is exactly
+// the user-observed "one finishes, one more starts" trickle.  Cost, supply,
+// and tech are still enforced by the engine through UnitOrderIsValid, so a
+// larger wantCount cannot conjure free units.
+int sc2team_HostileWildTrainLarva (point anchor, int commandIndex, int wantCount) {
+    unitgroup larvae;
+    unit currentLarva;
+    order trainOrder;
+    int larvaIndex;
+    int issued;
+    fixed now;
+
+    if (wantCount < 1) {
+        return 0;
+    }
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    trainOrder = Order(AbilityCommand("LarvaTrain", commandIndex));
+    larvae = UnitGroup("Larva", 15, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    issued = 0;
+    larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+    for (;; larvaIndex -= 1) {
+        currentLarva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+        if (currentLarva == null) {
+            break;
+        }
+        if (issued >= wantCount) {
+            break;
+        }
+        // §88: 같은 틱 발주 보호. 대군주/드론/병력 블록이 한 틱 안에서 같은
+        // 라바에 c_orderQueueReplace를 겹쳐 쓰면 마지막 블록이 앞선 발주를
+        // 전부 덮어쓴다 — 20분 계측에서 신규 대군주 0의 구조적 원인. 라바의
+        // custom value 28에 이번 틱 시각을 찍어, 이미 이번 틱에 발주된 라바는
+        // 뒤 블록이 건드리지 않는다(다음 틱에는 시각이 달라져 다시 발주 가능).
+        if (UnitGetCustomValue(currentLarva, 28) == now) {
+            continue;
+        }
+        // P15 is Neutral Hostile rather than a lobby Zerg player. Do not claim a
+        // train attempt succeeded when its neutral tech tree rejects the order.
+        if (UnitOrderIsValid(currentLarva, trainOrder)) {
+            UnitIssueOrder(currentLarva, trainOrder, c_orderQueueReplace);
+            UnitSetCustomValue(currentLarva, 28, now);
+            issued += 1;
+        }
+    }
+    return issued;
+}
+
+// §89.6: 광물 덩어리를 인덱스로 고른다. 종전 Harvest는 NearestMineral이 돌려준
+// 덩어리 "하나"에 근처 드론 전원을 매 틱 c_orderQueueReplace로 몰아넣었다 —
+// 사용자 실관측 "잘 채취하다가 갑자기 한곳으로 뭉친다"가 정확히 이것이다.
+// 한 덩어리는 드론 2기면 포화이므로 나머지는 줄만 서고, 게다가 건설하러 가던
+// 드론까지 매 틱 취소당했다(20분에 산란못 11개·해처리 0~1개의 원인).
+// §89.7: 광물 목록은 둥지당 한 번만 만들어 재사용한다. 노는 드론마다 영역
+// 질의를 두 번씩 돌리면 틱 비용이 드론 수에 비례해 커지고, Galaxy 트리거가
+// 연산 한도로 중단되면 뒤따르는 생산 블록이 통째로 날아간다.
+unitgroup sc2team_HostileWildMineralGroup (point anchor) {
+    unitgroup nearbyUnits;
+    unitgroup minerals;
+    unit currentUnit;
+    string unitType;
+    int unitIndex;
+
+    minerals = UnitGroupEmpty();
+    nearbyUnits = UnitGroup(null, c_playerAny, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (unitType == "MineralField" || unitType == "RichMineralField" ||
+            unitType == "MineralField750" || unitType == "RichMineralField750") {
+            UnitGroupAdd(minerals, currentUnit);
+        }
+    }
+    return minerals;
+}
+
+unit sc2team_HostileWildMineralByIndex (unitgroup minerals, int pickIndex) {
+    int total;
+    int wanted;
+
+    total = UnitGroupCount(minerals, c_unitCountAlive);
+    if (total <= 0) {
+        return null;
+    }
+    wanted = pickIndex - (pickIndex / total) * total;
+    return UnitGroupUnit(minerals, wanted + 1);
+}
+
+// §89.6: 가스 배치 인원은 드론 custom value 25로 기억한다. 명령 없는 드론만
+// 건드리는 구조에서는 "이미 가스에 간 드론"을 셀 방법이 달리 없다.
+int sc2team_HostileWildGasWorkerCount (point anchor) {
+    unitgroup workers;
+    unit currentUnit;
+    int unitIndex;
+    int count = 0;
+
+    workers = UnitGroup("Drone", 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(workers, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(workers, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (UnitGetCustomValue(currentUnit, 25) > 0.0) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+void sc2team_HostileWildHarvest (point anchor) {
+    unitgroup workers;
+    unitgroup minerals;
+    unit currentUnit;
+    unit mineral;
+    unit extractor;
+    int unitIndex;
+    int gasWorkerCount;
+    int assigned = 0;
+
+    extractor = sc2team_HostileWildNearestUnit(anchor, "Extractor", 15);
+    gasWorkerCount = sc2team_HostileWildGasWorkerCount(anchor);
+    minerals = sc2team_HostileWildMineralGroup(anchor);
+    workers = UnitGroup("Drone", 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(workers, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(workers, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        // §89.6: 명령이 있는 드론은 절대 건드리지 않는다. 채굴 중인 드론을
+        // 다시 발주하면 엔진이 분산해 둔 배치를 무너뜨리고, 건설하러 가는
+        // 드론은 목적지에 닿기 전에 취소된다. 갓 부화했거나 광물이 고갈돼
+        // 놀고 있는 드론만 새로 배치한다.
+        if (UnitOrderCount(currentUnit) != 0) {
+            continue;
+        }
+        if (extractor != null && gasWorkerCount < 3) {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingUnit(AbilityCommand("DroneHarvest", 0), extractor),
+                c_orderQueueReplace
+            );
+            UnitSetCustomValue(currentUnit, 25, 1.0);
+            gasWorkerCount += 1;
+            continue;
+        }
+        // 덩어리를 인덱스로 돌려가며 배정해 드론이 흩어지게 한다.
+        mineral = sc2team_HostileWildMineralByIndex(
+            minerals, gv_sc2team_HostileWildTickCounter + assigned
+        );
+        if (mineral != null) {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingUnit(AbilityCommand("DroneHarvest", 0), mineral),
+                c_orderQueueReplace
+            );
+            assigned += 1;
+        }
+    }
+}
+
+// §103: 이 드론이 그 지점까지 실제로 걸어갈 수 있는가. 배치 유효성과 도달
+// 가능성은 다른 검사이며, 절벽 위처럼 배치는 되지만 갈 수 없는 지점에 명령을
+// 내리면 드론은 길을 못 찾고 건설 임무 도장(cv29)만 만료될 때까지 낭비된다.
+// AIPathingCostUnit은 경로가 없으면 음수를 돌려준다(Blizzard TactCampAI와 같은
+// 판정). 세 번째 인자 true = AI.galaxy의 c_ignoreEnemyBuildings.
+//
+// 생산 블록의 sc2team_BuilderCanReach와 같은 일을 하지만 이름을 따로 둔다 —
+// 이 파일은 생산 규칙이 없는 설정(브리지 프로브 등)에도 들어갈 수 있어
+// 그 블록의 함수를 참조하면 컴파일이 깨진다.
+bool sc2team_HostileWildCanReach (unit builder, point target) {
+    if (builder == null) {
+        return false;
+    }
+    return AIPathingCostUnit(builder, target, true) >= 0;
+}
+
+// §89.6: 건설 배정 관리. 종전에는 건설 명령을 낸 드론이 목적지로 걸어가는
+// 동안에도 건물이 아직 존재하지 않으므로, 다음 틱에 같은 조건이 다시 참이 돼
+// 새 무작위 지점으로 재발주됐다 — 드론이 영원히 방황하고 건물은 안 선다.
+// custom value 29 = "건설 임무 만료 시각"(둥지 복구도 같은 슬롯을 쓴다).
+bool sc2team_HostileWildBuilderBusy (point anchor) {
+    unitgroup workers;
+    unit currentUnit;
+    fixed now;
+    int unitIndex;
+
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    workers = UnitGroup("Drone", 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(workers, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(workers, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (UnitGetCustomValue(currentUnit, 29) > now) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 아직 건설 임무를 받지 않은 가장 가까운 드론. 실제 발주가 성공한 뒤에만
+// 호출부가 MarkBuilder로 도장을 찍는다(배치 검증 실패 시 헛되이 묶지 않도록).
+unit sc2team_HostileWildTakeBuilder (point anchor) {
+    unitgroup workers;
+    unit currentUnit;
+    unit closest;
+    fixed now;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    closest = null;
+    bestDistance = 0.0;
+    workers = UnitGroup("Drone", 15, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(workers, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(workers, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (UnitGetCustomValue(currentUnit, 29) > now) {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(anchor, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = currentUnit;
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+void sc2team_HostileWildMarkBuilder (unit builder) {
+    // 걷는 시간만 덮으면 된다. 건설이 시작되면 구조물 검사가 참이 되고,
+    // 실패했으면 이 시간 뒤 둥지가 자연히 재시도한다.
+    UnitSetCustomValue(builder, 29, TimerGetElapsed(gv_sc2team_HostileWildTimer) + 45.0);
+}
+
+void sc2team_HostileWildBuildEconomy (point anchor, int workers) {
+    unit builder;
+    unit hatchery;
+    unit geyser;
+    point buildPoint;
+    fixed elapsed;
+
+    // §89.6: 이미 건설하러 간 드론이 있으면 이 둥지는 이번 틱에 쉬어간다.
+    // 없으면 임무 없는 드론을 고르고, 발주 성공 직후에만 도장을 찍는다.
+    if (gv_sc2team_HostileWildBuildIssued || sc2team_HostileWildBuilderBusy(anchor)) {
+        return;
+    }
+    builder = sc2team_HostileWildTakeBuilder(anchor);
+    // Each nest owns its own local Pool.  The radius check intentionally lets
+    // two tightly-clustered Hatcheries share one Pool instead of duplicating it.
+    // A resource-less outpost receives one real Drone to establish that Pool.
+    if (!sc2team_HostileWildHasStructure(anchor, "SpawningPool")) {
+        if (builder == null) {
+            sc2team_HostileWildTrainLarva(anchor, 0, 1);
+            return;
+        }
+        // Build structures through the Drone's genuine build ability.  This
+        // spends P15's bank and morphs the worker just like a normal Zerg player.
+        if (PlayerGetPropertyInt(15, c_playerPropMinerals) < 200) {
+            return;
+        }
+        buildPoint = PointWithOffsetPolar(anchor, 9.0, RandomFixed(0.0, 360.0));
+        UnitIssueOrder(
+            builder,
+            OrderTargetingPoint(AbilityCommand("ZergBuild", 3), buildPoint),
+            c_orderQueueReplace
+        );
+        sc2team_HostileWildMarkBuilder(builder);
+        gv_sc2team_HostileWildBuildIssued = true;
+        return;
+    }
+    if (builder == null) {
+        return;
+    }
+    if (workers >= 4 && !sc2team_HostileWildHasStructure(anchor, "Extractor") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 25) {
+        geyser = sc2team_HostileWildNearestGeyser(anchor);
+        if (geyser != null) {
+            UnitIssueOrder(
+                builder,
+                OrderTargetingUnit(AbilityCommand("ZergBuild", 2), geyser),
+                c_orderQueueReplace
+            );
+            sc2team_HostileWildMarkBuilder(builder);
+            gv_sc2team_HostileWildBuildIssued = true;
+            return;
+        }
+    }
+    // §89: 발전 시간 게이트 대폭 완화(사용자: "7분 전부터 적극적인 생산과
+    // 발전"). 공격 금지 420초는 유지하되 테크·건물은 초반부터 올린다.
+    elapsed = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    if (elapsed >= 60.0 && sc2team_HostileWildHasAnyStructure("SpawningPool") &&
+        !sc2team_HostileWildHasStructure(anchor, "RoachWarren") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 150) {
+        buildPoint = PointWithOffsetPolar(anchor, 12.0, RandomFixed(0.0, 360.0));
+        UnitIssueOrder(
+            builder,
+            OrderTargetingPoint(AbilityCommand("ZergBuild", 13), buildPoint),
+            c_orderQueueReplace
+        );
+        sc2team_HostileWildMarkBuilder(builder);
+        gv_sc2team_HostileWildBuildIssued = true;
+        return;
+    }
+    if (elapsed >= 120.0 && workers >= 4 && !sc2team_HostileWildHasStructure(anchor, "Lair") &&
+        !sc2team_HostileWildHasStructure(anchor, "Hive") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 150 &&
+        PlayerGetPropertyInt(15, c_playerPropVespene) >= 100) {
+        hatchery = sc2team_HostileWildNearestUnit(anchor, "Hatchery", 15);
+        if (hatchery != null) {
+            UnitIssueOrder(
+                hatchery,
+                Order(AbilityCommand("UpgradeToLair", 0)),
+                c_orderQueueReplace
+            );
+            gv_sc2team_HostileWildBuildIssued = true;
+            return;
+        }
+    }
+    if (elapsed >= 180.0 &&
+        (sc2team_HostileWildHasAnyStructure("Lair") || sc2team_HostileWildHasAnyStructure("Hive")) &&
+        !sc2team_HostileWildHasStructure(anchor, "HydraliskDen") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 100 &&
+        PlayerGetPropertyInt(15, c_playerPropVespene) >= 100) {
+        buildPoint = PointWithOffsetPolar(anchor, 12.0, RandomFixed(0.0, 360.0));
+        UnitIssueOrder(
+            builder,
+            OrderTargetingPoint(AbilityCommand("ZergBuild", 5), buildPoint),
+            c_orderQueueReplace
+        );
+        sc2team_HostileWildMarkBuilder(builder);
+        gv_sc2team_HostileWildBuildIssued = true;
+    }
+}
+
+void sc2team_HostileWildBuildSpineCrawler (point anchor) {
+    unit builder;
+    point buildPoint;
+    fixed elapsed;
+    int spineTarget;
+
+    // §88: 둥지당 1개로는 후반 습격에 순삭된다(사용자: "쉽게 멸망하지 않을
+    // 정도"). 일반 둥지 2개, 알파 둥지 6개까지 유지·재건한다(§89 상향).
+    spineTarget = 2;
+    if (sc2team_HostileWildIsAlphaNest(anchor)) {
+        spineTarget = 6;
+    }
+    elapsed = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    if (elapsed < 90.0 || gv_sc2team_HostileWildBuildIssued ||
+        sc2team_HostileWildBuilderBusy(anchor) ||
+        !sc2team_HostileWildHasStructure(anchor, "SpawningPool") ||
+        sc2team_HostileWildCountType(anchor, "SpineCrawler") >= spineTarget) {
+        return;
+    }
+    builder = sc2team_HostileWildTakeBuilder(anchor);
+    if (builder == null) {
+        // A resource-less outpost normally has no workers.  Give it exactly
+        // one real Larva-trained Drone so it can raise its local Sunken.
+        sc2team_HostileWildTrainLarva(anchor, 0, 1);
+        return;
+    }
+    buildPoint = PointWithOffsetPolar(anchor, RandomFixed(8.0, 13.0), RandomFixed(0.0, 360.0));
+    UnitIssueOrder(
+        builder,
+        OrderTargetingPoint(AbilityCommand("ZergBuild", 14), buildPoint),
+        c_orderQueueReplace
+    );
+    sc2team_HostileWildMarkBuilder(builder);
+    gv_sc2team_HostileWildBuildIssued = true;
+}
+
+// §88: 알파 둥지(1시 본거지) 테크 진화 — 감염 구덩이 → 군락 → 울트라리스크 굴.
+// 멜레 AI 저그처럼 최종적으로 울트라리스크까지 뽑게 한다(사용자 지시). 비용·
+// 요구조건(HaveLair/HaveInfestationPit/HaveHive)은 전부 엔진이 정상 검사한다.
+void sc2team_HostileWildBuildAlphaTech (point anchor, bool alphaNest) {
+    unit builder;
+    unit hall;
+    unit lair;
+    order lairOrder;
+    order hiveOrder;
+    point buildPoint;
+    fixed elapsed;
+
+    if (!alphaNest || gv_sc2team_HostileWildBuildIssued) {
+        return;
+    }
+    // §89: 알파 테크도 초반부터(480 → 240초). 공격 금지와 무관한 발전 경로.
+    elapsed = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    if (elapsed < 240.0) {
+        return;
+    }
+    // §90.13: 레어 변태. 알파가 "맵에 유일한 Lair" 였을 때는 이 단계가 필요
+    // 없었지만, 이제 알파는 시작 위치의 부화장이므로 체인을 부화장에서 시작해야
+    // 한다. 이게 없으면 감염 구덩이 분기의 Lair/Hive 조건에 영영 걸려 알파
+    // 테크가 통째로 멈춘다.
+    hall = sc2team_HostileWildAnchorUnit(anchor);
+    if (hall != null && UnitGetType(hall) == "Hatchery" &&
+        sc2team_HostileWildHasAnyStructure("SpawningPool") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 150 &&
+        PlayerGetPropertyInt(15, c_playerPropVespene) >= 100) {
+        lairOrder = Order(AbilityCommand("UpgradeToLair", 0));
+        if (UnitOrderIsValid(hall, lairOrder)) {
+            UnitIssueOrder(hall, lairOrder, c_orderQueueReplace);
+            gv_sc2team_HostileWildBuildIssued = true;
+            return;
+        }
+    }
+    // 군락 변태: 감염 구덩이가 완성돼 있으면 레어에 직접 명령한다(200/150).
+    lair = sc2team_HostileWildNearestUnit(anchor, "Lair", 15);
+    if (lair != null &&
+        sc2team_HostileWildHasStructure(anchor, "InfestationPit") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 200 &&
+        PlayerGetPropertyInt(15, c_playerPropVespene) >= 150) {
+        hiveOrder = Order(AbilityCommand("UpgradeToHive", 0));
+        if (UnitOrderIsValid(lair, hiveOrder)) {
+            UnitIssueOrder(lair, hiveOrder, c_orderQueueReplace);
+            gv_sc2team_HostileWildBuildIssued = true;
+            return;
+        }
+    }
+    if (sc2team_HostileWildBuilderBusy(anchor)) {
+        return;
+    }
+    builder = sc2team_HostileWildTakeBuilder(anchor);
+    if (builder == null) {
+        return;
+    }
+    if ((sc2team_HostileWildHasStructure(anchor, "Lair") ||
+         sc2team_HostileWildHasStructure(anchor, "Hive")) &&
+        !sc2team_HostileWildHasStructure(anchor, "InfestationPit") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 100 &&
+        PlayerGetPropertyInt(15, c_playerPropVespene) >= 100) {
+        buildPoint = PointWithOffsetPolar(anchor, 12.0, RandomFixed(0.0, 360.0));
+        UnitIssueOrder(
+            builder,
+            OrderTargetingPoint(AbilityCommand("ZergBuild", 8), buildPoint),
+            c_orderQueueReplace
+        );
+        sc2team_HostileWildMarkBuilder(builder);
+        gv_sc2team_HostileWildBuildIssued = true;
+        return;
+    }
+    if (sc2team_HostileWildHasStructure(anchor, "Hive") &&
+        !sc2team_HostileWildHasStructure(anchor, "UltraliskCavern") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 150 &&
+        PlayerGetPropertyInt(15, c_playerPropVespene) >= 200) {
+        buildPoint = PointWithOffsetPolar(anchor, 12.0, RandomFixed(0.0, 360.0));
+        UnitIssueOrder(
+            builder,
+            OrderTargetingPoint(AbilityCommand("ZergBuild", 7), buildPoint),
+            c_orderQueueReplace
+        );
+        sc2team_HostileWildMarkBuilder(builder);
+        gv_sc2team_HostileWildBuildIssued = true;
+    }
+}
+
+void sc2team_HostileWildUpdateExpansionState () {
+    int nestCount;
+    fixed now;
+
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    if (!gv_sc2team_HostileWildExpansionPending) {
+        return;
+    }
+    nestCount = sc2team_HostileWildNestCount();
+    if (nestCount > gv_sc2team_HostileWildInitialNestCount +
+        gv_sc2team_HostileWildCompletedExpansions) {
+        gv_sc2team_HostileWildCompletedExpansions += 1;
+        gv_sc2team_HostileWildExpansionPending = false;
+        gv_sc2team_HostileWildNextExpansion = now + 180.0;
+    }
+    else if (now >= gv_sc2team_HostileWildExpansionDeadline) {
+        // A blocked footprint or unreachable builder should not consume one of
+        // the three expansion slots forever.  Try a different resource area.
+        gv_sc2team_HostileWildExpansionPending = false;
+        gv_sc2team_HostileWildNextExpansion = now + 45.0;
+    }
+}
+
+// §89: 확장은 공격이 아니라 발전이므로 420초 공격 금지(active)와 분리해
+// 240초부터 허용한다(사용자: "7분 전부터 적극적인 생산과 발전").
+void sc2team_HostileWildTryExpand (point anchor, bool economyNest, fixed elapsed) {
+    unit builder;
+    point resourcePoint;
+    point buildPoint;
+    fixed now;
+
+    if (elapsed < 240.0 || !economyNest || gv_sc2team_HostileWildBuildIssued ||
+        gv_sc2team_HostileWildExpansionPending ||
+        // §88: 성장 여지 확대 — 확장 상한 3 → 6 (사용자: "다른 AI들처럼 성장").
+        gv_sc2team_HostileWildCompletedExpansions >= 6) {
+        return;
+    }
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    if (now < gv_sc2team_HostileWildNextExpansion ||
+        PlayerGetPropertyInt(15, c_playerPropMinerals) < 300) {
+        return;
+    }
+    if (sc2team_HostileWildBuilderBusy(anchor)) {
+        return;
+    }
+    builder = sc2team_HostileWildTakeBuilder(anchor);
+    resourcePoint = sc2team_HostileWildExpansionResource(anchor);
+    if (builder == null || resourcePoint == null) {
+        return;
+    }
+    // Build1 is the genuine Drone -> Hatchery command.  The resource point is
+    // only an anchor; the offset avoids trying to place the Hatchery directly
+    // on a mineral patch.
+    buildPoint = PointWithOffsetPolar(resourcePoint, RandomFixed(8.0, 13.0), RandomFixed(0.0, 360.0));
+    // §103: 확장은 원거리 이동이라 도달 불가 지점이면 90초 시한을 통째로
+    // 버리고 그동안 이 드론의 채취도 멈춘다. 발주 전에 경로를 확인한다.
+    if (!sc2team_HostileWildCanReach(builder, buildPoint)) {
+        return;
+    }
+    UnitIssueOrder(
+        builder,
+        OrderTargetingPoint(AbilityCommand("ZergBuild", 0), buildPoint),
+        c_orderQueueReplace
+    );
+    // 확장은 멀리 걸어가므로 건설 임무 도장이 특히 중요하다(채굴 재발주와
+    // 다음 틱 재발주가 둘 다 이 드론을 도중에 돌려세웠다).
+    sc2team_HostileWildMarkBuilder(builder);
+    gv_sc2team_HostileWildBuildIssued = true;
+    gv_sc2team_HostileWildExpansionPending = true;
+    gv_sc2team_HostileWildExpansionDeadline = now + 90.0;
+}
+
+int sc2team_HostileWildLocalNestCount (point anchor) {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    int unitIndex;
+    int count = 0;
+
+    hostileUnits = UnitGroup(null, 15, RegionCircle(anchor, 30.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildAnchor(currentUnit)) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+// §89.4: 매크로 해처리 판정은 반경 14의 "밀착" 앵커 수로 센다. 종전의
+// LocalNestCount(반경 30)는 이웃 선배치 둥지까지 세어 사실상 전 둥지에서
+// 발동 불가였다(v1.24.0 1차 계측: 신규 해처리 1개). 배치 오프셋도 8~12로
+// 줄여 지은 해처리가 이 반경 안에 잡히게 한다.
+int sc2team_HostileWildTightNestCount (point anchor) {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    int unitIndex;
+    int count = 0;
+
+    hostileUnits = UnitGroup(null, 15, RegionCircle(anchor, 14.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildAnchor(currentUnit)) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+// §89: 로컬 매크로 해처리를 전 경제 둥지로 확대(사용자: "기지에 해처리도 좀
+// 더 짓고 … 미친듯이 생산"). 라바가 곧 저그 생산량이므로 이것이 물량의
+// 핵심이다. 일반 경제 둥지는 밀착 앵커 2개, 알파는 5개까지, 120초부터.
+void sc2team_HostileWildTryMacroHatchery (point anchor, bool alphaNest, bool economyNest, fixed elapsed) {
+    unit builder;
+    point buildPoint;
+    order buildOrder;
+    int localTarget;
+    int attempt;
+
+    localTarget = 2;
+    if (alphaNest) {
+        localTarget = 5;
+    }
+    if ((!alphaNest && !economyNest) || elapsed < 120.0 ||
+        gv_sc2team_HostileWildBuildIssued ||
+        sc2team_HostileWildBuilderBusy(anchor) ||
+        sc2team_HostileWildTightNestCount(anchor) >= localTarget ||
+        PlayerGetPropertyInt(15, c_playerPropMinerals) < 300) {
+        return;
+    }
+    builder = sc2team_HostileWildTakeBuilder(anchor);
+    if (builder == null) {
+        return;
+    }
+    // §89.5: 배치 유효성 검증 루프. 광물 라인·기존 건물과 겹치는 지점은
+    // 발주가 조용히 소멸한다(2차 계측: 신규 해처리 0의 원인). 후보 5곳을
+    // 시도해 엔진이 유효하다고 답한 첫 지점에만 발주한다.
+    for (attempt = 0; attempt < 5; attempt += 1) {
+        buildPoint = PointWithOffsetPolar(anchor, RandomFixed(7.0, 13.0), RandomFixed(0.0, 360.0));
+        buildOrder = OrderTargetingPoint(AbilityCommand("ZergBuild", 0), buildPoint);
+        if (UnitOrderIsValid(builder, buildOrder)) {
+            UnitIssueOrder(builder, buildOrder, c_orderQueueReplace);
+            sc2team_HostileWildMarkBuilder(builder);
+            gv_sc2team_HostileWildBuildIssued = true;
+            return;
+        }
+    }
+}
+
+// Only look near a nest.  P15 should feel like a wildlife camp that reacts to
+// trespassers, not a third full-faction that hunts players across the map.
+point sc2team_HostileWildThreatPoint (point anchor, fixed radius) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    point closest;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+    int owner;
+
+    closest = null;
+    bestDistance = 0.0;
+    nearbyUnits = UnitGroup(null, c_playerAny, RegionCircle(anchor, radius), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        owner = UnitGetOwner(currentUnit);
+        if (owner < 1 || owner > 14) {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(anchor, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = UnitGetPosition(currentUnit);
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+void sc2team_HostileWildOrderHome (point anchor, point destination, int limit, bool attack,
+                                   fixed gatherRadius, fixed minDistance) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    fixed now;
+    fixed returnAfter;
+    int unitIndex;
+    int sent = 0;
+
+    // §89.9: 방어 응전에도 귀환 시각을 반드시 찍는다. 공격이동 명령은 교전
+    // 대상을 획득하면 계속 쫓아가므로, 도망치는 정찰 일꾼을 따라 상대 본진까지
+    // 원정을 가버린다(사용자 실관측: 1분부터 울트라가 AI 본진을 부숨). 게다가
+    // 7분 휴전 중에는 ManageNest가 순찰/원정 앞에서 조기 반환하므로 귀환
+    // 명령을 낼 기회 자체가 없었다 — 한 번 나간 유닛은 영영 돌아오지 않았다.
+    // RecallRaiders는 휴전 여부와 무관하게 매 틱 돌므로 여기서 도장만 찍으면
+    // 확실히 집으로 온다. 휴전 중에는 더 짧게(15초) 묶는다.
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    // §90.11: 휴전 중 귀환 15 → 8초. 공격이동은 표적을 쫓으므로 묶어 두는 시간이
+    // 곧 이동 거리다. 소집 반경도 28 → 18 로 줄여 먼 둥지의 수비대까지 끌려오지
+    // 않게 한다(사용자 실관측 "초반에 밀레 AI들 본진 쳐들어가서 깽판치네").
+    //
+    // §90.14: 소집 반경을 호출자가 정한다. 18 고정은 두 가지를 망가뜨렸다.
+    // (1) HomeCount 는 반경 28 로 세므로, 18~28 사이의 유닛은 "집에 있다"고
+    //     집계돼 습격 규모 계산에는 들어가면서 정작 어떤 명령도 받지 못했다 —
+    //     사용자 실관측 "맨 끝 구석에 병력들 다쳐박아놓고 집 털리던 말던
+    //     가만히 있네"가 정확히 이 구간이다.
+    // (2) 소집 반경이 위협 감지 반경보다 크지 않으면, 기지 가장자리 건물을
+    //     때리는 적을 감지해도 그쪽 수비대를 부를 수 없다.
+    returnAfter = 30.0;
+    if (now < 420.0) {
+        returnAfter = 8.0;
+    }
+    nearbyUnits = UnitGroup(null, 15, RegionCircle(anchor, gatherRadius), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null || sent >= limit) {
+            break;
+        }
+        if (!sc2team_IsHostileWildCombatUnit(currentUnit)) {
+            continue;
+        }
+        // §90.15: 이미 둥지 품 안에 있는 유닛은 건드리지 않는다(사용자 지시
+        // "그냥 병신같이 쳐 돌아다니는 트리거좀 없애"). 예전에는 순찰 블록이
+        // 매 틱 소집 반경 안의 "모든" 전투 유닛에게 무작위 지점으로
+        // c_orderQueueReplace 이동 명령을 쐈다. 결과가 두 가지였다.
+        // (1) 방금 침입자와 교전을 시작한 유닛도 10초마다 명령이 덮어써져
+        //     싸우다 말고 걸어나갔다 — "집 털리던 말던 가만히 있네"의 한 축.
+        // (2) 둥지 17곳 × 수비대 전원이면 틱당 수백 건의 명령이라 트리거
+        //     비용 자체가 컸다.
+        // 이제 이 호출은 "멀리 떨어진 놈만 불러들이는" 용도다. 제자리에 있는
+        // 유닛은 명령 없이 서서 자동으로 적을 획득한다.
+        if (!attack &&
+            DistanceBetweenPoints(UnitGetPosition(currentUnit), anchor) < minDistance) {
+            continue;
+        }
+        if (attack) {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingPoint(AbilityCommand("attack", 0), destination),
+                c_orderQueueReplace
+            );
+            UnitSetCustomValue(currentUnit, 27, now + returnAfter);
+        }
+        else {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingPoint(AbilityCommand("move", 0), destination),
+                c_orderQueueReplace
+            );
+        }
+        sent += 1;
+    }
+}
+
+point sc2team_HostileWildNearestEnemyBasePoint (point anchor) {
+    unitgroup mapUnits;
+    unit currentUnit;
+    point closest;
+    string unitType;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+    int owner;
+
+    closest = null;
+    bestDistance = 0.0;
+    mapUnits = UnitGroup(null, c_playerAny, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(mapUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(mapUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        owner = UnitGetOwner(currentUnit);
+        if (owner < 1 || owner > 14) {
+            continue;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (unitType != "CommandCenter" && unitType != "OrbitalCommand" &&
+            unitType != "PlanetaryFortress" && unitType != "Nexus" &&
+            unitType != "Hatchery" && unitType != "Lair" && unitType != "Hive") {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(anchor, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = UnitGetPosition(currentUnit);
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+point sc2team_HostileWildNearestNestPoint (point origin) {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    point closest;
+    fixed bestDistance;
+    fixed currentDistance;
+    int unitIndex;
+
+    closest = null;
+    bestDistance = 0.0;
+    hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (!sc2team_IsHostileWildAnchor(currentUnit)) {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(origin, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = UnitGetPosition(currentUnit);
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+void sc2team_HostileWildRecallRaiders () {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    point homePoint;
+    fixed now;
+    fixed returnAt;
+    int unitIndex;
+
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        returnAt = UnitGetCustomValue(currentUnit, 27);
+        if (returnAt <= 0.0 || returnAt > now || !sc2team_IsHostileWildCombatUnit(currentUnit)) {
+            continue;
+        }
+        homePoint = sc2team_HostileWildNearestNestPoint(UnitGetPosition(currentUnit));
+        if (homePoint != null) {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingPoint(AbilityCommand("move", 0), homePoint),
+                c_orderQueueReplace
+            );
+        }
+        UnitSetCustomValue(currentUnit, 27, 0.0);
+    }
+}
+
+void sc2team_HostileWildTryRaid (point anchor, bool economyNest, int homeCount, bool active, bool alphaNest) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    point enemyBase;
+    fixed now;
+    int unitIndex;
+    int sent = 0;
+    int sendLimit;
+
+    // The alpha nest is the one proactive P15 headquarters: it needs a larger
+    // force, sends a larger wave, and recovers for only 90 seconds.
+    if (!active || !economyNest || (alphaNest && homeCount < 12) ||
+        (!alphaNest && homeCount < 8)) {
+        return;
+    }
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    if ((alphaNest && now < gv_sc2team_HostileWildAlphaNextRaid) ||
+        (!alphaNest && now < gv_sc2team_HostileWildNextRaid) ||
+        sc2team_HostileWildThreatPoint(anchor, 24.0) != null) {
+        return;
+    }
+    enemyBase = sc2team_HostileWildNearestEnemyBasePoint(anchor);
+    if (enemyBase == null) {
+        return;
+    }
+    sendLimit = homeCount / 2;
+    if (alphaNest) {
+        sendLimit = (homeCount * 2) / 3;
+        if (sendLimit > 16) {
+            sendLimit = 16;
+        }
+    }
+    else if (sendLimit > 10) {
+        sendLimit = 10;
+    }
+    nearbyUnits = UnitGroup(null, 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null || sent >= sendLimit) {
+            break;
+        }
+        if (!sc2team_IsHostileWildCombatUnit(currentUnit)) {
+            continue;
+        }
+        UnitIssueOrder(
+            currentUnit,
+            OrderTargetingPoint(AbilityCommand("attack", 0), enemyBase),
+            c_orderQueueReplace
+        );
+        // Custom value 27 is reserved for the P15 raid return time.  It does
+        // not overlap the main-team bridge's 30/31 mission-control slots.
+        UnitSetCustomValue(currentUnit, 27, now + 60.0);
+        sent += 1;
+    }
+    if (sent >= 4) {
+        if (alphaNest) {
+            gv_sc2team_HostileWildAlphaNextRaid = now + 90.0;
+        }
+        else {
+            gv_sc2team_HostileWildNextRaid = now + 150.0;
+        }
+    }
+}
+
+void sc2team_HostileWildManageNest (point anchor, bool active) {
+    point threatPoint;
+    int homeCount;
+    int workerCount;
+    int workerTarget;
+    int workerWant;
+    int forceCount;
+    int reserve;
+    int rotation;
+    bool economyNest;
+    bool alphaNest;
+    fixed elapsed;
+    fixed threatRadius;
+    fixed gatherRadius;
+    fixed regroupDistance;
+
+    // Construction budget is per nest, not per player.  The flag used to be
+    // reset once per tick in AI_Func, so all nests competed for a single
+    // building order and the group iteration order let the same few nests win
+    // every time: 16 nests produced 2 Spawning Pools in 20 game-minutes, and
+    // every nest without a local Pool fell through to worker-only training.
+    // Resetting here gives each nest its own one-building-per-tick budget.
+    gv_sc2team_HostileWildBuildIssued = false;
+    homeCount = sc2team_HostileWildHomeCount(anchor);
+    workerCount = sc2team_HostileWildWorkerCount(anchor);
+    elapsed = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    economyNest = sc2team_HostileWildIsEconomyNest(anchor);
+    alphaNest = sc2team_HostileWildIsAlphaNest(anchor);
+    // §89.5: 일꾼 목표 6/10. §89의 12/20은 사망 보충이 매 틱 라바를 계속
+    // 소모해 병력이 굶는 원인이었다(2차 계측: 드론 신규 174 vs 병력 45).
+    // 은행이 50,000이라 채굴 수입은 부차적 — 드론은 건설·가스용 최소만.
+    // §92: 자원기지당 8기로 통일(사용자 지시 "P15의 일꾼은 자원기지당 8마리면
+    // 충분하다 어차피 보여주기식 플레이어일 뿐 이 플레이어는 자원이 트리거로
+    // 인해 무한하니"). 알파 특례(10)도 없앤다 — 채굴 수입이 목적이 아니므로
+    // 알파만 더 둘 이유가 없다. 이 목표는 광물이 있는 둥지에만 적용된다
+    // (§90.6), 즉 "자원기지당"이 그대로 단위다. 일꾼은 이 맵에서 보급 비용이
+    // 0이라 §92 의 인구 400 천장을 잠식하지 않는다.
+    workerTarget = 8;
+    // §90.11: 영역 축소(사용자 지시 "영역 크기좀 줄여 존나 자꾸 초반에 밀레 AI들
+    // 본진 쳐들어가서 깽판치네"). 위협 감지 24 → 14. 넓은 감지 반경은 지나가는
+    // 정찰 유닛까지 "침입"으로 잡아 수비대를 끌어내고, 공격이동은 표적을
+    // 쫓으므로 그대로 상대 본진까지 딸려간다.
+    //
+    // §90.14: 단, 알파(핵심 본진)만은 입구까지 제 영역이다(사용자 지시 "야생저그
+    // 본진 P1 영역을 입구쪽까지 넓혀 / 그냥 건물 공격 받으면 수비좀 제대로 하게
+    // 해"). 14 는 본진 가장자리 건물을 사거리 밖에서 때리는 적을 아예 못 봤다.
+    // §90.11 의 우려(수비대가 표적을 쫓아 원정)는 알파에서도 귀환 도장(cv27,
+    // 휴전 중 8초)과 LeashStrays 가 그대로 막는다 — 감지 반경이 아니라 그 둘이
+    // 원정을 막는 장치다.
+    //
+    // 소집 반경은 감지 반경보다 커야 한다. 그래야 감지된 적 쪽으로 기지 반대편
+    // 구석에 있던 수비대까지 실제로 불려 나온다.
+    threatRadius = 16.0;
+    gatherRadius = 20.0;
+    regroupDistance = 12.0;
+    if (alphaNest) {
+        threatRadius = 26.0;
+        gatherRadius = 32.0;
+        regroupDistance = 16.0;
+    }
+    threatPoint = sc2team_HostileWildThreatPoint(anchor, threatRadius);
+    if (economyNest) {
+        sc2team_HostileWildHarvest(anchor);
+    }
+    // Infrastructure is per-nest even for a no-mineral outpost. Its temporary
+    // construction Drone is not an economy target, so armies keep priority.
+    sc2team_HostileWildBuildEconomy(anchor, workerCount);
+    sc2team_HostileWildBuildSpineCrawler(anchor);
+    sc2team_HostileWildBuildAlphaTech(anchor, alphaNest);
+    sc2team_HostileWildTryMacroHatchery(anchor, alphaNest, economyNest, elapsed);
+    sc2team_HostileWildTryExpand(anchor, economyNest, elapsed);
+    // Larva production is real: it consumes P15's mined bank, waits for the
+    // normal train time, and obeys tech/supply requirements. Military Larvae
+    // are deliberately ahead of routine worker replacement; otherwise every
+    // Drone lost while building would stall the whole nest's army forever.
+    // 보급 선제 확보. 이 블록은 아래 훈련 체인 "밖"에 있어야 한다: 예전에는
+    // else-if 체인의 두 번째 가지라 위협 분기가 먼저 잡아먹으면 영영 도달하지
+    // 못했고, 임계값도 4라서 이미 막힌 뒤에야 반응했다. 그 결과 20게임분 계측에서
+    // 대군주 신규 생산이 0이었다. 이제 매 틱 독립적으로 돌며, 병력을 뽑기 전에
+    // 미리 여유를 만든다(사용자 지시: "인구 수 임박이면 사전에 뽑아서 병력 수급에
+    // 차질이 없도록").
+    //
+    // 16 정도의 여유를 노리는 이유: 대군주 하나가 8을 주고, 바퀴/히드라가 2씩
+    // 먹으므로 두 기 분량이면 다음 훈련 배치를 막지 않는다. 전역 상한(틱당 2)은
+    // 모든 둥지가 같은 전역 보급값에 동시 반응해 라바를 대군주로 낭비하는 것을
+    // 막는다.
+    // 상한 폐지 후 보급 수요가 크게 늘었으므로 여유 문턱 16→24, 틱당 전역 상한
+    // 2→6으로 올린다. 예전 값은 둥지 16곳이 무제한으로 뽑는 물량을 따라가지
+    // 못해 보급이 실질 상한 노릇을 하게 된다.
+    // §89: 해처리 증설로 라바 처리량이 커졌으므로 전역 상한 6→8, 여유 문턱
+    // 24→32로 함께 올린다.
+    // §90.13: 여유 문턱 32 → 48, 틱당 전역 상한 8 → 12. 인구가 병목이면 둥지
+    // 순서가 곧 생산 배분이 되어(먼저 발주한 쪽이 남은 인구를 다 가져간다)
+    // 라운드로빈을 넣어도 뒤 순번은 계속 굶는다. 대군주는 라바 1기로 인구 8을
+    // 주고 바퀴/히드라는 2씩 먹으므로 이 교환은 라바 기준으로 흑자다 —
+    // 인구가 막힌 상태가 언제나 더 나쁘다.
+    // §91.11: SuppliesLimit 은 맵 천장(800)이라 이 뺄셈은 거의 언제나 48 이상이
+    // 나온다 — 즉 이 대군주 블록은 사실상 꺼져 있었다. 실제 공급량은
+    // SuppliesMade 다. (§90 계측의 "대군주가 11 → 15 로 거의 안 늘어난다"가
+    // 이것이며, 그때는 라바 경합 탓으로 잘못 짚었다.)
+    // §92: 대군주 총량 상한(사용자 지시 "대군주는 인구 400까지 뽑을거고").
+    // 종전에는 총량 상한이 전혀 없어, 병력이 400 에서 멈춘 뒤에도 여유가 48 만
+    // 되면 계속 뽑았다. 대군주 1 기는 라바 1 개를 먹으므로 그건 그대로 병력
+    // 라바를 잡아먹는 낭비다. 448 = 병력 천장 400 + 여유 48 — 즉 "400 을
+    // 지탱할 만큼만" 이며, 대군주 50 기면 닿는다. 여기서만 SuppliesMade 를
+    // 쓰는 것이 맞다: 재려는 것이 병력 소비가 아니라 공급 능력이기 때문이다.
+    if (gv_sc2team_HostileWildOverlordsThisTick < 12 &&
+        PlayerGetPropertyInt(15, c_playerPropSuppliesMade) < 448 &&
+        PlayerGetPropertyInt(15, c_playerPropSuppliesMade) -
+        PlayerGetPropertyInt(15, c_playerPropSuppliesUsed) < 48 &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 100) {
+        gv_sc2team_HostileWildOverlordsThisTick +=
+            sc2team_HostileWildTrainLarva(anchor, 2, 1);
+    }
+    // Tech is a player-wide property in SC2, so the training gates ask whether
+    // P15 owns the structure anywhere.  Construction below is still per nest,
+    // so each nest raises its own Pool/Warren/Den; it just does not have to
+    // wait for its own to finish before it may train what P15 already unlocked.
+    // 워커 훈련은 병력보다 "먼저", 그리고 병력 블록 "밖"에 있어야 한다. 병력에
+    // 상한이 없어지면 예전의 else-if 체인 구조로는 워커 분기에 영영 도달하지
+    // 못하고, 채굴을 잃은 둥지는 결국 병력도 못 뽑는 자멸 구조가 된다.
+    // §90.6: 광물이 없는 둥지는 드론을 "상비"하지 않는다. 예전에는 이 분기가
+    // 모든 둥지에 최소 2기를 채워 넣었는데, 채취할 광물이 없으니 그 드론은
+    // 그냥 서 있기만 했다(사용자 실관측 "미네랄 필드가 없는 곳에서 드론
+    // 생산하면 걍 드론 멍때리고 있거든"). 비경제 둥지의 드론은 건설 블록이
+    // 필요할 때 한 기씩 뽑고(BuildEconomy/BuildSpineCrawler 의 builder == null
+    // 경로), 저그 드론은 건물이 될 때 소모되므로 남지 않는다 — 사용자가 말한
+    // "건물 필요할때만 생산해서 소모시키던지"가 그대로 성립한다.
+    if (economyNest && workerCount < 2 &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= 50) {
+        // 채취 가능한 둥지의 최소 워커 확보는 병력을 앞선다.
+        sc2team_HostileWildTrainLarva(anchor, 0, 2 - workerCount);
+    }
+    else if (economyNest && workerCount < workerTarget &&
+             PlayerGetPropertyInt(15, c_playerPropMinerals) >= 50) {
+        // §89.4: 보충은 틱당 2기까지만. cv28 도입 후 같은 틱은 먼저 발주한
+        // 쪽이 이기므로, 무제한 보충(목표-현재)은 라바 전체를 드론이 먹어
+        // 병력이 굶는다 — v1.24.0 1차 계측 실증: 드론 신규 162 vs 병력 23.
+        // 목표(12/20)는 유지하되 속도만 제한해 남은 라바가 병력으로 간다.
+        workerWant = workerTarget - workerCount;
+        if (workerWant > 2) {
+            workerWant = 2;
+        }
+        sc2team_HostileWildTrainLarva(anchor, 0, workerWant);
+    }
+    // 병력 상한 폐지(사용자 지시 "상한선 두지마. 계속 병력 뽑게 해").
+    // 예전에는 homeCount 가 목표치 미만일 때만 훈련했고(일반 18/24/30, 알파
+    // 30/45/60)에 닿는 순간 그 둥지가 병력 생산을 완전히 멈췄다. 선배치 병력
+    // 107기가 대부분의 둥지를 시작부터 목표 위에 올려놨기 때문에 초반 7분 내내
+    // 드론만 나왔다. 이제 실질 제약은 자원·보급·테크뿐이며, 이는 멜리 슬롯의
+    // §68 "병력 생산을 상한/동결하지 않는다" 원칙과 같다.
+    //
+    // wantCount 12는 해처리 라바 최대치보다 크므로 "남은 라바 전부"를 뜻한다.
+    // TrainLarva가 UnitOrderIsValid로 비용·보급·테크를 검사하니 큰 wantCount가
+    // 공짜 유닛을 만들지는 않는다.
+    //
+    // reserve는 생산 상한이 아니라 "지출 순서" 규칙이다: 이게 없으면 10초 훈련
+    // 틱이 매번 은행을 0으로 긁어가 산란못(200)·바퀴소굴(150)·히드라굴(100)이
+    // 영영 올라가지 못하고, 저글링만 나오는 더 약한 P15가 된다. 다만 교전 중인
+    // 둥지는 테크보다 당장의 방어가 급하므로 문턱을 유닛 값까지 낮춘다.
+    // §89.7: 지출 하한 200 → 50. 건설 블록이 같은 틱에서 병력보다 먼저 돌므로
+    // 순서가 이미 우선권이다(§87 원칙). 200은 은행이 넉넉하지 않은 국면에서
+    // 병력 훈련만 통째로 막는 벽이었다 — 드론(50)은 통과하고 병력은 못 하는
+    // 비대칭이 "드론만 뽑고 병력은 안 뽑는다"의 한 축이다.
+    reserve = 50;
+    if (threatPoint != null) {
+        reserve = 0;
+    }
+    // §92: 인구 400 상한(사용자 지시 "저그가 진짜 물량을 말도안되게 뽑던데 …
+    // 병력을 하도 안뽑아서 극단적으로 강하기 만들긴 했는데 너무 심하다.
+    // 병력 상한을 둔다. 인구 400을 상한으로 두겠다").
+    //
+    // §89 의 "상한을 전부 없앤다"를 사용자가 직접 되돌린 것이다. 그때의 문제는
+    // P15 가 병력을 **아예 못 뽑던** 것이었고(진짜 원인은 §90 의 중립 적대 →
+    // 로비 슬롯 승격), 그 상태에서 모든 캡을 지운 결과가 이제 반대편으로 넘쳤다.
+    //
+    // 막는 것은 병력뿐이다. 일꾼(위 블록)·대군주·건설은 상한과 무관하게 계속
+    // 돌아간다 — 상한에 닿았다고 경제까지 멈추면 병력이 죽어 상한 아래로
+    // 내려왔을 때 재생산할 기반이 없다. 즉 이것은 생산 동결이 아니라 천장이다.
+    //
+    // 기준은 SuppliesUsed(현재 소비 인구)다. §91.11 의 교훈대로 SuppliesLimit
+    // (맵 천장 800)이나 SuppliesMade(건물 공급량)를 쓰면 안 된다: 전자는 P15 가
+    // 800 을 채울 때까지 무의미하고, 후자는 대군주 수에 따라 상한이 출렁인다.
+    if (sc2team_HostileWildHasAnyStructure("SpawningPool") &&
+        PlayerGetPropertyInt(15, c_playerPropMinerals) >= reserve &&
+        PlayerGetPropertyInt(15, c_playerPropSuppliesUsed) < 400) {
+        // §89.14: 병력은 라바 훈련 명령으로만 나온다. §89.12에서 도입했던
+        // UnitCreate 즉시 생성(`ForceSpawn`)은 되돌렸다 — 그것은 생산이 아니라
+        // 치환이고(알도 없고 부화 시간도 없다), 애초에 그 근거였던 "P15에서는
+        // Requirements 유닛이 100% 거부된다"는 진단 자체가 틀렸다:
+        //   - §87.6/§87.7/§88.6 20분 계측 3회가 이 라바 경로로 저글링
+        //     30/61/60기, 히드라 19/26/20기, 바퀴 2/14/10기를 신규 생산했다.
+        //   - P15는 산란못(ZergBuild 3, `HaveHatchery` 요구조건)을 11~12개
+        //     지었다. 요구조건 판정이 P15에서 깨졌다면 이것부터 불가능하다.
+        //   - §89.12 프로브는 게임 시작 30초 시점 단일 표본이었다. 그때는 아직
+        //     산란못이 없으므로 `HaveSpawningPool` 불만족이 당연한 결과였고,
+        //     그것을 "영원히 거부"로 일반화한 것이 오진이었다.
+        // §89.16 (측정 확정, 미해결): P15(중립 적대)는 전투 유닛을 **어떤 경로로도
+        // 생산할 수 없다.** 라바 인덱스는 §85.6 엔진 검증값 그대로 둔다(저글링 1,
+        // 히드라 3, 울트라 6, 바퀴 9) — 인덱스가 틀린 것이 아니기 때문이다.
+        //
+        // 프로브 12판으로 배제한 것(전부 아님): 자원(광물 47,000·가스 50,000),
+        // 라바(94기 적체), 보급(여유 250+), 테크 건물(산란못 8·바퀴소굴 3·
+        // 히드라굴 1), 트리거 연산 한도, 라바 선점 충돌, 코드 도달 실패,
+        // TechTreeUnitAllow/AbilityAllow(둘 다 1 반환),
+        // TechTreeRestrictionsEnable(true/false 양방향 무효), 요구조건 속성 제거,
+        // 해처리 직접 훈련 능력.
+        //
+        // 측정된 경계선: 라바로 만들 수 있는 것은 드론과 대군주뿐이다. 저글링·
+        // 바퀴·히드라·베인링·뮤탈은 물론 마린(테란)·질럿(프로토스)·캠페인 유닛도
+        // 전부 거부된다. 이 둘은 저그가 건물 없이 시작할 때 만들 수 있는 정확히
+        // 그 두 유닛이다. 즉 엔진은 P15 를 영구히 "무건물" 상태로 취급하며,
+        // 이는 버튼 요구조건이 아니라 유닛 자체의 테크트리 가용성 문제다.
+        //
+        // UnitCreate 즉시 생성으로 우회하는 길은 사용자가 금지했다(§89.14):
+        // 알도 부화 시간도 없는 치환은 생산이 아니다. 근본 해결은 야생 저그를
+        // 중립 적대가 아니라 실제 로비 컴퓨터 슬롯으로 만드는 것이며, 그것은
+        // 팀 구성이 바뀌는 변경이므로 사용자 결정을 받아야 한다.
+        forceCount = 12;
+        if (alphaNest) {
+            forceCount = 24;
+        }
+        rotation = gv_sc2team_HostileWildTickCounter - (gv_sc2team_HostileWildTickCounter / 3) * 3;
+        if (alphaNest && sc2team_HostileWildHasStructure(anchor, "UltraliskCavern")) {
+            sc2team_HostileWildTrainLarva(anchor, 6, 2);
+        }
+        if (rotation == 0 && sc2team_HostileWildHasAnyStructure("HydraliskDen")) {
+            sc2team_HostileWildTrainLarva(anchor, 3, forceCount);
+        }
+        else if (rotation == 1 && sc2team_HostileWildHasAnyStructure("RoachWarren")) {
+            sc2team_HostileWildTrainLarva(anchor, 9, forceCount);
+        }
+        // 남은 라바는 전부 저글링으로. 상한은 라바뿐이다.
+        sc2team_HostileWildTrainLarva(anchor, 1, forceCount);
+    }
+    // §90.7: 랠리 지역화는 생산 "뒤"에 둔다. 앞에 두면 둥지 루프 연산이 커져
+    // 병력 블록이 잘린다(측정: 병력 6분간 +5). 갱신 자체도 60초에 한 번이다.
+    sc2team_HostileWildSetRally(anchor, sc2team_HostileWildAnchorUnit(anchor));
+    if (threatPoint != null) {
+        // The seven-minute rule blocks proactive raids only. A player who
+        // enters a nest's own territory is immediately met by its nearby
+        // Zerg garrison, including during the opening.
+        sc2team_HostileWildOrderHome(anchor, threatPoint, 999, true, gatherRadius, 0.0);
+        return;
+    }
+    // The opening is otherwise quiet: no patrol or proactive attack command
+    // before the seven-minute mark.
+    if (!active) {
+        return;
+    }
+    // §90.15: 무작위 순찰 삭제(사용자 지시 "그냥 병신같이 쳐 돌아다니는 트리거좀
+    // 없애"). 예전에는 매 틱 anchor 주변 4~8 거리의 무작위 지점을 뽑아 수비대
+    // 전원을 그리로 이동시켰다 — 유닛이 한자리에 서 있질 못하고, 교전 중이던
+    // 유닛까지 명령이 덮어써졌다.
+    //
+    // 남는 것은 "집합" 기능뿐이다: 둥지에서 12(알파는 16) 넘게 떨어진 유닛만
+    // 불러들이고, 품 안의 유닛은 명령 없이 제자리를 지킨다. 이렇게 해야 구석에
+    // 박힌 병력도 회수되면서(§90.14) 배회는 사라진다.
+    sc2team_HostileWildOrderHome(anchor, anchor, 999, false, gatherRadius, regroupDistance);
+    sc2team_HostileWildTryRaid(anchor, economyNest, homeCount, active, alphaNest);
+}
+
+// §88: 지점 주변(반경 20)에 P15 앵커(해처리/레어/군락)가 건설 중 포함으로
+// 하나라도 있는지. 복구 성공 판정과 복구 대상 선정에 함께 쓴다.
+bool sc2team_HostileWildAnchorWithin (point center, fixed radius) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    int unitIndex;
+
+    nearbyUnits = UnitGroup(null, 15, RegionCircle(center, radius), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAll);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildAnchor(currentUnit)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool sc2team_HostileWildAnchorNearPoint (point center) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+    int unitIndex;
+
+    nearbyUnits = UnitGroup(null, 15, RegionCircle(center, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAll);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildAnchor(currentUnit)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// §88: 살아있는 앵커 위치를 기억 목록에 넣는다(반경 20 중복 제거). 초기 배치
+// 16곳 + 이후 확장/매크로 해처리로 생긴 자리가 전부 복구 대상이 된다.
+void sc2team_HostileWildRememberNests () {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    point anchorPoint;
+    int unitIndex;
+    int memoryIndex;
+    bool known;
+
+    hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (!sc2team_IsHostileWildAnchor(currentUnit)) {
+            continue;
+        }
+        if (gv_sc2team_HostileWildNestMemoryCount >= 48) {
+            return;
+        }
+        anchorPoint = UnitGetPosition(currentUnit);
+        known = false;
+        for (memoryIndex = 0; memoryIndex < gv_sc2team_HostileWildNestMemoryCount; memoryIndex += 1) {
+            if (DistanceBetweenPoints(anchorPoint, gv_sc2team_HostileWildNestMemory[memoryIndex]) < 20.0) {
+                known = true;
+                break;
+            }
+        }
+        if (!known) {
+            gv_sc2team_HostileWildNestMemory[gv_sc2team_HostileWildNestMemoryCount] = anchorPoint;
+            gv_sc2team_HostileWildNestMemoryCount += 1;
+        }
+    }
+}
+
+unit sc2team_HostileWildGlobalNearestDrone (point target) {
+    unitgroup workers;
+    unit currentUnit;
+    unit closest;
+    fixed bestDistance;
+    fixed currentDistance;
+    fixed now;
+    int unitIndex;
+
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    closest = null;
+    bestDistance = 0.0;
+    workers = UnitGroup("Drone", 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(workers, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(workers, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        // §89.4: cv29 = 복구 차출 만료 시각. 이미 다른 복구에 차출된 드론을
+        // 두 번째 복구가 다시 잡아 첫 명령을 덮어쓰는 것을 막는다.
+        if (UnitGetCustomValue(currentUnit, 29) > now) {
+            continue;
+        }
+        currentDistance = DistanceBetweenPoints(target, UnitGetPosition(currentUnit));
+        if (closest == null || currentDistance < bestDistance) {
+            closest = currentUnit;
+            bestDistance = currentDistance;
+        }
+    }
+    return closest;
+}
+
+// §88: 파괴된 둥지 복구(사용자: "파괴되고 나서 그냥 가만히 있는다"). 기억된
+// 자리 중 앵커가 사라진 곳에 가장 가까운 드론을 보내 해처리를 재건한다.
+// 알파(1시) 자리가 최우선. 전역 1건씩 진행하며 180초 안에 건설이 시작되지
+// 않으면 실패로 보고 다음 틱에 다시 고른다(드론 사망·경로 봉쇄 대비).
+// §89.4: 복구 후보 지점이 이미 다른 복구 슬롯에서 진행 중인지.
+bool sc2team_HostileWildRebuildPending (point candidate) {
+    int slotIndex;
+
+    for (slotIndex = 0; slotIndex < 2; slotIndex += 1) {
+        if (gv_sc2team_HostileWildRebuildPoint[slotIndex] != null &&
+            DistanceBetweenPoints(gv_sc2team_HostileWildRebuildPoint[slotIndex], candidate) < 20.0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void sc2team_HostileWildTryRebuildNest () {
+    unit builder;
+    unit fallbackAnchor;
+    unitgroup hostileUnits;
+    point rebuildTarget;
+    point buildPoint;
+    fixed now;
+    int unitIndex;
+    int memoryIndex;
+    int slotIndex;
+    int freeSlot;
+
+    now = TimerGetElapsed(gv_sc2team_HostileWildTimer);
+    freeSlot = -1;
+    for (slotIndex = 0; slotIndex < 2; slotIndex += 1) {
+        if (gv_sc2team_HostileWildRebuildPoint[slotIndex] != null &&
+            (sc2team_HostileWildAnchorNearPoint(gv_sc2team_HostileWildRebuildPoint[slotIndex]) ||
+             now >= gv_sc2team_HostileWildRebuildDeadline[slotIndex])) {
+            // 건설이 시작됐거나(건설 중 포함) 마감 초과 — 슬롯을 비운다.
+            gv_sc2team_HostileWildRebuildPoint[slotIndex] = null;
+        }
+        if (gv_sc2team_HostileWildRebuildPoint[slotIndex] == null) {
+            freeSlot = slotIndex;
+        }
+    }
+    if (freeSlot < 0 || PlayerGetPropertyInt(15, c_playerPropMinerals) < 300) {
+        return;
+    }
+    rebuildTarget = null;
+    if (gv_sc2team_HostileWildAlphaPoint != null &&
+        !sc2team_HostileWildAnchorNearPoint(gv_sc2team_HostileWildAlphaPoint) &&
+        !sc2team_HostileWildRebuildPending(gv_sc2team_HostileWildAlphaPoint)) {
+        rebuildTarget = gv_sc2team_HostileWildAlphaPoint;
+    }
+    else {
+        // §89.5: 기억 순서가 아니라 생존 둥지에 붙은 지점부터 복구한다. 먼
+        // 지점부터 고치면 드론이 12개 AI 군대 사이를 행군하다 죽는다.
+        //
+        // §89.7 성능: 종전 구현은 기억 지점(최대 48)마다 NearestNestPoint —
+        // 전체 맵 유닛 스캔 — 을 돌렸다. 유닛 1,000기 규모에서 틱당 수만 회
+        // 순회이고, Galaxy 트리거가 연산 한도로 중단되면 이 함수 뒤에 오는
+        // 둥지 관리 루프(생산 전체)가 통째로 실행되지 않는다. 반경 45 영역
+        // 질의로 바꿔 비용을 상수로 묶는다. 첫 후보에서 즉시 종료한다.
+        for (memoryIndex = 0; memoryIndex < gv_sc2team_HostileWildNestMemoryCount; memoryIndex += 1) {
+            if (sc2team_HostileWildAnchorNearPoint(gv_sc2team_HostileWildNestMemory[memoryIndex]) ||
+                sc2team_HostileWildRebuildPending(gv_sc2team_HostileWildNestMemory[memoryIndex])) {
+                continue;
+            }
+            if (rebuildTarget == null) {
+                // 이웃이 없어도 최후의 보루로 하나는 쥐고 있는다.
+                rebuildTarget = gv_sc2team_HostileWildNestMemory[memoryIndex];
+            }
+            if (sc2team_HostileWildAnchorWithin(gv_sc2team_HostileWildNestMemory[memoryIndex], 45.0)) {
+                rebuildTarget = gv_sc2team_HostileWildNestMemory[memoryIndex];
+                break;
+            }
+        }
+    }
+    if (rebuildTarget == null) {
+        return;
+    }
+    builder = sc2team_HostileWildGlobalNearestDrone(rebuildTarget);
+    if (builder == null) {
+        // 드론이 한 기도 없으면 살아있는 아무 둥지에서 드론부터 훈련한다.
+        hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+        for (;; unitIndex -= 1) {
+            fallbackAnchor = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+            if (fallbackAnchor == null) {
+                break;
+            }
+            if (sc2team_IsHostileWildAnchor(fallbackAnchor)) {
+                sc2team_HostileWildTrainLarva(UnitGetPosition(fallbackAnchor), 0, 1);
+                return;
+            }
+        }
+        return;
+    }
+    // 원래 자리 주변 약간의 무작위 오프셋 — 잔해/유닛이 정확한 옛 footprint를
+    // 막고 있어도 재시도마다 다른 지점을 노린다.
+    buildPoint = PointWithOffsetPolar(rebuildTarget, RandomFixed(0.0, 4.0), RandomFixed(0.0, 360.0));
+    // §103: 재건은 살아남은 둥지에서 먼 자리로 걸어가는 경로다(§89: 원거리
+    // 재건 행군은 그 자체로 실패율이 높다). 갈 수 없는 자리면 이 슬롯을
+    // 붙잡지 말고 다음 주기에 다른 후보를 고르게 둔다.
+    if (!sc2team_HostileWildCanReach(builder, buildPoint)) {
+        return;
+    }
+    UnitIssueOrder(
+        builder,
+        OrderTargetingPoint(AbilityCommand("ZergBuild", 0), buildPoint),
+        c_orderQueueReplace
+    );
+    // §89.4: 차출 드론에 만료 시각을 찍어 다른 복구가 같은 드론을 재차출해
+    // 이 명령을 덮어쓰지 않게 한다.
+    UnitSetCustomValue(builder, 29, now + 120.0);
+    gv_sc2team_HostileWildRebuildPoint[freeSlot] = rebuildTarget;
+    gv_sc2team_HostileWildRebuildDeadline[freeSlot] = now + 120.0;
+}
+
+// §89.9: 7분 휴전 중 이탈 유닛 회수. 사용자 실관측 — 1분부터 울트라리스크가
+// 정찰 일꾼을 따라 상대 본진까지 가서 AI를 부쉈다. 공격이동은 대상을 획득하면
+// 계속 쫓아가고, 휴전 중에는 ManageNest가 순찰 구간 앞에서 조기 반환하므로
+// 아무도 그들을 불러들이지 않았다. 둥지 품(반경 28) 안에서 이번 틱에 보이지
+// 않은 전투 유닛은 전부 집으로 되돌린다. 대상이 적으므로 최근접 둥지 탐색
+// 비용도 실질적으로 무시할 수 있다.
+void sc2team_HostileWildLeashStrays () {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    point homePoint;
+    fixed thisTick;
+    int unitIndex;
+
+    thisTick = IntToFixed(gv_sc2team_HostileWildTickCounter);
+    hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (UnitGetCustomValue(currentUnit, 24) == thisTick) {
+            continue;
+        }
+        if (!sc2team_IsHostileWildCombatUnit(currentUnit)) {
+            continue;
+        }
+        homePoint = sc2team_HostileWildNearestNestPoint(UnitGetPosition(currentUnit));
+        if (homePoint != null) {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingPoint(AbilityCommand("move", 0), homePoint),
+                c_orderQueueReplace
+            );
+            UnitSetCustomValue(currentUnit, 27, 0.0);
+        }
+    }
+}
+
+bool sc2team_HostileWildAI_Func (bool testConds, bool runActions) {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    point anchorPoint;
+    int unitIndex;
+    int ordinal;
+    int nestTotal;
+    bool active;
+
+    if (!runActions) {
+        return true;
+    }
+    active = TimerGetElapsed(gv_sc2team_HostileWildTimer) >= 420.0;
+    gv_sc2team_HostileWildTickCounter += 1;
+    // §89.8: 은행 자동 보충. P15는 로비 슬롯이 아니라 자원 수입이 사실상 없는
+    // 야생 진영이고(추출장 0개 = 가스 0), 초기 50,000 일괄 지급은 §89의
+    // 대량 지출(드론·해처리·확장·가시촉수)에 말라붙는다. 그러면 드론(50)은
+    // 통과하는데 산란못(200)은 될락말락하고 병력 하한은 항상 실패하는
+    // 비대칭이 생긴다 — 사용자 실관측 그대로다. 매 틱 바닥을 받쳐 자원 축을
+    // 원인 후보에서 완전히 제거한다. 가스도 같이 받쳐야 바퀴·히드라 명령이
+    // 유효해진다(가스 0이면 UnitOrderIsValid가 거짓 = 조용한 무동작).
+    if (PlayerGetPropertyInt(15, c_playerPropMinerals) < 20000) {
+        PlayerModifyPropertyInt(15, c_playerPropMinerals, c_playerPropOperAdd, 30000);
+    }
+    if (PlayerGetPropertyInt(15, c_playerPropVespene) < 20000) {
+        PlayerModifyPropertyInt(15, c_playerPropVespene, c_playerPropOperAdd, 30000);
+    }
+    // SC2TEAM_BANK_PROBE_BEGIN
+    // SC2TEAM_BANK_PROBE_END
+    gv_sc2team_HostileWildBuildIssued = false;
+    // 대군주 전역 상한은 틱 단위다(건설 예산과 달리 둥지별이 아니다 — 보급 자체가
+    // 플레이어 전역 자원이므로 둥지마다 따로 채울 이유가 없다).
+    gv_sc2team_HostileWildOverlordsThisTick = 0;
+    sc2team_HostileWildRecallRaiders();
+    sc2team_HostileWildUpdateExpansionState();
+    // §88: 둥지 기억 갱신 → 파괴된 자리 복구(알파 최우선).
+    sc2team_HostileWildRememberNests();
+    sc2team_HostileWildTryRebuildNest();
+    // §90.13: 생산 순서 = 알파(핵심 본진) 최우선 → 나머지는 라운드로빈.
+    //
+    // 보급은 플레이어 전역 값이고 forceCount 는 "남은 라바 전부"이므로, 한 틱
+    // 안에서 먼저 발주한 둥지가 그때 열려 있는 인구를 통째로 가져간다. 예전
+    // 루프는 유닛 그룹 순서(= 생성 순서)를 그대로 따라 선배치 부화장의 에디터
+    // 배치 순서가 영구 우선순위가 됐고, 목록 선두인 (89.5, 7.5)·(83.5, 16.5)
+    // 두 곳만 병력을 뽑았다(사용자 실관측). 알파는 대군주 블록이 병력 블록보다
+    // 앞이라 인구가 막힌 동안 대군주만 나왔다 — "정작 본진에서는 대군주만
+    // 생성하고"가 이것이다.
+    //
+    // 알파는 루프 밖에서 먼저 돌린다(추가 순회 비용 0). 나머지는 커서를 매 틱
+    // 한 칸 밀어 첫 순번을 돌린다.
+    //
+    // 회전은 반드시 좌표 배열 위에서 해야 한다. 처음에는 유닛 그룹을 두 번
+    // (커서 이후 / 커서 이전) 훑었는데, 유닛이 늘자 100초 만에 생산이 죽었다
+    // — 6게임분 계측에서 병력 104→120(직전 버전 104→187), 알이 내내 0~2,
+    // 그런데 루프 밖에서 도는 알파만 계속 생산했다. §90.7 과 같은 연산 한도
+    // 초과이고, 커서가 커질수록 더 많은 둥지가 두 번째 순회로 밀리므로 시간이
+    // 갈수록 나빠지는 구조였다. 지금은 그룹을 한 번만 훑어 좌표만 모으고,
+    // 회전은 최대 48칸 배열에서 한다(원래 비용과 사실상 같다).
+    //
+    // 둥지별 발주량에는 손대지 않는다 — P15 병력 생산에 상한을 두지 않는다는
+    // §89 원칙 그대로다. 바뀌는 것은 "누가 먼저 가져가느냐"의 공평성뿐이다.
+    gv_sc2team_HostileWildNestListCount = 0;
+    hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildAnchor(currentUnit) &&
+            gv_sc2team_HostileWildNestListCount < 48) {
+            gv_sc2team_HostileWildNestList[gv_sc2team_HostileWildNestListCount] =
+                UnitGetPosition(currentUnit);
+            gv_sc2team_HostileWildNestListCount += 1;
+        }
+    }
+    if (gv_sc2team_HostileWildAlphaPoint != null) {
+        sc2team_HostileWildManageNest(gv_sc2team_HostileWildAlphaPoint, active);
+    }
+    nestTotal = gv_sc2team_HostileWildNestListCount;
+    if (gv_sc2team_HostileWildNestCursor >= nestTotal) {
+        gv_sc2team_HostileWildNestCursor = 0;
+    }
+    ordinal = 0;
+    for (; ordinal < nestTotal; ordinal += 1) {
+        unitIndex = gv_sc2team_HostileWildNestCursor + ordinal;
+        if (unitIndex >= nestTotal) {
+            unitIndex -= nestTotal;
+        }
+        anchorPoint = gv_sc2team_HostileWildNestList[unitIndex];
+        // 알파 본체만 건너뛴다. 알파 반경 안의 다른 부화장은 여전히 제 몫의
+        // ManageNest 를 받아야 한다 — TrainLarva 의 라바 수색 반경은 20 이라
+        // 그보다 멀리 있는 부화장의 라바는 알파 호출이 못 덮는다.
+        if (gv_sc2team_HostileWildAlphaPoint == null ||
+            DistanceBetweenPoints(anchorPoint, gv_sc2team_HostileWildAlphaPoint) > 3.0) {
+            sc2team_HostileWildManageNest(anchorPoint, active);
+        }
+    }
+    gv_sc2team_HostileWildNestCursor += 1;
+    if (gv_sc2team_HostileWildNestCursor >= nestTotal) {
+        gv_sc2team_HostileWildNestCursor = 0;
+    }
+    // 둥지 관리가 끝난 뒤에 돌려야 이번 틱의 "집에 있음" 도장이 반영된다.
+    if (!active) {
+        sc2team_HostileWildLeashStrays();
+    }
+    return true;
+}
+
+void sc2team_InitializeHostileWildAI () {
+    gv_sc2team_HostileWildTimer = TimerCreate();
+    TimerStart(gv_sc2team_HostileWildTimer, 1000000.0, false, c_timeGame);
+    gv_sc2team_HostileWildBuildIssued = false;
+    gv_sc2team_HostileWildOverlordsThisTick = 0;
+    // The seven-minute truce is the only proactive-attack delay.
+    gv_sc2team_HostileWildNextRaid = 420.0;
+    gv_sc2team_HostileWildAlphaPoint = sc2team_HostileWildFindAlphaPoint();
+    gv_sc2team_HostileWildAlphaNextRaid = 420.0;
+    gv_sc2team_HostileWildInitialNestCount = sc2team_HostileWildNestCount();
+    gv_sc2team_HostileWildCompletedExpansions = 0;
+    gv_sc2team_HostileWildExpansionPending = false;
+    gv_sc2team_HostileWildExpansionDeadline = 0.0;
+    gv_sc2team_HostileWildNextExpansion = 240.0;
+    // §88: 초기 둥지 위치를 복구 기억에 등록한다. (§89.4: 복구 슬롯 2개)
+    gv_sc2team_HostileWildNestMemoryCount = 0;
+    gv_sc2team_HostileWildRebuildPoint[0] = null;
+    gv_sc2team_HostileWildRebuildPoint[1] = null;
+    gv_sc2team_HostileWildRebuildDeadline[0] = 0.0;
+    gv_sc2team_HostileWildRebuildDeadline[1] = 0.0;
+    gv_sc2team_HostileWildTickCounter = 0;
+    gv_sc2team_HostileWildNestCursor = 0;
+    gv_sc2team_HostileWildNestListCount = 0;
+    sc2team_HostileWildRememberNests();
+    // P15 has no lobby start package.  Give it the requested 50,000/50,000
+    // starting bank, then still route all construction and unit creation
+    // through its real Drone/Larva abilities rather than instant spawning.
+    PlayerModifyPropertyInt(15, c_playerPropMinerals, c_playerPropOperAdd, 50000);
+    PlayerModifyPropertyInt(15, c_playerPropVespene, c_playerPropOperAdd, 50000);
+    // Neutral Hostile does not receive the normal lobby Zerg race setup.  Make
+    // every P15 unit/build command used by the wildlife controller explicit;
+    // their real prerequisites, costs, Larvae, supply, and build times still
+    // stay enforced by the engine.
+    TechTreeUnitAllow(15, "Drone", true);
+    TechTreeUnitAllow(15, "Zergling", true);
+    TechTreeUnitAllow(15, "Overlord", true);
+    TechTreeUnitAllow(15, "Roach", true);
+    TechTreeUnitAllow(15, "Hydralisk", true);
+    TechTreeUnitAllow(15, "SpawningPool", true);
+    TechTreeUnitAllow(15, "Extractor", true);
+    TechTreeUnitAllow(15, "RoachWarren", true);
+    TechTreeUnitAllow(15, "HydraliskDen", true);
+    TechTreeUnitAllow(15, "Hatchery", true);
+    TechTreeUnitAllow(15, "SpineCrawler", true);
+    // §88: 알파 테크 진화 체인(레어→감염 구덩이→군락→울트라 굴→울트라리스크).
+    TechTreeUnitAllow(15, "Lair", true);
+    TechTreeUnitAllow(15, "Hive", true);
+    TechTreeUnitAllow(15, "InfestationPit", true);
+    TechTreeUnitAllow(15, "UltraliskCavern", true);
+    TechTreeUnitAllow(15, "Ultralisk", true);
+    TechTreeAbilityAllow(15, AbilityCommand("LarvaTrain", 0), true);
+    TechTreeAbilityAllow(15, AbilityCommand("LarvaTrain", 1), true);
+    TechTreeAbilityAllow(15, AbilityCommand("LarvaTrain", 2), true);
+    TechTreeAbilityAllow(15, AbilityCommand("LarvaTrain", 3), true);
+    TechTreeAbilityAllow(15, AbilityCommand("LarvaTrain", 6), true);
+    TechTreeAbilityAllow(15, AbilityCommand("LarvaTrain", 9), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 0), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 2), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 3), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 5), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 7), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 8), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 13), true);
+    TechTreeAbilityAllow(15, AbilityCommand("ZergBuild", 14), true);
+    TechTreeAbilityAllow(15, AbilityCommand("UpgradeToLair", 0), true);
+    TechTreeAbilityAllow(15, AbilityCommand("UpgradeToHive", 0), true);
+    gt_sc2team_HostileWildAI = TriggerCreate("sc2team_HostileWildAI_Func");
+    TriggerAddEventTimePeriodic(gt_sc2team_HostileWildAI, 10.0, c_timeGame);
+}
+

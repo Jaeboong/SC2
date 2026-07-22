@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CUnit id="Zealot">
+        <AbilArray Link="AlarakZealotFrenziedOverload"/>
+        <CardLayouts index="0">
+            <LayoutButtons Face="AlarakZealotFrenziedOverload" Type="AbilCmd" AbilCmd="AlarakZealotFrenziedOverload,Execute" Row="2" Column="1"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="Stalker">
+        <AbilArray Link="BlinkSlayer"/>
+        <CardLayouts index="0">
+            <LayoutButtons index="6" Face="Blink" AbilCmd="BlinkSlayer,Execute"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="Sentry">
+        <AbilArray Link="ObserverTargetLock"/>
+        <AbilArray Link="ForceFieldMonitor"/>
+        <CardLayouts index="0">
+            <LayoutButtons Face="TargetLock" Type="AbilCmd" AbilCmd="ObserverTargetLock,Execute" Row="2" Column="0"/>
+            <LayoutButtons Face="SentryTaldarimForceField" Type="AbilCmd" AbilCmd="ForceFieldMonitor,Execute" Row="2" Column="1"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="HighTemplar">
+        <AbilArray index="2" Link="VoidHighTemplarMindBlast"/>
+        <AbilArray index="6" Link="VoidHighTemplarPsiOrb"/>
+        <AbilArray index="7" Link="AscendantSacrifice"/>
+        <CardLayouts index="0">
+            <LayoutButtons index="7" Face="VoidHighTemplarPsiOrb" AbilCmd="VoidHighTemplarPsiOrb,Execute" Column="0"/>
+            <LayoutButtons index="8" Face="VoidHighTemplarMindBlast" AbilCmd="VoidHighTemplarMindBlast,Execute"/>
+            <LayoutButtons index="9" Face="AscendantSacrifice" AbilCmd="AscendantSacrifice,Execute" Column="2"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="VoidHighTemplarPsiOrbMissile" parent="MISSILE_INVULNERABLE">
+        <Race value="Prot"/><Mover value="MissileDefault"/>
+    </CUnit>
+</Catalog>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CEffectSet id="TorrasqueFakeTimer">
+    <EditorCategories value="Race:Zerg" />
+  </CEffectSet>
+  <CEffectIssueOrder id="TorrasqueFakeTimerIssueOrder">
+    <EditorCategories value="Race:Zerg" />
+    <Abil value="TorrasqueFakeTimer" />
+    <WhichUnit Value="Source" />
+    <CmdFlags index="Preempt" value="1" />
+  </CEffectIssueOrder>
+  <CEffectCreatePersistent id="TorrasqueFakeTimerIssueOrderDelayPersistent">
+    <EditorCategories value="Race:Zerg" />
+    <WhichLocation Value="SourceUnit" />
+    <!--TimeScaleSource Value="Caster"/-->
+    <ExpireEffect value="TorrasqueFakeTimerIssueOrder" />
+    <PeriodCount value="1" />
+    <PeriodicPeriodArray value="0.1" />
+  </CEffectCreatePersistent>
+  <CEffectApplyBehavior id="TorrasqueCorpseApplyDeathBehavior">
+    <EditorCategories value="Race:Zerg" />
+    <WhichUnit Value="Caster" />
+    <Behavior value="TorrasqueDontDie" />
+  </CEffectApplyBehavior>
+  <CEffectSet id="TorrasqueCorpseRevive">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="TorrasqueCorpseApplyTimerBehavior" />
+    <EffectArray value="TorrasqueFakeTimerIssueOrderDelayPersistent" />
+    <EffectArray value="PostMorphHeal" />
+  </CEffectSet>
+  <CEffectApplyBehavior id="TorrasqueCorpseApplyTimerBehavior">
+    <EditorCategories value="Race:Zerg" />
+    <Behavior value="TorrasqueTimerBehavior" />
+  </CEffectApplyBehavior>
+  <CEffectRemoveBehavior id="TorrasqueCorpseRemoveDeathBehavior">
+    <EditorCategories value="Race:Zerg" />
+    <WhichUnit Value="Caster" />
+    <BehaviorLink value="TorrasqueDontDie" />
+  </CEffectRemoveBehavior>
+  <CEffectSet id="TorrasqueCorpseSet">
+    <EditorCategories value="Race:Zerg" />
+    <EffectArray value="PostMorphHeal" />
+    <EffectArray value="TorrasqueCorpseDelayPersistent" />
+  </CEffectSet>
+  <CEffectCreatePersistent id="TorrasqueCorpseDelayPersistent">
+    <EditorCategories value="Race:Zerg" />
+    <WhichLocation Value="CasterUnit" />
+    <!--TimeScaleSource Value="Caster"/-->
+    <ExpireEffect value="TorrasqueCorpseIssueOrder" />
+    <PeriodCount value="1" />
+    <PeriodicPeriodArray value="0.1" />
+  </CEffectCreatePersistent>
+  <CEffectIssueOrder id="TorrasqueCorpseIssueOrder">
+    <EditorCategories value="Race:Zerg" />
+    <WhichUnit Value="Caster" />
+    <Abil value="TorrasqueChrysalis" />
+    <!--CmdFlags index="Queued" value="1"/-->
+  </CEffectIssueOrder>
+  <CEffectIssueOrder id="TorrasqueCorpse">
+    <EditorCategories value="Race:Zerg" />
+    <Abil value="TorrasqueCorpse" />
+    <WhichUnit Value="Source" />
+    <CmdFlags index="Preempt" value="1" />
+  </CEffectIssueOrder>
+</Catalog>

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CModel id="HotSTorrasque" parent="Unit" Race="Zerg">
+    <Model value="Assets\Units\Zerg\UltraliskEx1B\UltraliskEx1B.m3" />
+    <RequiredAnims value="Assets\Units\Zerg\UltraliskEx1_RequiredAnims\UltraliskEx1_RequiredAnims.m3a" />
+    <Occlusion value="Show" />
+    <ScaleMax value="0.950000,0.950000,0.950000" />
+    <ScaleMin value="0.950000,0.950000,0.950000" />
+    <SelectionRadius value="1.176200" />
+    <Tipability value="0.750000" />
+    <TipabilityWidth value="1.000000" />
+    <TipabilityLength value="1.000000" />
+    <Radius value="1.250000" />
+    <SquibTypeDefault value="Flesh" />
+    <TechPurchaseCamera value="Star2CameraHigh13" />
+    <UnitGlossaryCamera value="Star2CameraHigh13" />
+    <PlanetPanelCamera value="Star2CameraHigh13" />
+    <ShadowRadius value="1.176200" />
+    <Events>
+      <Anim value="Attack,00" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.010000" />
+    </Events>
+    <Events>
+      <Anim value="Attack,00" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.160000" />
+    </Events>
+    <Events>
+      <Anim value="Attack,01" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.040000" />
+    </Events>
+    <Events>
+      <Anim value="Attack,01" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.160000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,A" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.020000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,A" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.190000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,00" />
+      <Name value="UltraliskHeadAttack" />
+      <Type value="Sound" />
+      <Time value="0.550000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,00" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.350000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,00" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.490000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,01" />
+      <Name value="UltraliskHeadAttack" />
+      <Type value="Sound" />
+      <Time value="0.450000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,01" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.400000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,01" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.490000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,D" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.020000" />
+    </Events>
+    <Events>
+      <Anim value="Spell,D" />
+      <Name value="UltraliskAttack" />
+      <Type value="Sound" />
+      <Time value="0.190000" />
+    </Events>
+  </CModel>
+  <CModel id="TorrasqueCorpse" parent="UnitDeath" Race="Zerg">
+    <Model value="Assets\Units\Test\InvisibleUnit\InvisibleUnit.m3" />
+    <!--Model value="Assets\Units\Zerg\UltraliskEx1BDeath\UltraliskEx1BDeath.m3"/-->
+    <Occlusion value="Show" />
+    <!--LowQualityModel value="ZergLargeUnitDeathLow"/-->
+  </CModel>
+  <CModel id="TorrasqueCorpseExplosion" parent="UnitDeath" Race="Zerg">
+    <Model value="Assets\Units\Zerg\UltraliskEx1BDeath\UltraliskEx1BDeath.m3" />
+    <Occlusion value="Show" />
+    <LowQualityModel value="ZergLargeUnitDeathLow" />
+    <ScaleMax value="0.950000,0.950000,0.950000" />
+    <ScaleMin value="0.950000,0.950000,0.950000" />
+    <SelectionRadius value="1.176200" />
+    <Tipability value="0.750000" />
+    <TipabilityWidth value="1.000000" />
+    <TipabilityLength value="1.000000" />
+    <Radius value="1.250000" />
+    <SquibTypeDefault value="Flesh" />
+  </CModel>
+  <CModel id="TorrasqueChrysalis" parent="Unit" Race="Zerg">
+    <Model value="Assets\Units\Zerg\UltraliskEx1Egg\UltraliskEx1Egg.m3" />
+    <Occlusion value="Show" />
+    <SelectionLayer value="2" />
+    <SquibTypeDefault value="Flesh" />
+    <SelectionRadius value="0.750000" />
+    <ShadowRadius value="0.750000" />
+  </CModel>
+  <CModel id="TorrasquePortrait" parent="Portrait" Race="Zerg">
+    <Model value="Assets\Portraits\Zerg\UltraliskPortrait\UltraliskPortrait.m3" />
+    <Image value="Assets\Textures\UltraliskPortrait_Static.dds" />
+  </CModel>
+</Catalog>

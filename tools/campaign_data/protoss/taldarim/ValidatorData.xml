@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CValidatorUnitCompareDamageDealtTime id="AlarakCasterRecentlyDealtDamage">
+        <WhichUnit Value="Caster" />
+        <Compare value="LT" />
+        <Value value="0.0625" />
+    </CValidatorUnitCompareDamageDealtTime>
+    <CValidatorCombine id="MonitorTargetLockChecks">
+        <Type value="And" />
+        <CombineArray value="CasterNotDead" />
+        <CombineArray value="CasterNotStunned" />
+        <CombineArray value="TargetNotDead" />
+        <CombineArray value="MonitorTargetLockRangeCheck" />
+        <CombineArray value="HiddenCompareAB" />
+        <CombineArray value="HiddenCompareBA" />
+        <CombineArray value="NotInvulnerable" />
+    </CValidatorCombine>
+    <CValidatorUnitCompareBehaviorCount id="NotHaveTargetLock">
+        <Behavior value="ObserverTargetLock" />
+        <ResultFailed value="Error,Error\TargetLock" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="CasterNotMaxTargetLocks">
+        <Behavior value="ObserverTargetLockCaster" />
+        <Compare value="LT" />
+        <Value value="2" />
+        <WhichUnit Value="Caster" />
+        <ResultFailed value="Error,Error\TooManyLockTargets" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorLocationCompareRange id="MonitorTargetLockRangeCheck">
+        <ResultFailed value="TargetIsOutOfRange" />
+        <WhichLocation Value="CasterUnit" />
+        <Compare value="LT" />
+        <Range value="10" />
+        <Value Value="TargetUnit" />
+    </CValidatorLocationCompareRange>
+</Catalog>

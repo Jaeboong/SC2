@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CValidatorUnitCompareBehaviorCount id="TorrasqueCantRevive">
+    <WhichUnit Value="Caster" />
+    <Behavior value="TorrasqueTimerBehavior" />
+  </CValidatorUnitCompareBehaviorCount>
+  <CValidatorPlayerRequirement id="HaveHotSTorrasque">
+    <Find value="1" />
+    <Value value="HaveHotSTorrasque" />
+  </CValidatorPlayerRequirement>
+</Catalog>

@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CSound id="DarkArchonMindControlSound" parent="Spell">
+        <EditorCategories value="Race:Protoss" />
+        <AssetArray File="Assets\Sounds\DarkArchon_MindControl00.wav" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\DarkArchon_MindControl01.wav" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\DarkArchon_MindControl02.wav" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\DarkArchon_MindControl03.wav" FacialGroup="" />
+        <Flags index="Purgable" value="0" />
+        <DupeMuteCount value="6" />
+        <Pitch value="-1.000000,1.000000" />
+        <Volume value="-3.000000,-3.000000" />
+    </CSound>
+    <CSound id="DarkArchonConfusionImpactActorSound" parent="Spell">
+        <EditorCategories value="Race:Protoss" />
+        <AssetArray File="Assets\Sounds\DarkArchon_Confusion00.wav" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\DarkArchon_Confusion01.wav" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\DarkArchon_Confusion02.wav" FacialGroup="" />
+        <Flags index="Purgable" value="0" />
+        <Pitch value="-1.000000,1.000000" />
+        <Volume value="-3.000000,-3.000000" />
+    </CSound>
+</Catalog>

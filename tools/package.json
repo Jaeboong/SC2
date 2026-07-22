@@ -1,0 +1,9 @@
+{
+  "name": "sc2-local-team-map-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local build tools for the custom SC2 7v7 map",
+  "dependencies": {
+    "@jamiephan/stormlib": "0.1.0"
+  }
+}

@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+logs/
+replays/
+runtime/
+.tools/
+tools/node_modules/
+.agents/
+.claude/
+vendor/
+*.lnk

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CButton id="UltraliskTorrasquePassive">
+    <Icon value="Assets\Textures\btn-unit-zerg-ultralisk-torrasque.dds" />
+    <AlertIcon value="Assets\Textures\btn-unit-zerg-ultralisk-torrasque.dds" />
+    <EditorCategories value="Race:Zerg" />
+  </CButton>
+  <CButton id="HotSTorrasque">
+    <Icon value="Assets\Textures\btn-unit-zerg-ultralisk-torrasque.dds" />
+    <AlertIcon value="Assets\Textures\btn-unit-zerg-ultralisk-torrasque.dds" />
+    <Hotkey value="Button/Hotkey/Ultralisk" />
+    <EditorCategories value="Race:Zerg" />
+  </CButton>
+  <CButton id="TorrasqueChrysalis">
+    <Icon value="Assets\Textures\btn-ability-zerg-ultralisk-revive.dds" />
+    <EditorCategories value="Race:Zerg" />
+    <TooltipFlags index="ShowHotkey" value="0" />
+  </CButton>
+  <CButton id="TorrasqueChrysalisFakeTimer">
+    <Icon value="Assets\Textures\btn-ability-zerg-ultralisk-revive.dds" />
+    <EditorCategories value="Race:Zerg" />
+    <TooltipFlags index="ShowHotkey" value="0" />
+  </CButton>
+</Catalog>

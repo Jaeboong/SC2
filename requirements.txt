@@ -1,0 +1,3 @@
+protobuf==3.20.3
+s2clientprotocol==5.0.16.97425.0
+websockets==16.1

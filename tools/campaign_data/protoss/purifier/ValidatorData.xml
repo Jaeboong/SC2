@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CValidatorCombine id="VoidSentryChronoBeam">
+        <Type value="And" />
+        <CombineArray value="CasterNotDead" />
+        <CombineArray value="NotDead" />
+        <CombineArray value="VoidSentryChronoBeamCasterHasEnergy" />
+        <CombineArray value="NotMaxVoidSentryChronoBeam" />
+    </CValidatorCombine>
+    <CValidatorUnitCompareBehaviorCount id="NotMaxVoidSentryChronoBeam">
+        <Compare value="LT" />
+        <Value value="1" />
+        <Behavior value="VoidSentryChronoBeam" />
+        <ResultFailed value="Error,Error/AlreadyChronoBoosted" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareVital id="VoidSentryChronoBeamCasterHasEnergy">
+        <WhichUnit Value="Caster" />
+        <Compare value="GE" />
+        <Value value="5" />
+        <Vital value="Energy" />
+    </CValidatorUnitCompareVital>
+</Catalog>

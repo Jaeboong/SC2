@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CBehaviorBuff id="VoidSentryChronoBeam">
+        <Duration value="10" />
+        <Modification AdditiveMoveSpeedFactor="0.5" AdditiveAttackSpeedFactor="0.5" />
+        <Alignment value="Positive" />
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-chronobeam.dds" />
+    </CBehaviorBuff>
+    <CBehaviorPowerSource id="SentryPowerSource">
+        <PowerLink value="PowerSource" />
+        <InfoIcon value="Assets\Textures\btn-building-protoss-pylon.dds" />
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Structures" />
+        <Radius value="7.5" />
+        <InfoFlags index="Hidden" value="1" />
+    </CBehaviorPowerSource>
+    <CBehaviorBuff id="MatrixOverload">
+        <Alignment value="Positive" />
+        <InfoFlags index="Hidden" value="1" />
+        <BuffFlags index="DisableWhileUnderConstruction" value="1" />
+        <DisableValidatorArray value="HaveSOAMatrixOverload" />
+        <TimeScaleSource Value="Global" />
+        <Period value="2" />
+        <PeriodicEffect value="MatrixOverloadSearch" />
+        <InfoIcon value="Assets\Textures\BTN-Ability-SpearOfAdun-MatrixOverload.dds" />
+    </CBehaviorBuff>
+    <CBehaviorBuff id="MatrixOverloadTarget">
+        <Duration value="15" />
+        <Alignment value="Positive" />
+        <TimeScaleSource Value="Global" />
+        <Modification MoveSpeedMultiplier="1.25" AttackSpeedMultiplier="1.15" />
+        <InfoIcon value="Assets\Textures\BTN-Ability-SpearOfAdun-MatrixOverload.dds" />
+        <DisableValidatorArray value="NotUnderConstruction" />
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ZealotPurifierReviveSupressed">
+        <Alignment value="Negative" />
+        <Cost>
+            <Cooldown TimeStart="120" />
+        </Cost>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-reconstruction.dds" />
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Duration value="120" />
+        <InitialEffect value="ZealotPurifierReviveRemoveBehavior" />
+        <ExpireEffect value="ZealotPurifierReviveApplyBehavior" />
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ZealotPurifierRevive">
+        <Alignment value="Positive" />
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <DamageResponse>
+            <Chance value="1" />
+            <Fatal value="1" />
+            <Handled value="ZealotPurifierReviveDeadIssueOrder" />
+            <ModifyFraction value="0" />
+        </DamageResponse>
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-reconstruction.dds" />
+    </CBehaviorBuff>
+</Catalog>

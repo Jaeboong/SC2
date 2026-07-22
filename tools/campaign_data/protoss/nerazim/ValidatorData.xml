@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CValidatorUnitCompareBehaviorCount id="VoidZealotNotShadowCharging">
+        <Compare value="LT" />
+        <Value value="1" />
+        <Behavior value="ShadowCharging" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareOrderTargetRange id="VoidZealotShadowStunRange">
+        <WhichUnit Value="Caster" />
+        <OtherUnit Value="Target" />
+        <Compare value="LT" />
+        <AbilLink value="attack" />
+        <Value value="0.1" />
+    </CValidatorUnitCompareOrderTargetRange>
+    <CValidatorCombine id="TargetNotShadowStunnedAndNotShadowSlowed">
+        <CombineArray value="TargetNotShadowChargeStunned" />
+        <CombineArray value="TargetNotShadowChargeSlowed" />
+        <Type value="And" />
+    </CValidatorCombine>
+    <CValidatorUnitCompareBehaviorCount id="TargetNotShadowChargeStunned">
+        <Compare value="LT" />
+        <Value value="1" />
+        <Behavior value="VoidZealotShadowChargeStun" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="TargetNotShadowChargeSlowed">
+        <Compare value="LT" />
+        <Value value="1" />
+        <Behavior value="VoidZealotShadowChargeSlow" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorCombine id="TargetMassiveOrHeroicOrUnstoppable">
+        <CombineArray value="IsHeroic" />
+        <CombineArray value="IsMassive" />
+        <CombineArray value="IsUnstoppable" />
+    </CValidatorCombine>
+    <CValidatorCombine id="ImmortalShakurasShadowCannonValidators">
+        <Type value="And" />
+        <CombineArray value="CasterIsNotHidden" />
+        <CombineArray value="CasterNotDead" />
+        <CombineArray value="CasterNotStunned" />
+        <CombineArray value="ImmortalShakurasShadowCannonTargetFilters" />
+    </CValidatorCombine>
+    <CValidatorUnitFilters id="ImmortalShakurasShadowCannonTargetFilters">
+        <Filters value="-;Stasis,Dead,Hidden,Invulnerable" />
+        <WhichUnit Effect="ImmortalShakurasShadowCannonTargetingCP" />
+    </CValidatorUnitFilters>
+    <CValidatorUnitType id="NotInfestedSpire">
+        <Value value="InfestationSpire" />
+        <Find value="0" />
+    </CValidatorUnitType>
+    <CValidatorUnitCompareBehaviorCount id="NoDarkArchonMindControlPrevention">
+        <ResultFailed value="Error,Error/DarkArchonMindControlPrevention" />
+        <Behavior value="DarkArchonMindControlPrevention" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="NoVoidShade">
+        <Behavior value="VoidShade" />
+        <ResultFailed value="CantMindControl" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitCompareBehaviorCount id="NoTerrazineShadow">
+        <ResultFailed value="Error,Error/DarkArchonMindControlPrevention" />
+        <Behavior value="TerrazineShadow" />
+    </CValidatorUnitCompareBehaviorCount>
+    <CValidatorUnitType id="NotMedivac">
+        <Value value="Medivac" />
+        <Find value="0" />
+        <Type value="SelectAlias" />
+    </CValidatorUnitType>
+</Catalog>

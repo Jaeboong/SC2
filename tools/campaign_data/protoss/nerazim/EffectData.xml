@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CEffectApplyBehavior id="ShadowCharge">
+        <Behavior value="ShadowCharging" />
+        <WhichUnit Value="Caster" />
+        <ValidatorArray index="0" value="ChargeMinTriggerDistance" />
+        <ValidatorArray value="ChargeMaxDistance" />
+    </CEffectApplyBehavior>
+    <CEffectEnumArea id="VoidZealotShadowChargeSearch">
+        <ImpactLocation Value="SourceUnit" />
+        <SearchFilters value="Ground;Player,Ally,Structure,Missile,Stasis,Dead,Hidden,Invulnerable,Unstoppable" />
+        <AreaArray Radius="1.5" Effect="VoidZealotShadowChargeSwitch" />
+    </CEffectEnumArea>
+    <CEffectSwitch id="VoidZealotShadowChargeSwitch">
+        <CaseArray Validator="TargetMassiveOrHeroicOrUnstoppable" Effect="VoidZealotShadowChargeSlowTarget" />
+        <CaseDefault value="VoidZealotShadowChargeStunTarget" />
+    </CEffectSwitch>
+    <CEffectApplyBehavior id="VoidZealotShadowChargeStunTarget">
+        <Behavior value="VoidZealotShadowChargeStun" />
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="VoidZealotShadowChargeSlowTarget">
+        <Behavior value="VoidZealotShadowChargeSlow" />
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="ImmortalShakurasShadowCannonTargetingCP">
+        <InitialEffect value="ImmortalShakurasShadowCannonAB" />
+        <WhichLocation Value="TargetUnit" />
+    </CEffectCreatePersistent>
+    <CEffectApplyBehavior id="ImmortalShakurasShadowCannonAB">
+        <WhichUnit Value="Caster" />
+        <Behavior value="ImmortalShakurasShadowCannon" />
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="ImmortalShakurasShadowCannonInitialDisableAttackAB">
+        <WhichUnit Value="Caster" />
+        <Behavior value="ImmortalShakurasShadowCannonInitialDisableAttack" />
+    </CEffectApplyBehavior>
+    <CEffectModifyUnit id="ImmortalShakurasShadowCannonTurret">
+        <ImpactUnit Value="Caster" />
+        <ModifyTurret Turret="Immortal">
+            <Target Effect="ImmortalShakurasShadowCannonTargetingCP" Value="TargetUnit" />
+            <Flags index="Tracking" value="1" />
+        </ModifyTurret>
+    </CEffectModifyUnit>
+    <CEffectLaunchMissile id="ImmortalShakurasShadowCannonLM">
+        <ImpactEffect value="ImmortalShakurasShadowCannonDamage" />
+        <AmmoUnit value="ImmortalShakurasShadowCannonMissile" />
+        <ImpactLocation Effect="ImmortalShakurasShadowCannonTargetingCP" />
+        <LaunchLocation Value="CasterUnit" />
+    </CEffectLaunchMissile>
+    <CEffectDamage id="ImmortalShakurasShadowCannonDamage">
+        <Amount value="25" />
+        <ResponseFlags index="Acquire" value="1" />
+        <ResponseFlags index="Flee" value="1" />
+        <Flags index="Notification" value="1" />
+        <SearchFlags index="CallForHelp" value="1" />
+    </CEffectDamage>
+    <CEffectModifyUnit id="ImmortalShakurasShadowCannonTurretClear">
+        <ImpactUnit Value="Caster" />
+        <ModifyTurret Action="ClearTarget" Turret="Immortal" />
+    </CEffectModifyUnit>
+    <CEffectSet id="DarkArchonMindControlSet">
+        <ValidatorArray value="noMarkers" />
+        <ValidatorArray value="NotWarpingIn" />
+        <ValidatorArray value="NotFrenzied" />
+        <ValidatorArray value="HasNoCargo" />
+        <ValidatorArray value="NotPointDefenseDrone" />
+        <ValidatorArray value="IsNotEgg" />
+        <ValidatorArray value="NotLarva" />
+        <ValidatorArray value="NotInfestedSpire" />
+        <ValidatorArray value="NoDarkArchonMindControlPrevention" />
+        <ValidatorArray value="NoVoidShade" />
+        <ValidatorArray value="NoTerrazineShadow" />
+        <EditorCategories value="" />
+        <EffectArray value="DarkArchonMindControlApply" />
+        <EffectArray value="DarkArchonMindControlRemoveTargetLock" />
+    </CEffectSet>
+    <CEffectEnumArea id="DarkArchonConfusionSearch">
+        <EditorCategories value="Race:Protoss" />
+        <ImpactLocation Value="TargetPoint" />
+        <SearchFilters value="-;Self,Player,Ally,Neutral,Structure,Heroic,Missile,Stasis,Dead,Hidden,Invulnerable" />
+        <AreaArray Radius="2" Effect="DarkArchonConfusionApply" />
+    </CEffectEnumArea>
+    <CEffectApplyBehavior id="DarkArchonMindControlApply">
+        <EditorCategories value="Race:Protoss" />
+        <Behavior value="DarkArchonMindControl" />
+    </CEffectApplyBehavior>
+    <CEffectRemoveBehavior id="DarkArchonMindControlRemoveTargetLock">
+        <EditorCategories value="Race:Protoss" />
+        <BehaviorLink value="ObserverTargetLock" />
+    </CEffectRemoveBehavior>
+    <CEffectApplyBehavior id="DarkArchonConfusionApply">
+        <EditorCategories value="Race:Protoss" />
+        <Behavior value="DarkArchonConfusion" />
+        <ValidatorArray index="0" value="NotFrenzied" />
+        <ValidatorArray value="NotWarpPrism" />
+        <ValidatorArray value="NotOverlord" />
+        <ValidatorArray value="NotMedivac" />
+    </CEffectApplyBehavior>
+    <CEffectSet id="DarkArchonConfusionStopInitialSet">
+        <EditorCategories value="Race:Protoss" />
+        <EffectArray value="DarkArchonConfusionStopInitial" />
+        <EffectArray value="DarkArchonConfusionAttackSearch" />
+        <EffectArray value="DarkArachonConfusionInitialApplyBehavior" />
+    </CEffectSet>
+    <CEffectEnumArea id="DarkArchonConfusionAttackSearch">
+        <EditorCategories value="Race:Protoss" />
+        <SearchFilters value="-;Self,Player,Ally,Neutral,Heroic,Missile,Stasis,Dead,Hidden,Invulnerable" />
+        <AreaArray MaxCount="1" Radius="4" Effect="DarkArchonConfusionAttack" />
+        <ExcludeArray Value="Target" />
+        <TargetSorts>
+            <SortArray value="TSRandom" />
+            <SortArray value="TSConfused" />
+        </TargetSorts>
+    </CEffectEnumArea>
+    <CEffectSet id="DarkArchonConfusionEndSet">
+        <EditorCategories value="Race:Protoss" />
+        <EffectArray value="DarkArchonConfusionEnd" />
+        <EffectArray value="IssueAIOrderSuicide" />
+    </CEffectSet>
+    <CEffectIssueOrder id="DarkArchonConfusionStopInitial">
+        <EditorCategories value="Race:Protoss" />
+        <Abil value="stop" />
+    </CEffectIssueOrder>
+    <CEffectApplyBehavior id="DarkArachonConfusionInitialApplyBehavior">
+        <EditorCategories value="" />
+        <Behavior value="DarkArchonConfusionInitial" />
+    </CEffectApplyBehavior>
+    <CEffectIssueOrder id="DarkArchonConfusionAttack">
+        <EditorCategories value="Race:Protoss" />
+        <Abil value="attack" />
+        <WhichUnit Value="Source" />
+        <Target Value="TargetUnit" />
+    </CEffectIssueOrder>
+    <CEffectIssueOrder id="DarkArchonConfusionEnd">
+        <EditorCategories value="Race:Protoss" />
+        <Abil value="stop" />
+    </CEffectIssueOrder>
+    <CEffectModifyUnit id="IssueAIOrderSuicide">
+        <EditorCategories value="Race:Protoss" />
+    </CEffectModifyUnit>
+    <CEffectTeleport id="VoidStalkerBlinkShieldRestore" parent="Blink">
+        <TeleportEffect value="VoidStalkerBlinkApplyRestore" />
+    </CEffectTeleport>
+    <CEffectApplyBehavior id="VoidStalkerBlinkApplyRestore">
+        <EditorCategories value="Race:Protoss" />
+        <WhichUnit Value="Caster" />
+        <Behavior value="VoidStalkerBlinkShieldRestore" />
+    </CEffectApplyBehavior>
+    <CEffectModifyUnit id="VoidStalkerBlinkRestoreModifyUnit">
+        <EditorCategories value="" />
+        <ImpactUnit Value="Caster" />
+        <VitalArray index="Shields" Change="1" />
+    </CEffectModifyUnit>
+</Catalog>

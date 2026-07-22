@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CButton id="VoidZealotWhirlwind">
+        <Icon value="Assets\Textures\BTN-Ability-Protoss-Whirlwind.dds"/>
+    </CButton>
+    <CButton id="VoidStalkerDragoonWeapon">
+        <Icon value="Assets\Textures\BTN-Ability-Protoss-PhaseDisruptor.dds"/>
+        <AlertIcon value="Assets\Textures\BTN-Ability-Protoss-PhaseDisruptor.dds"/>
+        <EditorCategories value="Race:Protoss"/>
+    </CButton>
+    <CButton id="VoidStalkerDragoonArmor">
+        <Icon value="Assets\Textures\BTN-Ability-Protoss-DragoonChassis.dds"/>
+        <EditorCategories value="Race:Protoss"/>
+    </CButton>
+</Catalog>

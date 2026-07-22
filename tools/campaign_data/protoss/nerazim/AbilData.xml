@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CAbilAugment id="ShadowCharge">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="VoidZealotShadowCharge" />
+        <Flags index="AutoCast" value="1" />
+        <Flags index="AutoCastOn" value="1" />
+        <AbilCmd value="attack,Execute" />
+        <Cost>
+            <Cooldown Link="Charge" Location="Unit" TimeUse="10" />
+        </Cost>
+        <AutoCastValidatorArray value="CasterNotHoldingPosition" />
+        <Alignment value="Negative" />
+    </CAbilAugment>
+    <CAbilAugment id="ShadowChargeStun">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="VoidZealotShadowChargeStun" />
+        <Flags index="AutoCast" value="1" />
+        <Flags index="AutoCastOn" value="1" />
+        <AbilCmd value="attack,Execute" />
+        <Alignment value="Negative" />
+        <Cost>
+            <Cooldown TimeUse="10" />
+        </Cost>
+        <Effect value="VoidZealotShadowChargeSearch" />
+        <AutoCastValidatorArray value="TargetNotShadowStunnedAndNotShadowSlowed" />
+        <AutoCastValidatorArray value="VoidZealotShadowStunRange" />
+        <AutoCastValidatorArray value="VoidZealotNotShadowCharging" />
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable,Unstoppable" />
+    </CAbilAugment>
+    <CAbilEffectTarget id="DarkArchonMindControl">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Effect index="0" value="DarkArchonMindControlSet" />
+        <Flags index="AbortOnAllianceChange" value="0" />
+        <TargetFilters value="Visible;Player,Ally,Neutral,Robotic,Structure,Heroic,Missile,Stasis,Dead,Invulnerable" />
+        <Range value="7" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="DarkArchonMindControl" />
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+        <Cost>
+            <Vital index="Energy" value="100" />
+            <Cooldown TimeUse="10" />
+        </Cost>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="DarkArchonConfusion">
+        <Alignment value="Negative" />
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Effect index="0" value="DarkArchonConfusionSearch" />
+        <Range value="9" />
+        <CursorEffect value="DarkArchonConfusionSearch" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="DarkArchonConfusion" />
+        <Cost>
+            <Vital index="Energy" value="75" />
+            <Cooldown TimeUse="2" />
+        </Cost>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="ImmortalShakurasShadowCannon">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Effect index="0" value="ImmortalShakurasShadowCannonTargetingCP" />
+        <Cost>
+            <Cooldown TimeUse="45" />
+        </Cost>
+        <TargetFilters value="-;Self,Player,Ally,Missile,Stasis,Dead,Hidden,Invulnerable" />
+        <Range value="13" />
+        <Arc value="360" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="ImmortalShakurasShadowCannon" />
+        <PrepEffect value="ImmortalShakurasShadowCannonInitialDisableAttackAB" />
+        <PrepTime value="0.0625" />
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="BlinkShieldRestore">
+        <AbilSetId value="Blnk" />
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Effect index="0" value="VoidStalkerBlinkShieldRestore" />
+        <Flags index="BestUnit" value="0" />
+        <Flags index="RequireTargetVision" value="0" />
+        <Cost>
+            <Cooldown Link="Blink" TimeUse="8" />
+        </Cost>
+        <Range value="500" />
+        <Arc value="360" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="StalkerBlinkShieldRestoreBase">
+            <Flags index="ToSelection" value="1" />
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+</Catalog>

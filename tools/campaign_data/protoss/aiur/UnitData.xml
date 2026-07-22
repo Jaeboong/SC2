@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CUnit id="Zealot">
+        <AbilArray Link="VoidZealotWhirlwind"/>
+        <WeaponArray index="0" Link="SolariteReaper"/>
+        <CardLayouts index="0">
+            <LayoutButtons Face="VoidZealotWhirlwind" Type="AbilCmd" AbilCmd="VoidZealotWhirlwind,Execute" Row="2" Column="1"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="Stalker">
+        <DeathRevealRadius value="3"/>
+        <Race value="Prot"/>
+        <Mob value="Campaign"/>
+        <FlagArray index="Turnable" value="0"/>
+        <FlagArray index="PreventDestroy" value="1"/>
+        <FlagArray index="UseLineOfSight" value="1"/>
+        <FlagArray index="ArmySelect" value="1"/>
+        <PlaneArray index="Ground" value="1"/>
+        <Collide index="Ground" value="1"/>
+        <Collide index="Small" value="1"/>
+        <Collide index="ForceField" value="1"/>
+        <Collide index="Locust" value="1"/>
+        <Attributes index="Armored" value="1"/>
+        <Attributes index="Mechanical" value="1"/>
+        <LifeStart value="120"/>
+        <LifeMax value="120"/>
+        <LifeArmor value="1"/>
+        <LifeArmorName value="Unit/LifeArmorName/ProtossPlating"/>
+        <ShieldsStart value="80"/>
+        <ShieldsMax value="80"/>
+        <ShieldRegenDelay value="10"/>
+        <ShieldRegenRate value="2"/>
+        <ShieldArmorName value="Unit/ShieldArmorName/ProtossPlasmaShields"/>
+        <Speed value="2.25"/>
+        <Acceleration value="1000"/>
+        <Mover value="Dragoon"/>
+        <Sight value="10"/>
+        <CostCategory value="Army"/>
+        <CostResource index="Minerals" value="125"/>
+        <CostResource index="Vespene" value="50"/>
+        <RepairTime value="50"/>
+        <AttackTargetPriority value="20"/>
+        <CargoSize value="4"/>
+        <AbilArray index="5" removed="1"/>
+        <WeaponArray index="0" Link="Dragoon" Turret="Dragoon"/>
+        <CardLayouts index="0">
+            <LayoutButtons index="6" removed="1"/>
+            <LayoutButtons Face="VoidStalkerDragoonWeapon" Type="Passive" Row="2" Column="0"/>
+            <LayoutButtons Face="VoidStalkerDragoonArmor" Type="Passive" Row="2" Column="1"/>
+        </CardLayouts>
+        <Radius value="0.625"/>
+        <SeparationRadius value="0.625"/>
+        <InnerRadius value="0.5"/>
+        <MinimapRadius value="0.625"/>
+        <Fidget>
+            <ChanceArray index="Anim" value="5"/>
+            <ChanceArray index="Idle" value="90"/>
+        </Fidget>
+    </CUnit>
+    <CUnit id="DragoonWeapon" parent="MISSILE">
+        <Race value="Prot"/>
+        <Mover value="DragoonWeapon"/>
+        <EditorCategories value="ObjectType:Projectile,ObjectFamily:Melee"/>
+    </CUnit>
+</Catalog>

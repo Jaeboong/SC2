@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <!-- Every actor here parents from a generic base actor, never from a concrete
+         unit actor such as Predator or Goliath.
+
+         The generic base creates itself on "UnitBirth.##unitName##", and that token
+         is resolved once, at the point the actor is declared. Inheriting from the
+         Predator actor therefore bakes in "UnitBirth.Predator": the actor only ever
+         spawns for Blizzard's Predator, never for ours, so our unit falls back to
+         the gray placeholder sphere while catalog, create, and combat checks all
+         still pass. Blizzard's own SpartanCompany (a Goliath variant) parents from
+         GenericUnitBase for exactly this reason.
+
+         Each actor must therefore restate the parent unit's presentation fields
+         (model, portrait, death, icons, wireframe) rather than inherit them.
+
+         Sounds work the same way, and this is why the Predator was mute. SC2
+         auto-links a unit actor's voice by actor id: actor "Predator" finds
+         CSound "Predator_What" with no XML at all, which is why Blizzard's own
+         Predator, Marine and Goliath actors declare no SoundArray. Our actors are
+         named SC2TeamPredator, so the engine looks for SC2TeamPredator_What,
+         finds nothing, and plays silence. The auto-link is real and not a guess:
+         core.sc2mod ships a GenericUnitStandardNoAutoSoundLinks sibling class for
+         actors that must opt out, and GenericUnitSM blanks each SoundArray entry
+         to an empty string to silence story units. Every SoundArray below
+         therefore names Blizzard's existing CSound explicitly; none of these
+         sounds are new assets. -->
+    <CActorUnit id="SC2TeamAberration" parent="GenericUnitBase" unitName="SC2TeamAberration">
+        <Model value="SC2TeamAberrationModel"/>
+        <DeathArray index="Normal" ModelLink="InfestedAbominationDeath"/>
+        <DeathCustoms ModelLink="ZergLargeUnitDeathLow" Name="AntiGravZerg"/>
+        <PortraitModel value="AberrationPortrait"/>
+        <AnimBlendTime value="0.300000"/>
+        <WalkAnimMoveSpeed value="2.9375"/>
+        <BarWidth value="102"/>
+        <BarOffset value="120"/>
+        <!-- These read UltraliskReady/UltraliskWhat/UltraliskYes, which are not
+             CSound ids in any archive; the underscore is not optional, so the
+             Aberration was mute too. The matching Aberration_* voice set exists
+             only in Swarm Story, which this map must not depend on, so the
+             Ultralisk lines from the base game stand in. -->
+        <SoundArray index="Ready" value="Ultralisk_Ready"/>
+        <SoundArray index="What" value="Ultralisk_What"/>
+        <SoundArray index="Yes" value="Ultralisk_Yes"/>
+        <SoundArray index="Attack" value="Ultralisk_Attack"/>
+        <SoundArray index="Pissed" value="Ultralisk_Pissed"/>
+        <SoundArray index="Movement" value="Ultralisk_Movement"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds"/>
+        <UnitIcon value="Assets\Textures\btn-unit-zerg-aberration.dds"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Zerg-Aberration.dds"/>
+        </GroupIcon>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Zerg-Aberration.dds"/>
+        </Wireframe>
+        <Aliases value="_UnitLarge"/>
+        <On Terms="WeaponStart.SC2TeamAberrationWeapon.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.SC2TeamAberrationWeapon.AttackStop" Send="AnimBracketStop Attack"/>
+    </CActorUnit>
+    <CActorUnit id="SC2TeamGoliath" parent="GenericUnitBase" unitName="SC2TeamGoliath">
+        <Model value="SC2TeamGoliathModel"/>
+        <WalkAnimMoveSpeed value="3.6093"/>
+        <StandAnimTurnTime value="4"/>
+        <PortraitModel value="GoliathPortrait"/>
+        <DeathArray index="Normal" ModelLink="GoliathDeath" SoundLink="Goliath_Explode"/>
+        <Macros value="UnloadDropAnim"/>
+        <BarWidth value="66"/>
+        <BarOffset value="75"/>
+        <UnitIcon value="Assets\Textures\btn-unit-terran-goliath.dds"/>
+        <HeroIcon value="Assets\Textures\btn-unit-terran-goliath.dds"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-goliath.dds"/>
+        </GroupIcon>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-goliath.dds"/>
+        </Wireframe>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <SoundArray index="Ready" value="Goliath_Ready"/>
+        <SoundArray index="What" value="Goliath_What"/>
+        <SoundArray index="Yes" value="Goliath_Yes"/>
+        <SoundArray index="Attack" value="Goliath_Attack"/>
+        <SoundArray index="Pissed" value="Goliath_Pissed"/>
+        <SoundArray index="Help" value="Goliath_Help"/>
+        <SoundArray index="Movement" value="Goliath_Movement"/>
+        <GroupSoundArray index="Ready" value="Goliath_Ready"/>
+        <GroupSoundArray index="What" value="Goliath_What"/>
+        <GroupSoundArray index="Yes" value="Goliath_Yes"/>
+        <GroupSoundArray index="Attack" value="Goliath_Attack"/>
+        <Aliases value="_UnitLarge"/>
+        <On Terms="WeaponStart.SC2TeamGoliathGroundWeapon.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.SC2TeamGoliathGroundWeapon.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="WeaponStart.SC2TeamGoliathAirWeapon.AttackStart" Send="AnimBracketStart Spell Spell"/>
+        <On Terms="WeaponStop.SC2TeamGoliathAirWeapon.AttackStop" Send="AnimBracketStop Spell"/>
+    </CActorUnit>
+    <CActorUnit id="SC2TeamPredator" parent="GenericUnitStandard" unitName="SC2TeamPredator">
+        <Model value="SC2TeamPredatorModel"/>
+        <Baselines index="Walk" AnimProps="Walk,Fast"/>
+        <Macros value="UnloadDropAnim"/>
+        <DeathArray index="Normal" ModelLink="PredatorDeath" SoundLink="Predator_Explode"/>
+        <PortraitModel value="CyberCatPortrait"/>
+        <BarWidth value="102"/>
+        <BarOffset value="50"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-Terran-Predator.dds"/>
+        <HeroIcon value="Assets\Textures\BTN-Unit-Terran-Predator.dds"/>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-predator.dds"/>
+        </GroupIcon>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-predator.dds"/>
+        </Wireframe>
+        <SoundArray index="Ready" value="Predator_Ready"/>
+        <SoundArray index="What" value="Predator_What"/>
+        <SoundArray index="Yes" value="Predator_Yes"/>
+        <SoundArray index="Attack" value="Predator_Attack"/>
+        <Aliases value="_UnitMedium"/>
+        <On Terms="WeaponStart.SC2TeamPredatorWeapon.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.SC2TeamPredatorWeapon.AttackStop" Send="AnimBracketStop Attack"/>
+    </CActorUnit>
+    <CActorUnit id="SC2TeamMedic" parent="GenericUnitStandard" unitName="SC2TeamMedic">
+        <Model value="SC2TeamMedicModel"/>
+        <PortraitModel value="MedicPortrait"/>
+        <Macros value="UnloadDropAnim"/>
+        <DeathArray index="Normal" ModelLink="MedicDeath" SoundLink="Medic_Explode"/>
+        <DeathArray index="Blast" ModelLink="MedicDeath"/>
+        <WalkAnimMoveSpeed value="2.25"/>
+        <BarWidth value="36"/>
+        <BarOffset value="20"/>
+        <UnitIcon value="Assets\Textures\BTN-Unit-Terran-Medic.dds"/>
+        <HeroIcon value="Assets\Textures\BTN-Unit-Terran-Medic.dds"/>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Terran-medic.dds"/>
+        </GroupIcon>
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Terran-medic.dds"/>
+        </Wireframe>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds"/>
+        <SoundArray index="Ready" value="Medic_Ready"/>
+        <SoundArray index="What" value="Medic_What"/>
+        <SoundArray index="Yes" value="Medic_Yes"/>
+        <SoundArray index="Attack" value="Medic_Attack"/>
+        <SoundArray index="Pissed" value="Medic_Pissed"/>
+        <SoundArray index="Help" value="Medic_Help"/>
+        <Aliases value="_UnitSmall"/>
+        <!-- SC2TeamMedic now parents from campaign Medic and uses its real heal
+             ability, so the channel animation hooks the "heal" ability rather
+             than the Medivac graft the Marine parent needed. -->
+        <On Terms="Abil.heal.SourceChannelStart" Send="$Spell PlayForever"/>
+        <On Terms="Abil.heal.SourceChannelStop" Send="AnimClear Spell"/>
+    </CActorUnit>
+    <!-- Weapon fire and impact sounds come from CActorAction, not from the unit
+         actor. effectAttack must name the CEffectDamage leaf, never the weapon
+         and never the CEffectSet wrapping it: Blizzard's PredatorAttack hooks
+         effect "Predator" (the damage), while the weapon fires RetributionFieldSet
+         (the set). Point these at the set and no sound ever plays. -->
+    <CActorAction id="SC2TeamPredatorAttack" parent="GenericAttack" effectAttack="SC2TeamPredatorDirectDamage">
+        <LaunchAssets Sound="Predator_AttackLaunch"/>
+        <LaunchAttachQuery Methods="Weapon"/>
+        <ImpactMap index="None" Sound="Predator_AttackImpact"/>
+        <ImpactMap index="Flesh" Model="BloodTargetImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+    <!-- §63/§64: 캠페인 원본 골리앗 액터는 지상 공격에 임팩트 사운드만 있고
+         발사/피격 모델이 없다. 이 무기는 포가 아니라 기관포이므로 같은 계열인
+         바이킹 돌격모드(쌍기관포)의 총구 화염·총알 피격 모델을 명시하고,
+         육상 표적 피 튀김과 발사음을 더한다. -->
+    <CActorAction id="SC2TeamGoliathGroundAttack" parent="GenericAttack" effectAttack="SC2TeamGoliathGroundDamage">
+        <LaunchAttachQuery Methods="AMFilterWeaponSetA0"/>
+        <LaunchAssets Model="VikingAssaultAttackLaunch" Sound="GoliathGroundAttackLaunch"/>
+        <ImpactMap index="None" Model="VikingAssaultAttackImpact" Sound="Goliath_GroundAttackImpact"/>
+        <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact"/>
+    </CActorAction>
+    <!-- §63/§64: 공중 공격은 원본과 같은 발사/탄착(effectLaunch/effectImpact)
+         배선. 미사일 액터는 리버티 캠페인의 GoliathAirAttackMissile이
+         unitName="GoliathAWeapon"으로 자동 결합된다. 부착 패턴은 Driver가
+         발사 효과 ID라서 전용 사본(AMPatternSC2TeamGoliath)을 쓰고, 실패
+         대비 Fallback="SetB"(코옵 골리앗과 동일)를 둔다 — 이게 없으면
+         미사일이 골반(원점)에서 나간다(사용자 실관측). 탄착 모델은 리버티
+         캠페인의 GoliathAirAttackImpact. -->
+    <CActorAction id="SC2TeamGoliathAirAttack" parent="GenericAttack" effectImpact="SC2TeamGoliathAirDamage" effectLaunch="SC2TeamGoliathAirLaunch">
+        <LaunchAttachQuery Methods="AMPatternSC2TeamGoliath" Fallback="SetB"/>
+        <LaunchAssets Sound="VikingFighter_AttackLaunch"/>
+        <ImpactMap index="None" Model="GoliathAirAttackImpact" Sound="VikingFighter_AttackImpact"/>
+    </CActorAction>
+    <CActorAction id="SC2TeamAberrationAttack" parent="GenericAttack" effectAttack="SC2TeamAberrationDamage">
+        <LaunchAttachQuery Methods="Weapon"/>
+        <ImpactMap index="None" Sound="Ultralisk_AttackImpact"/>
+        <ImpactMap index="Flesh" Model="BloodTargetImpact"/>
+    </CActorAction>
+    <CActorUnit id="Zergling">
+        <On Terms="Upgrade.SC2TeamRaptorEvolution.On" Send="ModelSwap SC2TeamRaptorModel"/>
+        <On Terms="Upgrade.SC2TeamRaptorEvolution.On" Send="TextureSelectBySlot main {RequireAll diffuse}"/>
+    </CActorUnit>
+</Catalog>

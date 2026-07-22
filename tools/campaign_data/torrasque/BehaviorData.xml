@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CBehaviorBuff id="TorrasqueTimerBehavior">
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <Alignment value="Negative" />
+    <Duration value="60" />
+    <InitialEffect value="TorrasqueCorpseRemoveDeathBehavior" />
+    <ExpireEffect value="TorrasqueCorpseApplyDeathBehavior" />
+    <InfoIcon value="Assets\Textures\btn-ability-zerg-ultralisk-revive.dds" />
+    <Cost>
+      <Cooldown TimeStart="60" />
+    </Cost>
+  </CBehaviorBuff>
+  <CBehaviorBuff id="TorrasqueDontDie">
+    <Alignment value="Positive" />
+    <InfoFlags index="Hidden" value="1" />
+    <EditorCategories value="Race:Zerg,AbilityorEffectType:Units" />
+    <DamageResponse>
+      <Chance value="1" />
+      <Fatal value="1" />
+      <Handled value="TorrasqueCorpse" />
+      <ModifyFraction value="0" />
+    </DamageResponse>
+    <DisableValidatorArray value="TorrasqueCantRevive" />
+    <DisableValidatorArray value="HaveHotSTorrasque" />
+  </CBehaviorBuff>
+</Catalog>

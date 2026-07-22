@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CActorUnit id="InfestedAbomination" parent="GenericUnitBase" unitName="InfestedAbomination">
+    <DeathArray index="Normal" ModelLink="InfestedAbominationDeath" />
+    <DeathCustoms ModelLink="ZergLargeUnitDeathLow" Name="AntiGravZerg" />
+    <PortraitModel value="AberrationPortrait" />
+    <AnimBlendTime value="0.300000" />
+    <On Terms="UnitBirth.InfestedAbominationBurrowed" Send="Create" />
+    <On Terms="UnitBirth.InfestedAbominationBurrowed" Send="AnimBracketStart Burrow Burrow IGNORE Unburrow ClosingFull,OpeningPlayForever,Instant" />
+    <On Terms="WeaponStart.InfestedAbomination.AttackStart" Send="AnimBracketStart Attack Attack" />
+    <On Terms="WeaponStop.InfestedAbomination.AttackStop" Send="AnimBracketStop Attack" />
+    <On Terms="AbilMorph.*.Start; AbilKey BurrowDown" Send="Create BurrowDownAberration" />
+    <On Terms="AbilMorph.*.Cancel; MorphFrom InfestedAbomination; MorphTo InfestedAbominationBurrowed" Send="AnimClear Burrow" />
+    <On Terms="AbilMorph.*.Finish; MorphTo InfestedAbomination; MorphFrom InfestedAbominationBurrowed" Send="AnimBracketStop Burrow" />
+    <On Terms="AbilMorph.*.Finish; MorphTo InfestedAbomination; MorphFrom InfestedAbominationBurrowed" Send="AnimClear Burrow" />
+    <Macros value="ZergBurrowStandardAnimMacro" />
+    <Macros value="ZergLargeBurrowEffects" />
+    <WalkAnimMoveSpeed value="2.9375" />
+    <BarWidth value="102" />
+    <BarOffset value="120" />
+    <SoundArray index="Ready" value="UltraliskReady" />
+    <SoundArray index="Help" value="UltraliskHelp" />
+    <SoundArray index="What" value="UltraliskWhat" />
+    <SoundArray index="Yes" value="UltraliskYes" />
+    <SoundArray index="Attack" value="UltraliskYes" />
+    <SoundArray index="Pissed" value="UltraliskPissed" />
+    <GroupSoundArray index="Ready" value="UltraliskReady" />
+    <GroupSoundArray index="Help" value="UltraliskHelp" />
+    <GroupSoundArray index="What" value="UltraliskWhat" />
+    <GroupSoundArray index="Yes" value="UltraliskYes" />
+    <GroupSoundArray index="Attack" value="UltraliskYes" />
+    <GroupSoundArray index="Pissed" value="UltraliskPissed" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level0.dds" />
+    <UnitIcon value="Assets\Textures\btn-unit-zerg-aberration.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Zerg-Aberration.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Zerg-Aberration.dds" />
+    </Wireframe>
+    <Aliases value="_UnitLarge" />
+  </CActorUnit>
+  <CActorUnit id="Predator" parent="GenericUnitStandard" unitName="Predator">
+    <Baselines index="Walk" AnimProps="Walk,Fast" />
+    <Macros value="UnloadDropAnim" />
+    <DeathArray index="Normal" ModelLink="PredatorDeath" SoundLink="Predator_Explode" />
+    <PortraitModel value="CyberCatPortrait" />
+    <BarWidth value="102" />
+    <BarOffset value="50" />
+    <UnitIcon value="Assets\Textures\BTN-Unit-Terran-Predator.dds" />
+    <HeroIcon value="Assets\Textures\BTN-Unit-Terran-Predator.dds" />
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Terran-predator.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Terran-predator.dds" />
+    </Wireframe>
+    <Aliases value="_UnitMedium" />
+  </CActorUnit>
+  <CActorUnit id="Goliath" parent="GenericUnitBase" unitName="Goliath">
+    <WalkAnimMoveSpeed value="3.6093" />
+    <StandAnimTurnTime value="4" />
+    <PortraitModel value="GoliathPortrait" />
+    <DeathArray index="Normal" ModelLink="GoliathDeath" SoundLink="Goliath_Explode" />
+    <On Terms="WeaponStart.GoliathG.AttackStart" Send="AnimBracketStart Attack Attack" />
+    <On Terms="WeaponStop.GoliathG.AttackStop" Send="AnimBracketStop Attack" />
+    <On Terms="WeaponStart.GoliathA.AttackStart" Send="AnimBracketStart Spell Spell" />
+    <On Terms="WeaponStop.GoliathA.AttackStop" Send="AnimBracketStop Spell" />
+    <On Terms="WeaponStart.GoliathAUpgraded.AttackStart" Send="AnimBracketStart Spell Spell" />
+    <On Terms="WeaponStop.GoliathAUpgraded.AttackStop" Send="AnimBracketStop Spell" />
+    <On Terms="ActorCreation" Send="TextureSelectBySlot main {RequireAll diffuse}" />
+    <On Terms="ActorCreation" Send="TextureSelectByMatch main.specular main" />
+    <Macros value="UnloadDropAnim" />
+    <DeathActorModel value="GoliathDeath" />
+    <BarWidth value="66" />
+    <BarOffset value="75" />
+    <UnitIcon value="Assets\Textures\btn-unit-terran-goliath.dds" />
+    <HeroIcon value="Assets\Textures\btn-unit-terran-goliath.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Terran-goliath.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Terran-goliath.dds" />
+    </Wireframe>
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel0.dds" />
+    <GroupSoundArray index="Birth" value="Goliath_Birth" />
+    <GroupSoundArray index="Ready" value="Goliath_Ready" />
+    <GroupSoundArray index="Help" value="Goliath_Help" />
+    <GroupSoundArray index="What" value="Goliath_What" />
+    <GroupSoundArray index="Yes" value="Goliath_Yes" />
+    <GroupSoundArray index="Attack" value="Goliath_Attack" />
+    <GroupSoundArray index="Pissed" value="Goliath_Pissed" />
+    <Aliases value="_UnitLarge" />
+  </CActorUnit>
+  <CActorUnit id="Medic" parent="GenericUnitStandard" unitName="Medic">
+    <PortraitModel value="MedicPortrait" />
+    <On Terms="Abil.heal.SourceChannelStart" Send="$Spell PlayForever" />
+    <On Terms="Abil.heal.SourceChannelStop" Send="AnimClear Spell" />
+    <On Terms="Behavior.KillSquad.On" Send="ModelSwap MedicKillSquad" />
+    <On Terms="UnitDeathCustomize; ValidateUnit IsKillSquad" Send="DeathCustomize Variation2" />
+    <Macros value="UnloadDropAnim" />
+    <DeathArray index="Normal" ModelLink="MedicDeath" SoundLink="Medic_Explode" />
+    <DeathArray index="Blast" ModelLink="MedicDeath" />
+    <DeathCustoms ModelLink="MedicKillSquadDeath" SoundLink="Medic_Death" Name="Variation2" />
+    <WalkAnimMoveSpeed value="2.25" />
+    <BarWidth value="36" />
+    <BarOffset value="20" />
+    <UnitIcon value="Assets\Textures\BTN-Unit-Terran-Medic.dds" />
+    <HeroIcon value="Assets\Textures\BTN-Unit-Terran-Medic.dds" />
+    <GroupIcon>
+      <Image value="Assets\Textures\Wireframe-Terran-medic.dds" />
+    </GroupIcon>
+    <Wireframe>
+      <Image value="Assets\Textures\Wireframe-Terran-medic.dds" />
+    </Wireframe>
+    <LifeArmorIcon value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel0.dds" />
+    <Aliases value="_UnitSmall" />
+  </CActorUnit>
+</Catalog>

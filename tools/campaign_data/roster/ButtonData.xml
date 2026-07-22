@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CButton id="SC2TeamAberration"><Icon value="Assets\Textures\btn-unit-zerg-aberration.dds"/></CButton>
+    <CButton id="SC2TeamGoliath"><Icon value="Assets\Textures\btn-unit-terran-goliath.dds"/></CButton>
+    <CButton id="SC2TeamPredator"><Icon value="Assets\Textures\btn-unit-terran-predator.dds"/></CButton>
+    <CButton id="SC2TeamMedic"><Icon value="Assets\Textures\btn-unit-terran-medic.dds"/></CButton>
+    <CButton id="SC2TeamRaptorEvolution"><Icon value="Assets\Textures\btn-unit-zerg-zergling-raptor.dds"/></CButton>
+</Catalog>

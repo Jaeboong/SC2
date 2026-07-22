@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CEffectDamage id="SC2TeamTorrasqueProbeDamage">
+        <Amount value="1000"/>
+        <Kind value="Spell"/>
+    </CEffectDamage>
+    <CEffectDamage id="SC2TeamAberrationDamage">
+        <Amount value="20"/>
+        <AttributeBonus index="Armored" value="20"/>
+        <Kind value="Melee"/>
+        <Death value="Eviscerate"/>
+    </CEffectDamage>
+    <CEffectDamage id="SC2TeamGoliathGroundDamage">
+        <Amount value="18"/>
+        <Kind value="Ranged"/>
+    </CEffectDamage>
+    <!-- §63: 공중 공격을 원본과 같은 실제 미사일 발사로 전환한다. 원본 GoliathA는
+         채널형 지속 효과가 0초/0.21초에 미사일(GoliathALM → GoliathAWeapon 유닛)을
+         두 발 쏘고, 발당 GoliathAU(8, 중장갑 +8)를 준다. 아래는 그 구조의 사본이라
+         두 발 합계가 기존 단발 16(중장갑 +16)과 같다. 미사일 유닛·무버·미사일
+         액터(GoliathAirAttackMissile)는 리버티 캠페인 의존성 것을 그대로 재사용해
+         unitName 자동 결합으로 미사일이 눈에 보이게 날아간다. -->
+    <CEffectDamage id="SC2TeamGoliathAirDamage">
+        <Amount value="8"/>
+        <AttributeBonus index="Armored" value="8"/>
+        <Kind value="Ranged"/>
+    </CEffectDamage>
+    <CEffectLaunchMissile id="SC2TeamGoliathAirLaunch">
+        <ImpactEffect value="SC2TeamGoliathAirDamage"/>
+        <AmmoUnit value="GoliathAWeapon"/>
+    </CEffectLaunchMissile>
+    <CEffectCreatePersistent id="SC2TeamGoliathAirSalvo">
+        <PeriodCount value="2"/>
+        <WhichLocation Value="TargetUnit"/>
+        <Flags index="Channeled" value="1"/>
+        <PeriodicEffectArray value="SC2TeamGoliathAirLaunch"/>
+        <PeriodicPeriodArray value="0"/>
+        <PeriodicPeriodArray value="0.21"/>
+    </CEffectCreatePersistent>
+    <CEffectDamage id="SC2TeamPredatorDirectDamage">
+        <Amount value="15"/>
+        <Kind value="Melee"/>
+        <Death value="Eviscerate"/>
+    </CEffectDamage>
+    <CEffectDamage id="SC2TeamPredatorSplashDamage">
+        <Amount value="20"/>
+        <Kind value="Melee"/>
+    </CEffectDamage>
+    <CEffectEnumArea id="SC2TeamPredatorSplashSearch">
+        <ImpactLocation Value="SourceUnit"/>
+        <SearchFilters value="Ground,Enemy;Self,Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="0.5" Effect="SC2TeamPredatorSplashDamage"/>
+        <SearchFlags index="ExtendByUnitRadius" value="1"/>
+    </CEffectEnumArea>
+    <CEffectSet id="SC2TeamPredatorAttackSet">
+        <EffectArray value="SC2TeamPredatorDirectDamage"/>
+        <EffectArray value="SC2TeamPredatorSplashSearch"/>
+    </CEffectSet>
+</Catalog>

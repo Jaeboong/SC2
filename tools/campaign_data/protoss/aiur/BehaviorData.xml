@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CBehaviorBuff id="VoidZealotWhirlwind">
+        <EditorCategories value="AbilityorEffectType:Units"/>
+        <InfoFlags index="Hidden" value="1"/>
+        <Duration value="3"/>
+        <Period value="0.5"/>
+        <PeriodicEffect value="VoidZealotWhirlwindBehaviorSet"/>
+        <Modification>
+            <StateFlags index="SuppressCollision" value="1"/>
+            <WeaponArray Link="VoidZealotWhirlwindFakeWeapon"/>
+            <WeaponDisableArray value="PsiBlades"/>
+            <WeaponDisableArray value="SolariteReaper"/>
+        </Modification>
+        <FinalEffect value="VoidZealotWhirlwindCancelMove"/>
+        <RemoveValidatorArray value="CasterNotStunned"/>
+    </CBehaviorBuff>
+</Catalog>

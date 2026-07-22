@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CButton id="AlarakZealotFrenziedOverload">
+        <Icon value="Assets\Textures\btn-ability-protoss-voidarmor.dds" />
+        <AlertIcon value="Assets\Textures\btn-ability-protoss-voidarmor.dds" />
+    </CButton>
+    <CButton id="TargetLock">
+        <Icon value="Assets\Textures\btn-ability-protoss-targetlock.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+    <CButton id="SentryTaldarimForceField">
+        <Icon value="Assets\Textures\btn-ability-protoss-forcefield-red.dds" />
+        <AlertIcon value="Assets\Textures\btn-ability-protoss-forcefield-red.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+    <CButton id="VoidHighTemplarMindBlast">
+        <Icon value="Assets\Textures\btn-ability-protoss-mindblast.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+    <CButton id="VoidHighTemplarPsiOrb">
+        <Icon value="Assets\Textures\btn-ability-protoss-psionicorb.dds" />
+        <HidesForSimpleText value="0" />
+    </CButton>
+    <CButton id="AscendantSacrifice">
+        <Icon value="Assets\Textures\btn-ability-protoss-sacrifice.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+</Catalog>

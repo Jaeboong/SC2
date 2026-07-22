@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CModel id="CyberCatPortrait" parent="Portrait">
+    <Model value="Assets\Portraits\Terran\PredatorPortrait\PredatorPortrait.m3" />
+    <Image value="Assets\Textures\PredatorPortrait_Static.dds" />
+  </CModel>
+  <CModel id="Predator" parent="Unit">
+    <Model value="Assets\Units\Terran\Predator\Predator.m3" />
+    <EditorCategories value="Race:Terran" />
+    <Occlusion value="Show" />
+    <Radius value="0.650000" />
+    <SelectionRadius value="0.400000" />
+    <ShadowRadius value="0.400000" />
+    <ScaleMax value="1.300000,1.300000,1.300000" />
+    <ScaleMin value="1.300000,1.300000,1.300000" />
+    <TechPurchaseCamera value="Star2CameraMid04" />
+    <UnitGlossaryCamera value="Star2CameraMid04" />
+    <PlanetPanelCamera value="Star2CameraMid04" />
+  </CModel>
+  <CModel id="InfestedAbomination" parent="Unit" Race="Zerg">
+    <Model value="Assets\Units\Zerg\Aberration\Aberration.m3" />
+    <Radius value="0.875000" />
+    <ScaleMax value="0.900000,0.900000,0.900000" />
+    <ScaleMin value="0.900000,0.900000,0.900000" />
+    <SelectionRadius value="0.972100" />
+    <Tipability value="0.750000" />
+    <TipabilityWidth value="0.400000" />
+    <TipabilityLength value="0.800000" />
+    <ShadowRadius value="0.972100" />
+    <TechPurchaseCamera value="Star2CameraHigh08" />
+    <UnitGlossaryCamera value="Star2CameraHigh08" />
+    <PlanetPanelCamera value="Star2CameraHigh08" />
+  </CModel>
+  <CModel id="AberrationPortrait" parent="Portrait" Race="Zerg">
+    <FacialController value="LocalizedData\Facial\AberrationPortrait.fxa" />
+    <Flags index="Facial" value="1" />
+  </CModel>
+  <CModel id="GoliathPortrait" parent="FXAPortrait" Race="Terran" />
+  <CModel id="MedicPortrait" parent="FXAPortrait" Race="Terran" />
+  <CModel id="Goliath" parent="Unit" Race="Terran">
+    <ScaleMax value="0.650000,0.650000,0.650000" />
+    <ScaleMin value="0.650000,0.650000,0.650000" />
+    <Occlusion value="Show" />
+    <SelectionRadius value="0.999700" />
+    <AttachProps Id="Ref_TurretZ">
+      <Keys index="Turret" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon">
+      <Keys index="SetA" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 01">
+      <Keys index="SetA" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 02">
+      <Keys index="SetB" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 03">
+      <Keys index="SetB" value="2" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 04">
+      <Keys index="SetB" value="4" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 05">
+      <Keys index="SetB" value="1" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 06">
+      <Keys index="SetB" value="3" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 07">
+      <Keys index="SetB" value="5" />
+    </AttachProps>
+    <Radius value="0.650000" />
+    <TextureDeclares Prefix="Goliath_">
+      <Adaptions TriggerOnSubstring="_Diffuse" Slot="main" />
+      <!-- We ignore normal here, b/c it never changes. -->
+      <Adaptions TriggerOnSubstring="_Specular" Slot="main" />
+    </TextureDeclares>
+    <Variations Probability="1">
+      <TextureExpressionsForEditor Slot="main" Expression="RequireAll diffuse" />
+    </Variations>
+    <TechPurchaseCamera value="TechPurchaseGoliath" />
+    <UnitGlossaryCamera value="Star2CameraHigh09" />
+    <PlanetPanelCamera value="Star2CameraHigh09" />
+    <ShadowRadius value="0.999700" />
+  </CModel>
+  <CModel id="GoliathDeath" parent="UnitDeath" Race="Terran">
+    <LowQualityModel value="TerranMediumUnitDeathLow" />
+    <Occlusion value="Show" />
+    <SelectionRadius value="0.999700" />
+    <ShadowRadius value="0.999700" />
+    <TextureDeclares Prefix="Goliath_">
+      <Adaptions TriggerOnSubstring="_Diffuse" Slot="main" />
+      <Adaptions TriggerOnSubstring="_Specular" Slot="main" />
+    </TextureDeclares>
+    <Events>
+      <Anim value="Death,00" />
+      <Name value="GoliathDeathFXA" />
+      <Type value="Sound" />
+      <Time value="0.010000" />
+      <Payload value="Goliath_DeathFXA" />
+    </Events>
+    <Events>
+      <Anim value="Death,01" />
+      <Name value="GoliathDeathFXA" />
+      <Type value="Sound" />
+      <Time value="0.010000" />
+      <Payload value="Goliath_DeathFXA" />
+    </Events>
+    <Events>
+      <Anim value="Death,00" />
+      <Name value="GoliathDeathFXB" />
+      <Type value="Sound" />
+      <Time value="2.000000" />
+      <Payload value="Goliath_DeathFXB" />
+    </Events>
+    <Events>
+      <Anim value="Death,02" />
+      <Name value="GoliathDeathFXB" />
+      <Type value="Sound" />
+      <Time value="0.870000" />
+      <Payload value="Goliath_DeathFXB" />
+    </Events>
+  </CModel>
+  <CModel id="SpartanCompany" parent="Unit" Race="Terran">
+    <Model value="Assets\Units\Terran\GoliathMercenary\GoliathMercenary.m3" />
+    <ScaleMax value="0.650000,0.650000,0.650000" />
+    <ScaleMin value="0.650000,0.650000,0.650000" />
+    <Occlusion value="Show" />
+    <SelectionRadius value="0.999700" />
+    <AttachProps Id="Ref_TurretZ">
+      <Keys index="Turret" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon">
+      <Keys index="SetA" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 01">
+      <Keys index="SetA" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 02">
+      <Keys index="SetB" value="0" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 03">
+      <Keys index="SetB" value="2" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 04">
+      <Keys index="SetB" value="4" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 05">
+      <Keys index="SetB" value="1" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 06">
+      <Keys index="SetB" value="3" />
+    </AttachProps>
+    <AttachProps Id="Ref_Weapon 07">
+      <Keys index="SetB" value="5" />
+    </AttachProps>
+    <Radius value="0.650000" />
+    <ShadowRadius value="0.999700" />
+    <TechPurchaseCamera value="Star2CameraHigh12" />
+    <UnitGlossaryCamera value="Star2CameraHigh12" />
+    <PlanetPanelCamera value="Star2CameraHigh12" />
+  </CModel>
+  <CModel id="Medic" parent="Unit" Race="Terran">
+    <Occlusion value="Show" />
+    <SelectionRadius value="0.375000" />
+    <SquibTypeDefault value="Flesh" />
+    <Radius value="0.375000" />
+    <TechPurchaseCamera value="TechPurchaseInfantry" />
+    <UnitGlossaryCamera value="Star2CameraMid03" />
+    <PlanetPanelCamera value="Star2CameraMid03" />
+    <ShadowRadius value="0.375000" />
+  </CModel>
+</Catalog>

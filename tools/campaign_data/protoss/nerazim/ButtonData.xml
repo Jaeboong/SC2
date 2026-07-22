@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CButton id="StalkerBlinkShieldRestoreBase">
+        <Icon value="Assets\Textures\btn-ability-protoss-blink-color.dds" />
+        <AlertIcon value="Assets\Textures\btn-ability-protoss-blink-color.dds" />
+    </CButton>
+    <CButton id="VoidZealotShadowCharge">
+        <Icon value="Assets\Textures\BTN-Ability-Protoss-ShadowCharge.dds" />
+        <AlertIcon value="Assets\Textures\BTN-Ability-Protoss-ShadowCharge.dds" />
+    </CButton>
+    <CButton id="VoidZealotShadowChargeStun">
+        <Icon value="Assets\Textures\btn-upgrade-vorazun-shadowstun.dds" />
+        <AlertIcon value="Assets\Textures\btn-upgrade-vorazun-shadowstun.dds" />
+    </CButton>
+    <CButton id="ImmortalShakurasShadowCannon">
+        <Icon value="Assets\Textures\BTN-Ability-Protoss-ShadowCannon.dds" />
+        <AlertIcon value="Assets\Textures\BTN-Ability-Protoss-ShadowCannon.dds" />
+    </CButton>
+    <CButton id="DarkArchonMindControl">
+        <Icon value="Assets\Textures\btn-ability-protoss-mindcontrol.dds" />
+        <AlertIcon value="Assets\Textures\btn-ability-protoss-mindcontrol.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+    <CButton id="DarkArchonConfusion">
+        <Icon value="Assets\Textures\btn-ability-protoss-confusion.dds" />
+        <AlertIcon value="Assets\Textures\btn-ability-protoss-confusion.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+</Catalog>

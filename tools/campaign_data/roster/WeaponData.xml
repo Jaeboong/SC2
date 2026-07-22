@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CWeaponLegacy id="SC2TeamAberrationWeapon">
+        <Icon value="Assets\Textures\btn-upgrade-zerg-meleeattacks-level0.dds"/>
+        <Options index="Melee" value="1"/>
+        <TargetFilters value="Ground,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="0.1"/>
+        <Period value="1.2"/>
+        <DamagePoint value="0.2"/>
+        <Effect value="SC2TeamAberrationDamage"/>
+    </CWeaponLegacy>
+    <!-- §63: 무기 Icon이 없으면 정보 패널 무기 칸이 비고 업그레이드 레벨 표기도
+         붙을 곳이 없다. 원본(GoliathA/Predator)처럼 레벨0 아이콘을 명시하고,
+         레벨별 교체는 UpgradeData의 멜레 업그레이드 부분 오버라이드가 맡는다. -->
+    <CWeaponLegacy id="SC2TeamGoliathGroundWeapon">
+        <Icon value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel0.dds"/>
+        <TargetFilters value="Ground,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="6"/>
+        <Arc value="30"/>
+        <Period value="1.5"/>
+        <DamagePoint value="0.2"/>
+        <Effect value="SC2TeamGoliathGroundDamage"/>
+    </CWeaponLegacy>
+    <CWeaponLegacy id="SC2TeamGoliathAirWeapon">
+        <Icon value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel0.dds"/>
+        <TargetFilters value="Air,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="6"/>
+        <Arc value="30"/>
+        <Period value="1.5"/>
+        <DamagePoint value="0.2"/>
+        <DisplayAttackCount value="2"/>
+        <!-- §63: 미사일 2연발 지속 효과를 쏘고, UI 피해 표기는 발당 피해 효과로 남긴다. -->
+        <DisplayEffect value="SC2TeamGoliathAirDamage"/>
+        <Effect value="SC2TeamGoliathAirSalvo"/>
+    </CWeaponLegacy>
+    <CWeaponLegacy id="SC2TeamPredatorWeapon">
+        <Icon value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel0.dds"/>
+        <Options index="Melee" value="1"/>
+        <TargetFilters value="Ground,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <Range value="0.1"/>
+        <Period value="1"/>
+        <DamagePoint value="0.15"/>
+        <Effect value="SC2TeamPredatorAttackSet"/>
+    </CWeaponLegacy>
+</Catalog>

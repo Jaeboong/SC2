@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <!-- §67: 멜레 지상 공격 업그레이드는 피해 효과를 id로 하나하나 참조하므로
+         아이어 교체 무기(질럿 SolariteReaper→ZealotAiurWeapon, 추적자→용기병
+         DragoonDamage, 질럿 회오리 VoidZealotWhirlwindDamage)에는 아무것도
+         적용되지 않는다. 방어·보호막 업그레이드는 유닛 id(Zealot/Stalker 유지)
+         기준이라 정상. 멜레 원본과 같은 비율로 참조를 덧붙인다: 질럿은 타수가
+         2→1로 줄고 한 방이 커졌으니 스윙당 총량이 같도록 +2, 용기병은 자리를
+         물려준 추적자와 같게 +1(+중장갑 추가 1), 회오리는 틱당 +1. Weapon
+         Level·Icon 참조가 없으면 수치는 올라도 정보 패널 +N 표기가 없다(§63). -->
+    <CUpgrade id="ProtossGroundWeaponsLevel1">
+        <EffectArray Reference="Effect,ZealotAiurWeapon,Amount" Value="2"/>
+        <EffectArray Reference="Effect,VoidZealotWhirlwindDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,DragoonDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,DragoonDamage,AttributeBonus[Armored]" Value="1"/>
+        <EffectArray Reference="Weapon,SolariteReaper,Level" Value="1"/>
+        <EffectArray Reference="Weapon,Dragoon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SolariteReaper,Icon" Value="Assets\Textures\btn-upgrade-protoss-groundweaponslevel1.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,Dragoon,Icon" Value="Assets\Textures\btn-upgrade-protoss-groundweaponslevel1.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ProtossGroundWeaponsLevel2">
+        <EffectArray Reference="Effect,ZealotAiurWeapon,Amount" Value="2"/>
+        <EffectArray Reference="Effect,VoidZealotWhirlwindDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,DragoonDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,DragoonDamage,AttributeBonus[Armored]" Value="1"/>
+        <EffectArray Reference="Weapon,SolariteReaper,Level" Value="1"/>
+        <EffectArray Reference="Weapon,Dragoon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SolariteReaper,Icon" Value="Assets\Textures\btn-upgrade-protoss-groundweaponslevel2.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,Dragoon,Icon" Value="Assets\Textures\btn-upgrade-protoss-groundweaponslevel2.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ProtossGroundWeaponsLevel3">
+        <EffectArray Reference="Effect,ZealotAiurWeapon,Amount" Value="2"/>
+        <EffectArray Reference="Effect,VoidZealotWhirlwindDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,DragoonDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,DragoonDamage,AttributeBonus[Armored]" Value="1"/>
+        <EffectArray Reference="Weapon,SolariteReaper,Level" Value="1"/>
+        <EffectArray Reference="Weapon,Dragoon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SolariteReaper,Icon" Value="Assets\Textures\btn-upgrade-protoss-groundweaponslevel3.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,Dragoon,Icon" Value="Assets\Textures\btn-upgrade-protoss-groundweaponslevel3.dds"/>
+    </CUpgrade>
+</Catalog>

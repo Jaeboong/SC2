@@ -1,0 +1,122 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CEffectApplyBehavior id="AlarakZealotFrenziedOverloadAB">
+        <Behavior value="AlarakZealotFrenziedOverload" />
+        <WhichUnit Value="Caster" />
+    </CEffectApplyBehavior>
+    <CEffectCreatePersistent id="ObserverTargetLockCP">
+        <EditorCategories value="Race:Protoss" />
+        <WhichLocation Value="TargetUnit" />
+        <InitialEffect value="ObserverTargetLockStartSet" />
+        <FinalEffect value="ObserverTargetLockFinishSet" />
+        <PeriodicPeriodArray value="1" />
+        <PeriodicValidator value="MonitorTargetLockChecks" />
+        <Flags index="PersistUntilDestroyed" value="1" />
+        <ValidatorArray value="NotHaveTargetLock" />
+        <ValidatorArray value="CasterNotMaxTargetLocks" />
+    </CEffectCreatePersistent>
+    <CEffectSet id="ObserverTargetLockStartSet">
+        <EffectArray value="ObserverTargetLockABTarget" />
+        <EffectArray value="ObserverTargetLockABCaster" />
+    </CEffectSet>
+    <CEffectSet id="ObserverTargetLockFinishSet">
+        <EffectArray value="ObserverTargetLockRB" />
+        <EffectArray value="ObserverTargetLockRBCaster" />
+    </CEffectSet>
+    <CEffectApplyBehavior id="ObserverTargetLockABTarget">
+        <EditorCategories value="Race:Protoss" />
+        <Behavior value="ObserverTargetLock" />
+    </CEffectApplyBehavior>
+    <CEffectApplyBehavior id="ObserverTargetLockABCaster">
+        <EditorCategories value="Race:Protoss" />
+        <Behavior value="ObserverTargetLockCaster" />
+        <WhichUnit Value="Caster" />
+    </CEffectApplyBehavior>
+    <CEffectRemoveBehavior id="ObserverTargetLockRB">
+        <EditorCategories value="" />
+        <BehaviorLink value="ObserverTargetLock" />
+        <Count value="1" />
+    </CEffectRemoveBehavior>
+    <CEffectRemoveBehavior id="ObserverTargetLockRBCaster">
+        <EditorCategories value="" />
+        <WhichUnit Value="Caster" />
+        <BehaviorLink value="ObserverTargetLockCaster" />
+        <Count value="1" />
+    </CEffectRemoveBehavior>
+    <CEffectDamage id="VoidHighTemplarMindBlastDamage">
+        <EditorCategories value="Race:Protoss" />
+        <ResponseFlags index="Acquire" value="1" />
+        <ResponseFlags index="Flee" value="1" />
+        <ImpactLocation Value="TargetUnit" />
+        <Flags index="Notification" value="1" />
+        <Amount value="200" />
+        <SearchFlags index="CallForHelp" value="1" />
+    </CEffectDamage>
+    <CEffectCreatePersistent id="VoidHighTemplarPsiOrbInitialPersistent">
+        <EditorCategories value="Race:Protoss" />
+        <WhichLocation Value="SourcePoint" />
+        <InitialEffect value="VoidHighTemplarPsiOrbLaunchMissile" />
+        <InitialOffset value="0,-13,0" />
+        <PeriodCount value="1" />
+    </CEffectCreatePersistent>
+    <CEffectLaunchMissile id="VoidHighTemplarPsiOrbLaunchMissile">
+        <EditorCategories value="" />
+        <ImpactLocation Value="TargetPoint" />
+        <LaunchEffect value="VoidHighTemplarPsiOrbAB" />
+        <ImpactEffect value="VoidHighTemplarPsiOrbSet" />
+        <AmmoUnit value="VoidHighTemplarPsiOrbMissile" />
+    </CEffectLaunchMissile>
+    <CEffectApplyBehavior id="VoidHighTemplarPsiOrbAB">
+        <Behavior value="VoidHighTemplarPsiOrb" />
+        <WhichUnit Value="Source" />
+    </CEffectApplyBehavior>
+    <CEffectSet id="VoidHighTemplarPsiOrbSet">
+        <EditorCategories value="" />
+        <EffectArray value="VoidHighTemplarPsiOrbDestroyPersistent" />
+    </CEffectSet>
+    <CEffectDestroyPersistent id="VoidHighTemplarPsiOrbDestroyPersistent">
+        <EditorCategories value="" />
+        <WhichLocation Value="TargetPoint" />
+        <Effect value="VoidHighTemplarPsiOrbPersistent" />
+        <Count value="1" />
+        <Radius value="1" />
+    </CEffectDestroyPersistent>
+    <CEffectEnumArea id="VoidHighTemplarPsiOrbSearch">
+        <EditorCategories value="" />
+        <SearchFilters value="-;Self,Player,Ally,Neutral,Missile,Item,Stasis,Dead,Hidden,Invulnerable" />
+        <TargetSorts>
+            <SortArray value="TSRandom" />
+        </TargetSorts>
+        <AreaArray Radius="5" Effect="VoidHighTemplarPsiOrbDamage" />
+    </CEffectEnumArea>
+    <CEffectCreatePersistent id="VoidHighTemplarPsiOrbPersistent">
+        <EditorCategories value="" />
+        <WhichLocation Value="SourceUnit" />
+        <Flags index="PersistUntilDestroyed" value="1" />
+        <PeriodicEffectArray value="VoidHighTemplarPsiOrbSearch" />
+        <PeriodicPeriodArray value="0.5" />
+    </CEffectCreatePersistent>
+    <CEffectDamage id="VoidHighTemplarPsiOrbDamage">
+        <EditorCategories value="" />
+        <Amount value="5" />
+        <ResponseFlags index="Acquire" value="1" />
+        <ResponseFlags index="Flee" value="1" />
+        <Flags index="Notification" value="1" />
+    </CEffectDamage>
+    <CEffectSet id="PhaseBlinkSet">
+        <EditorCategories value="" />
+        <EffectArray value="Blink" />
+        <EffectArray value="PhaseBlinkDamageAB" />
+        <TargetLocationType value="Point" />
+    </CEffectSet>
+    <CEffectApplyBehavior id="PhaseBlinkDamageAB">
+        <EditorCategories value="" />
+        <WhichUnit Value="Caster" />
+        <Behavior value="PhaseBlinkDamage" />
+    </CEffectApplyBehavior>
+    <CEffectRemoveBehavior id="PhaseBlinkDamageRB">
+        <EditorCategories value="" />
+        <WhichUnit Value="Caster" />
+        <BehaviorLink value="PhaseBlinkDamage" />
+    </CEffectRemoveBehavior>
+</Catalog>

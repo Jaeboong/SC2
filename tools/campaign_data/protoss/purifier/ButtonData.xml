@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CButton id="StalkerBlinkMultiple">
+        <Icon value="Assets\Textures\BTN-Ability-Protoss-BlinkCharges.dds" />
+        <AlertIcon value="Assets\Textures\BTN-Ability-Protoss-BlinkCharges.dds" />
+    </CButton>
+    <CButton id="VoidSentryChronoBeam">
+        <Icon value="Assets\Textures\btn-ability-protoss-chronobeam.dds" />
+    </CButton>
+    <CButton id="VoidSentryPhasingMode">
+        <Icon value="Assets\Textures\btn-ability-protoss-energizerphasingmode.dds" />
+        <AlertIcon value="Assets\Textures\btn-ability-protoss-energizerphasingmode.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+    <CButton id="VoidSentryMobileMode">
+        <Icon value="Assets\Textures\btn-ability-protoss-energizermobilemode.dds" />
+        <AlertIcon value="Assets\Textures\btn-ability-protoss-energizermobilemode.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+    <CButton id="ZealotPurifierRevive">
+        <Icon value="Assets\Textures\BTN-Ability-Protoss-Reconstruction.dds" />
+        <EditorCategories value="Race:Protoss" />
+    </CButton>
+    <CButton id="ZealotPurifier">
+        <Icon value="Assets\Textures\btn-unit-protoss-zealot-purifier.dds" />
+        <AlertIcon value="Assets\Textures\btn-unit-protoss-zealot-purifier.dds" />
+        <Hotkey value="Button/Hotkey/Zealot" />
+        <EditorCategories value="Race:Protoss" />
+        <HotkeyAlias value="Zealot" />
+        <Universal value="1" />
+    </CButton>
+</Catalog>

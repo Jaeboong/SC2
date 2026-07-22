@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <!-- The Terran roster parents from Blizzard's own campaign units, not from a
+         melee lookalike. Parenting SC2TeamPredator from HellionTank inherited
+         <AbilArray Link="MorphToHellion"/> (the Hellion transform button players
+         saw), the Hellbat's collision radii, and TerranInfantry/Vehicle armor
+         names that did not match the model. Every stat below that equals the
+         campaign original has been deleted rather than restated: the originals
+         already carry the values this roster wants, so only the name, the weapon
+         swap, and genuine deviations remain.
+
+         SC2TeamAberration still parents from Ultralisk. Its melee counterpart is
+         a closer fit than campaign InfestedAbomination (Speed 2 vs the 2.95 this
+         roster wants), and it already renders and speaks correctly. -->
+    <CUnit id="SC2TeamAberration" parent="Ultralisk">
+        <Name value="Unit/Name/SC2TeamAberration"/>
+        <LifeStart value="275"/>
+        <LifeMax value="275"/>
+        <LifeArmor value="2"/>
+        <Speed value="2.9531"/>
+        <Food value="-3"/>
+        <CostResource index="Minerals" value="200"/>
+        <CostResource index="Vespene" value="75"/>
+        <Radius value="0.75"/>
+        <SeparationRadius value="0.75"/>
+        <CargoSize value="4"/>
+        <WeaponArray index="0" Link="SC2TeamAberrationWeapon"/>
+        <WeaponArray index="1" removed="1"/>
+    </CUnit>
+    <!-- Campaign Goliath already carries this roster's life, armor, speed, food,
+         cost, cargo size and radii. Only the weapons differ: the original fires
+         GoliathA/GoliathG plus their two upgraded variants, so indices 2 and 3
+         are removed rather than left to fire alongside ours. Turret="Goliath"
+         must be restated per weapon or the turret stops tracking targets. -->
+    <CUnit id="SC2TeamGoliath" parent="Goliath">
+        <Name value="Unit/Name/SC2TeamGoliath"/>
+        <WeaponArray index="0" Link="SC2TeamGoliathAirWeapon" Turret="Goliath"/>
+        <WeaponArray index="1" Link="SC2TeamGoliathGroundWeapon" Turret="Goliath"/>
+        <WeaponArray index="2" removed="1"/>
+        <WeaponArray index="3" removed="1"/>
+    </CUnit>
+    <!-- Campaign Predator is already 140 life, speed 4, -3 food, 100/100, cargo
+         2, Radius 0.625 / InnerRadius 0.5. Its single weapon is replaced with
+         ours, which carries this roster's splash instead of Retribution Field. -->
+    <CUnit id="SC2TeamPredator" parent="Predator">
+        <Name value="Unit/Name/SC2TeamPredator"/>
+        <LifeArmor value="1"/>
+        <WeaponArray index="0" Link="SC2TeamPredatorWeapon"/>
+    </CUnit>
+    <!-- Campaign Medic matches this roster exactly, and brings the real medic
+         heal ability and its command card with it, so the Medivac heal graft the
+         Marine parent needed is gone. -->
+    <CUnit id="SC2TeamMedic" parent="Medic">
+        <Name value="Unit/Name/SC2TeamMedic"/>
+    </CUnit>
+    <CUnit id="Larva">
+        <CardLayouts index="0">
+            <LayoutButtons index="20" Face="SC2TeamAberration" Type="AbilCmd" AbilCmd="LarvaTrain,Train28" Row="2" Column="3"/>
+            <LayoutButtons index="21" Face="HotSTorrasque" Type="AbilCmd" AbilCmd="LarvaTrain,Train17" Row="2" Column="4"/>
+        </CardLayouts>
+        <TechTreeProducedUnitArray value="HotSTorrasque"/>
+    </CUnit>
+    <CUnit id="Factory">
+        <!-- 멜레(voidmulti) 데이터는 공성전차 버튼을 0행 3열로 옮기므로 그 자리에
+             둔 버튼은 항상 가려진다(둘 다 유효하면 낮은 인덱스가 이긴다). 골리앗은
+             비어 있는 1행 2열(토르 옆)에 둔다. 1행 3열의 SelectBuilder는 건설
+             중에만 유효해서 완성된 팩토리에서는 프레데터와 충돌하지 않는다. -->
+        <CardLayouts index="0">
+            <LayoutButtons index="20" Face="SC2TeamGoliath" Type="AbilCmd" AbilCmd="FactoryTrain,Train20" Row="1" Column="2"/>
+            <LayoutButtons index="21" Face="SC2TeamPredator" Type="AbilCmd" AbilCmd="FactoryTrain,Train21" Row="1" Column="3"/>
+        </CardLayouts>
+        <TechTreeProducedUnitArray value="SC2TeamGoliath"/>
+        <TechTreeProducedUnitArray value="SC2TeamPredator"/>
+    </CUnit>
+    <CUnit id="Barracks">
+        <CardLayouts index="0">
+            <LayoutButtons index="20" Face="SC2TeamMedic" Type="AbilCmd" AbilCmd="BarracksTrain,Train20" Row="1" Column="0"/>
+        </CardLayouts>
+        <TechTreeProducedUnitArray value="SC2TeamMedic"/>
+    </CUnit>
+    <CUnit id="SpawningPool">
+        <CardLayouts index="0">
+            <LayoutButtons index="20" Face="SC2TeamRaptorEvolution" Type="AbilCmd" AbilCmd="SpawningPoolResearch,Research10" Row="0" Column="2"/>
+        </CardLayouts>
+    </CUnit>
+</Catalog>

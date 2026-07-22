@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <!-- §64: 부착 패턴은 Driver(발사 효과 ID)로 구동되므로 원본
+         AMPatternGoliath(Driver="GoliathALM")는 우리 발사 효과에 반응하지
+         않는다. 패턴이 안 잡히면 미사일이 유닛 원점(골반)에서 나간다.
+         블리자드도 용병 골리앗용 AMPatternSpartanCompany를 따로 만들었다.
+         SetB = 골리앗 모델의 미사일 포드 부착점 집합. -->
+    <CAttachMethodPattern id="AMPatternSC2TeamGoliath">
+        <Keyword value="SetB"/>
+        <Base value="::RollingIndex"/>
+        <Multiplier value="2"/>
+        <Driver value="SC2TeamGoliathAirLaunch"/>
+    </CAttachMethodPattern>
+</Catalog>

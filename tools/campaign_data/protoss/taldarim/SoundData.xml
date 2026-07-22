@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CSound id="SentryMonitor_TargetLock_On" parent="Spell">
+        <EditorCategories value="Race:Protoss" />
+        <AssetArray File="Assets\Sounds\SentryMonitor_TargetLock_On_01.wav" FacialGroup="" />
+        <Pitch value="-9.000000,-8.700000" />
+        <Volume value="-8.000000,-8.000000" />
+    </CSound>
+    <CSound id="SentryMonitor_TargetLock_Off" parent="Spell">
+        <EditorCategories value="Race:Protoss" />
+        <AssetArray File="Assets\Sounds\SentryMonitor_TargetLock_Off_01.wav" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\SentryMonitor_TargetLock_Off_02.wav" FacialGroup="" />
+        <Pitch value="-1.000000,-1.000000" />
+        <Volume value="-3.000000,-3.000000" />
+    </CSound>
+    <CSound id="SentryMonitor_TargetLock_Loop" parent="Spell">
+        <EditorCategories value="Race:Protoss" />
+        <AssetArray File="Assets\Sounds\SentryMonitor_TargetBeam_Loop_01.wav" LoopCount="-1" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\SentryMonitor_TargetBeam_Loop_02.wav" LoopCount="-1" FacialGroup="" />
+        <Pitch value="-1.000000,-1.000000" />
+        <Volume value="-12.000000,-12.000000" />
+    </CSound>
+    <CSound id="SentryMonitor_TargetLock_Ping" parent="Spell">
+        <EditorCategories value="Race:Protoss" />
+        <AssetArray File="Assets\Sounds\SentryMonitor_Target_Ping_01.wav" FacialGroup="" />
+        <AssetArray File="Assets\Sounds\SentryMonitor_Target_Ping_03.wav" FacialGroup="" />
+        <Pitch value="-1.000000,-0.700000" />
+        <Volume value="-3.000000,-3.000000" />
+    </CSound>
+</Catalog>

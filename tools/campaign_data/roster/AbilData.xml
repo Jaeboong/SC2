@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CAbilTrain id="LarvaTrain">
+        <InfoArray index="Train17" Time="60">
+            <Button DefaultButtonFace="HotSTorrasque" Requirements="HaveUltraliskCavern"/>
+            <Unit value="HotSTorrasque"/>
+        </InfoArray>
+        <InfoArray index="Train28" Time="45">
+            <Button DefaultButtonFace="SC2TeamAberration" Requirements="HaveInfestationPit"/>
+            <Unit value="SC2TeamAberration"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilTrain id="FactoryTrain">
+        <InfoArray index="Train20" Time="40">
+            <Button DefaultButtonFace="SC2TeamGoliath" Requirements="HaveArmory"/>
+            <Unit value="SC2TeamGoliath"/>
+        </InfoArray>
+        <InfoArray index="Train21" Time="35">
+            <Button DefaultButtonFace="SC2TeamPredator"/>
+            <Unit value="SC2TeamPredator"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilTrain id="BarracksTrain">
+        <InfoArray index="Train20" Time="30">
+            <Button DefaultButtonFace="SC2TeamMedic" Requirements="HaveAttachedTechLab"/>
+            <Unit value="SC2TeamMedic"/>
+        </InfoArray>
+    </CAbilTrain>
+    <CAbilResearch id="SpawningPoolResearch">
+        <InfoArray index="Research10" Time="100" Upgrade="SC2TeamRaptorEvolution">
+            <Resource index="Minerals" value="100"/>
+            <Resource index="Vespene" value="100"/>
+            <Button DefaultButtonFace="SC2TeamRaptorEvolution" Requirements="HaveLair"/>
+        </InfoArray>
+    </CAbilResearch>
+</Catalog>

@@ -1,0 +1,221 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CModel id="SC2TeamZealotAiurModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Aiur\Zealot_Aiur.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Zealot_SwarmAnims\Zealot_SwarmAnims.m3a" />
+    </CModel>
+    <CModel id="Dragoon" parent="Unit" Race="Protoss">
+        <Occlusion value="Show"/>
+        <Tipability value="0.750000"/>
+        <TipabilityWidth value="0.800000"/>
+        <TipabilityLength value="0.800000"/>
+        <SelectionRadius value="0.650000"/>
+        <SquibTypeDefault value="Metal"/>
+        <Radius value="0.650000"/>
+        <TechPurchaseCamera value="Star2CameraHigh08"/>
+        <UnitGlossaryCamera value="Star2CameraHigh08"/>
+        <PlanetPanelCamera value="Star2CameraHigh08"/>
+        <ShadowRadius value="0.866400"/>
+        <Model value="Assets\Units\Protoss\Dragoon_Void\Dragoon_Void.m3"/>
+    </CModel>
+    <CModel id="DragoonWarpIn" parent="OneShotSpellFX">
+        <Model value="Assets\Units\Protoss\Dragoon_Void_WarpIn\Dragoon_Void_WarpIn.m3"/>
+        <Occlusion value="Show"/>
+        <EditorCategories value="Race:Protoss"/>
+        <LowQualityModel value="DragoonWarpInLow"/>
+        <SelectionRadius value="0.555400"/>
+        <ShadowRadius value="0.555400"/>
+    </CModel>
+    <CModel id="DragoonWarpInLow" parent="Unit" Race="Protoss">
+        <Model value="Assets\Effects\Protoss\ProtossUnitWarpIn\ProtossUnitWarpIn.m3"/>
+        <SelectionRadius value="0.600000"/>
+        <ShadowRadius value="0.600000"/>
+        <ScaleMax value="0.900000,0.900000,0.900000"/>
+        <ScaleMin value="0.900000,0.900000,0.900000"/>
+    </CModel>
+    <CModel id="DragoonPortrait" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Aiur_DragoonEx2_Portrait\Aiur_DragoonEx2_Portrait.m3"/>
+        <Lighting value="PortraitAiurDragoon"/>
+        <Image value="Assets\Textures\aiurdragoonportrait_static.dds"/>
+    </CModel>
+    <CModel id="DragoonDeath" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Dragoon_Void_Death\Dragoon_Void_Death.m3"/>
+    </CModel>
+    <CModel id="DragoonPlacement" parent="Placement" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Dragoon_Placement\Dragoon_Placement.m3"/>
+    </CModel>
+    <CModel id="SC2TeamZealotNerazimModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Shakuras\Zealot_Shakuras.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Zealot_SwarmAnims\Zealot_SwarmAnims.m3a" />
+    </CModel>
+    <CModel id="SC2TeamImmortalNerazimModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Immortal_Nerazim\Immortal_Nerazim.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Immortal_SwarmAnims\Immortal_SwarmAnims.m3a" />
+    </CModel>
+    <CModel id="SC2TeamZealotPurifierModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Purifier\Zealot_Purifier.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Zealot_SwarmAnims\Zealot_SwarmAnims.m3a" />
+    </CModel>
+    <CModel id="SC2TeamStalkerPurifierModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Stalker_Purifier\Stalker_Purifier.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Stalker_SwarmAnims\Stalker_SwarmAnims.m3a" />
+    </CModel>
+    <CModel id="SC2TeamZealotTaldarimModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Taldarim\Zealot_Taldarim.m3" />
+    </CModel>
+    <CModel id="SC2TeamStalkerTaldarimModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Stalker_TalDarim\Stalker_TalDarim.m3" />
+    </CModel>
+    <CModel id="SC2TeamImmortalTaldarimModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Immortal_Taldarim\Immortal_Taldarim.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Immortal_SwarmAnims\Immortal_SwarmAnims.m3a" />
+    </CModel>
+    <CModel id="SC2TeamColossusTaldarimModel" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Colossus_TaldarimEx3\Colossus_TaldarimEx3.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Colossus_SwarmAnims\Colossus_SwarmAnims.m3a" />
+    </CModel>
+    <CModel id="DragoonWeapon" parent="MissileFX">
+        <Model value="Assets\Effects\Protoss\DragoonEX2_Missile\DragoonEX2_Missile.m3" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="DragoonAttackImpact" parent="ImpactFX">
+        <Model value="Assets\Effects\Protoss\DragoonEX2_Missile_Impact\DragoonEX2_Missile_Impact.m3"/>
+        <EditorCategories value="Race:Protoss"/>
+    </CModel>
+    <CModel id="VoidZealotWhirlwindSearchModel" parent="ImpactFX">
+        <Model value="Assets\Effects\Protoss\Zealot_Aiur_Whirlwind\Zealot_Aiur_Whirlwind.m3" />
+        <ScaleMax value="1.500000,1.500000,1.500000" />
+        <ScaleMin value="1.500000,1.500000,1.500000" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="VoidZealotWhirlwindImpact" parent="ImpactFX">
+        <Model value="Assets\Effects\Protoss\Zealot_Aiur_Whirlwind_Impact\Zealot_Aiur_Whirlwind_Impact.m3" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="ZealotShadowCharge">
+        <Model value="Assets\Effects\Protoss\ZeratulBlinkIn\ZeratulBlinkIn.m3" />
+        <ScaleMax value="0.500000,0.500000,0.500000" />
+        <ScaleMin value="0.500000,0.500000,0.500000" />
+    </CModel>
+    <CModel id="ImmortalShakurasShadowCannonMissile" parent="MissileFX">
+        <Model value="Assets\Effects\Protoss\ShadowCannonMissile\ShadowCannonMissile.m3" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="ZealotPurifierDeath" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Purifier_Death\Zealot_Purifier_Death.m3" />
+        <Occlusion value="Show" />
+        <LowQualityModel value="ProtossSpiritDeathLow" />
+        <SelectionRadius value="0.555400" />
+        <ShadowRadius value="0.555400" />
+        <VariationCount value="2" />
+    </CModel>
+    <CModel id="VoidHighTemplarPsiOrbBeam" parent="PersistentSpellFX">
+        <Model value="Assets\Effects\Protoss\HighTemplarTaldarim_PsionicOrb_Beam\HighTemplarTaldarim_PsionicOrb_Beam.m3" />
+        <EditorCategories value="Race:Protoss" />
+        <RadiusLoose value="1.000000" />
+    </CModel>
+    <CModel id="VoidHighTemplarPsiOrbFinalImpactModel">
+        <Model value="Assets\Effects\Protoss\HighTemplarTaldarim_PsionicOrb_Impact\HighTemplarTaldarim_PsionicOrb_Impact.m3" />
+    </CModel>
+    <CModel id="VoidHighTemplarPsiOrbMissile" parent="MissileFX">
+        <Model value="Assets\Effects\Protoss\HighTemplarTaldarim_PsionicOrb_Missile\HighTemplarTaldarim_PsionicOrb_Missile.m3" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="VoidHighTemplarPsiOrbCursorSplat" parent="UI">
+        <Model value="Assets\UI\Cursors\ProtossCursor1\ProtossCursor1.m3" />
+        <EditorCategories value="Race:Protoss" />
+        <ScaleMax value="0.250000,0.250000,0.250000" />
+        <ScaleMin value="0.250000,0.250000,0.250000" />
+        <SelectionRadius value="2.500000" />
+        <ShadowRadius value="2.500000" />
+    </CModel>
+    <CModel id="VoidHighTemplarMindBlastExplosion" parent="ImpactFX">
+        <Model value="Assets\Effects\Protoss\HighTemplarTaldarim_MindBlast\HighTemplarTaldarim_MindBlast.m3" />
+        <SelectionRadius value="0.200000" />
+        <ShadowRadius value="0.200000" />
+    </CModel>
+    <CModel id="DarkArchonMindControlBeam" parent="PersistentSpellFX">
+        <Model value="Assets\Effects\Protoss\DarkArchon_MindControl_Beam\DarkArchon_MindControl_Beam.m3" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="DarkArchonMindControlState" parent="PersistentSpellFX">
+        <Model value="Assets\Effects\Protoss\DarkArchon_MindControl_State\DarkArchon_MindControl_State.m3" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="ZealotPurifierReviveCorpse">
+        <Model value="Assets\Effects\Protoss\Zealot_Purifier_Reconstruction\Zealot_Purifier_Reconstruction.m3" />
+        <Occlusion value="Show" />
+        <SelectionRadius value="0.416500" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="0.375000" />
+        <ShadowRadius value="0.416500" />
+        <Events>
+            <Anim value="Birth,00" />
+            <Name value="ZealotPurifier_Reconstruction_Start" />
+            <Type value="Sound" />
+            <Time value="2.169000" />
+            <Payload value="ZealotPurifier_Reconstruction_Start" />
+        </Events>
+        <Events>
+            <Anim value="Birth,00" />
+            <Name value="ZealotPurifier_Reconstruction_ExplodeStart" />
+            <Type value="Sound" />
+            <Time value="0.010000" />
+            <Payload value="ZealotPurifier_Reconstruction_ExplodeStart" />
+        </Events>
+    </CModel>
+    <CModel id="DarkArchonConfusionCastImpactModel">
+        <Model value="Assets\Effects\Protoss\DarkArchon_Confusion\DarkArchon_Confusion.m3" />
+    </CModel>
+    <CModel id="DarkArchonConfusionCastModel">
+        <Model value="Assets\Effects\Protoss\DarkArchon_Confusion_Cast\DarkArchon_Confusion_Cast.m3" />
+    </CModel>
+    <CModel id="DarkArchonConfusionModel">
+        <Model value="Assets\Effects\Protoss\DarkArchon_Confusion_State\DarkArchon_Confusion_State.m3" />
+    </CModel>
+    <CModel id="TargetLockAttachment" parent="OneShotSpellFX">
+        <Model value="Assets\Effects\Protoss\TargetLockImpact\TargetLockImpact.m3" />
+    </CModel>
+    <CModel id="TargetLockAttachmentLarge" parent="OneShotSpellFX">
+        <Model value="Assets\Effects\Protoss\TargetLockImpactLarge\TargetLockImpactLarge.m3" />
+    </CModel>
+    <CModel id="TargetLockLaserBeam" parent="PersistentSpellFX">
+        <Model value="Assets\Effects\Protoss\TargetLockBeam\TargetLockBeam.m3" />
+        <EditorCategories value="Race:Protoss" />
+    </CModel>
+    <CModel id="SentryPhasing" parent="Unit" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Sentry_Purifier\Sentry_Purifier.m3" />
+        <RequiredAnims value="Assets\Units\Protoss\Sentry_SwarmAnims\Sentry_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <SelectionRadius value="0.733000" />
+        <Tipability value="0.750000" />
+        <TipabilityWidth value="0.500000" />
+        <TipabilityLength value="0.500000" />
+        <SquibTypeDefault value="Metal" />
+        <ScaleMax value="0.600000,0.600000,0.600000" />
+        <ScaleMin value="0.600000,0.600000,0.600000" />
+        <TechPurchaseCamera value="Star2CameraMid06" />
+        <UnitGlossaryCamera value="Star2CameraMid06" />
+        <PlanetPanelCamera value="Star2CameraMid06" />
+        <ShadowRadius value="0.533000" />
+    </CModel>
+    <CModel id="SentryPhasingDeath" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Sentry_Purifier_Death\Sentry_Purifier_Death.m3" />
+        <Events>
+            <Anim value="Death,01" />
+            <Name value="Uni_DeathFXincidentallFire" />
+            <Type value="Sound" />
+            <Time value="0.300000" />
+            <Payload value="Uni_DeathFXincidentallFire" />
+        </Events>
+        <Events>
+            <Anim value="Death,02" />
+            <Name value="Uni_DeathFXincidentallFire" />
+            <Type value="Sound" />
+            <Time value="0.300000" />
+            <Payload value="Uni_DeathFXincidentallFire" />
+        </Events>
+        <LowQualityModel value="ProtossMediumUnitDeathLow" />
+        <Occlusion value="Show" />
+    </CModel>
+</Catalog>

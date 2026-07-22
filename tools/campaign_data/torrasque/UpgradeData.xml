@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CUpgrade id="HotSTorrasque">
+    <EffectArray Operation="Set" Reference="Unit,UltraliskCavern,TechTreeUnlockedUnitArray[0]" Value="HotSTorrasque" />
+  </CUpgrade>
+</Catalog>

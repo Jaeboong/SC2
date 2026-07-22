@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CRequirement id="HaveTorrasqueTimerBehavior">
+    <EditorCategories value="Race:Protoss,TechType:Upgrade" />
+    <NodeArray index="Show" Link="CountBehaviorTorrasqueTimerBehaviorCompleteOnlyAtUnit" />
+  </CRequirement>
+  <CRequirement id="HaveHotSTorrasque">
+    <EditorCategories value="Race:Zerg,TechType:Upgrade" />
+    <NodeArray index="Show" Link="CountUpgradeHotSTorrasqueCompleteOnly" />
+  </CRequirement>
+</Catalog>

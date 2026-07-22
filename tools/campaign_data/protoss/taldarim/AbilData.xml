@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CAbilEffectTarget id="ObserverTargetLock">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Effect index="0" value="ObserverTargetLockCP" />
+        <Flags index="AutoCast" value="1" />
+        <Flags index="AutoCastOn" value="1" />
+        <Cost>
+            <Cooldown Location="Unit" TimeUse="3" />
+        </Cost>
+        <TargetFilters value="Visible;Player,Ally,Neutral,Missile,Stasis,Dead,Invulnerable" />
+        <TargetSorts>
+            <SortArray value="TSLifeLargestFirst" />
+            <SortArray value="TSDistance" />
+        </TargetSorts>
+        <Range value="8" />
+        <AutoCastRange value="8" />
+        <AutoCastValidatorArray value="NotHaveTargetLock" />
+        <AutoCastValidatorArray value="NotInterceptor" />
+        <CastOutroTime value="0.5" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="TargetLock" />
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="ForceFieldMonitor">
+        <AbilSetId value="ForceField" />
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Effect index="0" value="ForceField" />
+        <Cost>
+            <Vital index="Energy" value="50" />
+        </Cost>
+        <Range value="9" />
+        <Marker>
+            <MatchFlags index="Link" value="0" />
+            <MatchFlags index="CasterUnit" value="1" />
+        </Marker>
+        <CursorEffect value="ForceFieldPlacement" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="SentryTaldarimForceField" />
+        <CmdButtonArray index="Cancel" DefaultButtonFace="Cancel" />
+        <PlaceUnit value="ForceField" />
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="VoidHighTemplarMindBlast">
+        <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+        <Effect index="0" value="VoidHighTemplarMindBlastDamage" />
+        <Cost>
+            <Vital index="Energy" value="100" />
+            <Cooldown TimeUse="8" />
+        </Cost>
+        <TargetFilters value="Visible;Player,Ally,Structure,Missile,Stasis,Dead,Invulnerable" />
+        <Range value="13" />
+        <AINotifyEffect value="VoidHighTemplarMindBlastDamage" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="VoidHighTemplarMindBlast" />
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="VoidHighTemplarPsiOrb">
+        <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+        <Effect index="0" value="VoidHighTemplarPsiOrbInitialPersistent" />
+        <Cost>
+            <Vital index="Energy" value="50" />
+            <Cooldown TimeUse="2" />
+        </Cost>
+        <Range value="13" />
+        <UninterruptibleArray index="Prep" value="1" />
+        <UninterruptibleArray index="Cast" value="1" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="VoidHighTemplarPsiOrb" />
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="AscendantSacrifice">
+        <EditorCategories value="Race:Terran,AbilityorEffectType:Units" />
+        <TargetFilters value="-;Self,Enemy,Structure,Heroic,Missile,Uncommandable,Stasis,Dead,Hidden,Hallucination,Invulnerable" />
+        <Range value="4" />
+        <Cost>
+            <Cooldown Location="Unit" TimeUse="10" />
+        </Cost>
+        <CmdButtonArray index="Execute" DefaultButtonFace="AscendantSacrifice" />
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="BlinkSlayer" parent="Blink">
+        <CmdButtonArray index="Execute" Requirements="" />
+        <Effect index="0" value="PhaseBlinkSet" />
+    </CAbilEffectTarget>
+    <CAbilEffectInstant id="AlarakZealotFrenziedOverload">
+        <Alignment value="Negative" />
+        <EditorCategories value="AbilityorEffectType:Units,Race:Protoss" />
+        <Effect index="0" value="AlarakZealotFrenziedOverloadAB" />
+        <Flags index="AutoCast" value="1" />
+        <Flags index="AutoCastOn" value="1" />
+        <Flags index="Transient" value="1" />
+        <Cost>
+            <Charge Link="Abil/AlarakZealotFrenziedOverloadEI" />
+            <Cooldown Link="Abil/AlarakZealotFrenziedOverloadEI" TimeUse="10" />
+        </Cost>
+        <AutoCastFilters value="Ground,Visible;Player,Ally,Neutral" />
+        <AutoCastRange value="5" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="AlarakZealotFrenziedOverload" />
+        <AutoCastValidatorArray value="AlarakCasterRecentlyDealtDamage" />
+    </CAbilEffectInstant>
+</Catalog>

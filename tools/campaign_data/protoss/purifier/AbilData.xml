@@ -1,0 +1,118 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CAbilEffectTarget id="BlinkMultiple">
+        <AbilSetId value="Blnk" />
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Effect index="0" value="VoidStalkerBlinkMultiple" />
+        <Flags index="BestUnit" value="0" />
+        <Flags index="RequireTargetVision" value="0" />
+        <Cost>
+            <Charge>
+                <CountMax value="3" />
+                <CountStart value="3" />
+                <CountUse value="1" />
+                <TimeStart value="4" />
+                <TimeUse value="4" />
+            </Charge>
+            <Cooldown Link="Blink" />
+        </Cost>
+        <Range value="500" />
+        <Arc value="360" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="StalkerBlinkMultiple">
+            <Flags index="ToSelection" value="1" />
+        </CmdButtonArray>
+    </CAbilEffectTarget>
+    <CAbilEffectTarget id="VoidSentryChronoBeam">
+        <EditorCategories value="AbilityorEffectType:Units" />
+        <Effect index="0" value="VoidSentryChronoBeamCP" />
+        <Flags index="AutoCast" value="1" />
+        <Flags index="AutoCastOn" value="1" />
+        <Flags index="Smart" value="1" />
+        <Cost>
+            <Vital index="Energy" value="3" />
+        </Cost>
+        <TargetFilters value="Visible;Self,Neutral,Enemy,Structure,Heroic,Missile,Item,Uncommandable,Stasis,Dead,Hidden" />
+        <TargetSorts RequestCount="1">
+            <SortArray value="TSVoidSentryChronoBeam" />
+        </TargetSorts>
+        <Range value="8" />
+        <Arc value="4.9987" />
+        <AutoCastFilters value="Visible;Self,Neutral,Enemy,Structure,Missile,Item,Uncommandable,Stasis,Dead,Hidden" />
+        <AutoCastRange value="8" />
+        <AutoCastValidatorArray value="TargetIsFiringWeapon" />
+        <AutoCastValidatorArray value="SentryChronoBeamTargetExlusion" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="VoidSentryChronoBeam" />
+    </CAbilEffectTarget>
+    <CAbilMorph id="VoidSentryPhasingMode">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="VoidSentryPhasingMode" />
+        <Flags index="BestUnit" value="1" />
+        <Flags index="IgnoreFacing" value="1" />
+        <InfoArray Unit="SentryPhasing">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5" />
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5" />
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="VoidSentryMobileMode">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="VoidSentryMobileMode" />
+        <Flags index="BestUnit" value="1" />
+        <Flags index="IgnoreFacing" value="1" />
+        <InfoArray Unit="Sentry">
+            <SectionArray index="Actor">
+                <DurationArray index="Duration" value="1.5" />
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Duration" value="1.5" />
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+    <CAbilMorph id="ZealotPurifierReviveRebuild">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:MorphsandBurrows" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="ZealotPurifier" />
+        <Flags index="BestUnit" value="1" />
+        <Flags index="Birth" value="1" />
+        <Flags index="DisableAbils" value="1" />
+        <Flags index="DisableCollision" value="1" />
+        <Flags index="FastBuild" value="1" />
+        <Flags index="IgnoreFacing" value="1" />
+        <Flags index="IgnoreFood" value="1" />
+        <Flags index="IgnoreUnitCost" value="1" />
+        <Flags index="Produce" value="1" />
+        <Flags index="Rally" value="1" />
+        <Flags index="ShowProgress" value="1" />
+        <Flags index="SuppressMovement" value="1" />
+        <InfoArray Score="1" Unit="Zealot">
+            <SectionArray index="Abils">
+                <DurationArray index="Delay" value="6.66" />
+            </SectionArray>
+            <SectionArray index="Actor">
+                <DurationArray index="Delay" value="6.66" />
+            </SectionArray>
+            <SectionArray index="Collide">
+                <DurationArray index="Delay" value="6.66" />
+            </SectionArray>
+            <SectionArray index="Stats">
+                <DurationArray index="Delay" value="6.66" />
+                <EffectArray index="Finish" value="ZealotPurifierReviveSet" />
+            </SectionArray>
+        </InfoArray>
+        <Activity value="UI/Reconstructing" />
+    </CAbilMorph>
+    <CAbilMorph id="ZealotPurifierReviveDeath">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <CmdButtonArray index="Execute" DefaultButtonFace="ZealotPurifier" />
+        <Flags index="IgnoreFacing" value="1" />
+        <Flags index="RallyReset" value="1" />
+        <Flags index="SuppressMovement" value="1" />
+        <InfoArray Unit="ZealotPurifierReviveCorpse">
+            <SectionArray index="Stats">
+                <EffectArray index="Finish" value="ZealotPurifierReviveDeadSet" />
+            </SectionArray>
+        </InfoArray>
+    </CAbilMorph>
+</Catalog>

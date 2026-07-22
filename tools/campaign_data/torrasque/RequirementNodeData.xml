@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+  <CRequirementCountBehavior id="CountBehaviorTorrasqueTimerBehaviorCompleteOnlyAtUnit">
+    <Flags index="TechTreeCheat" value="0" />
+    <Tooltip value="" />
+    <Count Link="TorrasqueTimerBehavior" State="CompleteOnlyAtUnit" />
+  </CRequirementCountBehavior>
+  <CRequirementCountUpgrade id="CountUpgradeHotSTorrasqueCompleteOnly">
+    <Count Link="HotSTorrasque" State="CompleteOnly" />
+  </CRequirementCountUpgrade>
+</Catalog>

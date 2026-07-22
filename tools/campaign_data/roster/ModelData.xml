@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CModel id="SC2TeamAberrationModel" parent="InfestedAbomination" Race="Zerg">
+        <Model value="Assets\Units\Zerg\Aberration\Aberration.m3"/>
+        <RequiredAnims value="Assets\Units\Zerg\Aberration_SwarmAnims\Aberration_SwarmAnims.m3a"/>
+    </CModel>
+    <CModel id="SC2TeamGoliathModel" parent="SpartanCompany" Race="Terran">
+        <Model value="Assets\Units\Terran\GoliathMercenary\GoliathMercenary.m3"/>
+    </CModel>
+    <CModel id="SC2TeamPredatorModel" parent="Predator" Race="Terran">
+        <Model value="Assets\Units\Terran\Predator\Predator.m3"/>
+    </CModel>
+    <CModel id="SC2TeamMedicModel" parent="Medic" Race="Terran">
+        <Model value="Assets\Units\Terran\Medic\Medic.m3"/>
+    </CModel>
+    <CModel id="SC2TeamRaptorModel" parent="HotSRaptor" Race="Zerg">
+        <Model value="Assets\Units\Zerg\ZerglingEx1A\ZerglingEx1A.m3"/>
+        <RequiredAnims value="Assets\Units\Zerg\Zergling_SwarmAnims\Zergling_SwarmAnims.m3a"/>
+    </CModel>
+</Catalog>

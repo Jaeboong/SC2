@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CValidatorLocationEnumArea id="VoidZealotWhirlwindCheck">
+        <WhichLocation Value="CasterUnit"/>
+        <Compare value="GE"/>
+        <Count value="2"/>
+        <AreaArray Compare="GE" Count="2" Radius="1.5"/>
+        <SearchFilters value="Ground,Visible;Player,Ally,Neutral,Structure,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+    </CValidatorLocationEnumArea>
+</Catalog>

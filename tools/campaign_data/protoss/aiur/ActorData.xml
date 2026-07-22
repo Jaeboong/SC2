@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CActorUnit id="Zealot">
+        <Model value="SC2TeamZealotAiurModel"/>
+        <On Terms="Behavior.VoidZealotWhirlwind.On" Send="HostSiteOpsSet ::Host ZealotWhirlwindRotator"/>
+        <On Terms="Effect.VoidZealotWhirlwindSearch.Start" Send="AnimPlay Attack Attack,03"/>
+        <On Terms="Behavior.VoidZealotWhirlwind.Off" Send="HostSiteOpsSet ::Host"/>
+        <On Terms="Behavior.VoidZealotWhirlwind.Off" Send="AnimClear Attack"/>
+        <UnitIcon value="Assets\Textures\btn-unit-protoss-zealot-aiur.dds"/>
+    </CActorUnit>
+    <CActorSound id="Dragoon_Land" parent="SoundOneShot"/>
+    <CActorUnit id="Stalker" parent="GenericUnitBase" unitName="Stalker">
+        <Model value="Dragoon"/>
+        <ModelFlags index="OutlineEmitter" value="1"/>
+        <BuildModel value="DragoonWarpIn"/>
+        <Macros value="TerrainSquibAnimations"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation GE 20.000000" Send="AnimBracketStart Attack Attack,Superior"/>
+        <On Terms="WeaponStart.*.AttackStart; WeaponTargetElevation LE -20.000000" Send="AnimBracketStart Attack Attack,Inferior"/>
+        <On Terms="WeaponStart.*.AttackStart" Send="AnimBracketStart Attack Attack"/>
+        <On Terms="WeaponStop.*.AttackStop" Send="AnimBracketStop Attack"/>
+        <On Terms="WeaponStart.Dragoon.AttackStart" Send="TimerKill CoverDelay"/>
+        <On Terms="WeaponStart.Dragoon.AttackStart" Send="AnimClear CoverStand"/>
+        <On Terms="WeaponStart.Dragoon.AttackStart" Send="AnimPlay Cover Cover PlayForever"/>
+        <On Terms="WeaponStop.Dragoon.AttackStop" Send="TimerSet 4.000000 CoverDelay"/>
+        <On Terms="TimerExpired; TimerName CoverDelay" Send="AnimClear Cover"/>
+        <On Terms="UnitHeightUpdate.*.Land" Send="Create Dragoon_Land"/>
+        <DeathArray index="Normal" ModelLink="DragoonDeath" SoundLink="Dragoon_DeathExplosion"/>
+        <DeathCustoms ModelLink="ProtossLargeUnitDeathLow" Name="AntiGravProtoss"/>
+        <PortraitModel value="DragoonPortrait"/>
+        <WalkAnimMoveSpeed value="1.25"/>
+        <BarOffset value="80"/>
+        <BarWidth value="90"/>
+        <GroupIcon><Image value="Assets\Textures\Wireframe-Protoss-Dragoon.dds"/></GroupIcon>
+        <HeroIcon value="Assets\Textures\btn-unit-protoss-dragoon-void.dds"/>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Protoss-Dragoon-Shield01.dds"/>
+            <Image value="Assets\Textures\Wireframe-Protoss-Dragoon-Shield02.dds"/>
+            <Image value="Assets\Textures\Wireframe-Protoss-Dragoon-Shield03.dds"/>
+        </WireframeShield>
+        <LifeArmorIcon value="Assets\Textures\btn-upgrade-protoss-groundarmorlevel0.dds"/>
+        <UnitIcon value="Assets\Textures\btn-unit-protoss-dragoon-void.dds"/>
+        <Wireframe><Image value="Assets\Textures\Wireframe-Protoss-Dragoon.dds"/></Wireframe>
+        <PlacementModel value="DragoonPlacement"/>
+        <PlacementSound value="Protoss_BuildingPlacementSmall"/>
+        <SoundArray index="Ready" value="DragoonVoid_Ready"/>
+        <SoundArray index="Help" value="DragoonVoid_Help"/>
+        <SoundArray index="What" value="DragoonVoid_What"/>
+        <SoundArray index="Yes" value="DragoonVoid_Yes"/>
+        <SoundArray index="Attack" value="DragoonVoid_Attack"/>
+        <SoundArray index="Pissed" value="DragoonVoid_Pissed"/>
+        <SoundArray index="Movement" value="Dragoon_MoveStart"/>
+        <TerrainSquibs>
+            <MovementDistance value="0.150000,0.150000"/>
+            <IdlePeriod value="0.100000,0.250000"/>
+            <RangeUp value="0.600000"/>
+            <RangeDown value="1.000000"/>
+            <AttachQuery Methods="AMFilterCenter"/>
+            <Visuals TerrainPhysicsMaterial="Water" ActorModel="TerrainSquibHarnessContinuous" ModelLink="WaterRippleLarge"/>
+        </TerrainSquibs>
+        <Aliases value="_UnitMedium"/>
+    </CActorUnit>
+    <CActorTurret id="DragoonTurret">
+        <On Terms="TurretEnable.Dragoon" Send="Create"/>
+    </CActorTurret>
+    <CActorSiteOpRotator id="ZealotWhirlwindRotator">
+        <Rate value="1000.000000"/>
+        <LocalAxis value="0.000000,0.000000,1.000000"/>
+    </CActorSiteOpRotator>
+    <CActorModel id="VoidZealotWhirlwindSearchModel" parent="ModelAnimationStyleOneShot">
+        <On Terms="Effect.VoidZealotWhirlwindSearch.Start" Send="Create"/>
+        <On Terms="AnimDone; AnimName Birth" Send="Destroy"/>
+        <Host Subject="_Selectable"/>
+        <HostSiteOps Ops="SOpAttachCenter SOpForwardNorth"/>
+    </CActorModel>
+    <CActorAction id="VoidZealotWhirlwindAttack" parent="GenericAttack" effectAttack="VoidZealotWhirlwindDamage">
+        <ImpactMap index="None" Model="VoidZealotWhirlwindImpact" Sound="Zealot_AttackImpact"/>
+    </CActorAction>
+    <CActorMissile id="DragoonAttackMissile" parent="GenericAttackMissile" unitName="DragoonWeapon">
+        <On Terms="UnitBirth" Send="AnimSetTimeScaleAbsolute Lifetime 1.000000"/>
+    </CActorMissile>
+    <CActorAction id="DragoonAttack" parent="GenericAttack" effectImpact="DragoonDamage" effectLaunch="DragoonLM">
+        <ImpactMap index="None" Sound="DragoonVoid_AttackImpact"/>
+        <ImpactMap index="Flesh" ModelReaction="BloodTargetImpact"/>
+        <LaunchAssets Sound="DragoonVoid_AttackLaunch"/>
+        <ImpactSiteOps Ops="SOpAttachHarness SOpAttachVolumeStandard SOpForwardLaunchGuide"/>
+        <ImpactPhysics Name="DragoonPhaseDisruptorImpact" MatchKeys="Basic" Physics="DragoonAttackDeathForce"/>
+    </CActorAction>
+    <CActorForceSphere id="DragoonAttackDeathForce">
+        <Receiver Subject="::Main"/>
+        <HostSiteOps Ops="SOpIncomingMissileDot25 SOpRotVariancerForward15"/>
+        <Magnitude value="20.000000,5.000000"/>
+        <Radius value="0.500000,0.250000"/>
+        <Field value="Directional"/>
+        <Direction value="Forward"/>
+        <Duration value="0.250000"/>
+    </CActorForceSphere>
+    <CActorAction id="ZealotAiurAttack" parent="GenericAttack" effectAttack="ZealotAiurWeapon">
+        <LaunchAttachQuery Methods="AMFilterWeaponLeft"/>
+        <LaunchAssets Sound="ZealotAiur_AttackLaunch"/>
+        <ImpactMap index="None" Sound="ZealotAiur_AttackImpact"/>
+        <ShieldFlashType value="Header"/>
+    </CActorAction>
+</Catalog>

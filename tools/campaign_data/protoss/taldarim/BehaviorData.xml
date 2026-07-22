@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Catalog>
+    <CBehaviorBuff id="AlarakZealotFrenziedOverload">
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-voidarmor.dds" />
+        <Duration value="3" />
+        <Modification AttackSpeedMultiplier="2" />
+        <Alignment value="Positive" />
+        <BehaviorCategories index="Fast" value="1" />
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ObserverTargetLock">
+        <EditorCategories value="Race:Protoss,AbilityorEffectType:Units" />
+        <Modification>
+            <DamageTakenFraction index="Spell" value="0.3" />
+            <DamageTakenFraction index="Melee" value="0.3" />
+            <DamageTakenFraction index="Ranged" value="0.3" />
+            <DamageTakenFraction index="Splash" value="0.3" />
+            <DamageTakenFraction index="NoProc" value="0.3" />
+        </Modification>
+        <MaxStackCount value="3" />
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-targetlock.dds" />
+    </CBehaviorBuff>
+    <CBehaviorBuff id="ObserverTargetLockCaster">
+        <MaxStackCount value="3" />
+        <InfoFlags index="Hidden" value="1" />
+    </CBehaviorBuff>
+    <CBehaviorBuff id="VoidHighTemplarPsiOrb">
+        <EditorCategories value="AbilityorEffectType:Units" />
+        <Period value="0.5" />
+        <PeriodicEffect value="VoidHighTemplarPsiOrbSearch" />
+    </CBehaviorBuff>
+    <CBehaviorBuff id="PhaseBlinkDamage">
+        <Alignment value="Positive" />
+        <InfoIcon value="Assets\Textures\btn-ability-protoss-blink-color.dds" />
+        <EditorCategories value="AbilityorEffectType:Units" />
+        <Duration value="8" />
+        <Modification>
+            <DamageDealtFraction index="Ranged" value="1" />
+        </Modification>
+    </CBehaviorBuff>
+</Catalog>

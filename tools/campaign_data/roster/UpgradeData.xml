@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CUpgrade id="SC2TeamRaptorEvolution">
+        <Race value="Zerg"/>
+        <Icon value="Assets\Textures\btn-unit-zerg-zergling-raptor.dds"/>
+        <EffectArray Operation="Add" Reference="Unit,Zergling,LifeMax" Value="10"/>
+        <EffectArray Operation="Add" Reference="Unit,Zergling,LifeStart" Value="10"/>
+        <EffectArray Operation="Add" Reference="Unit,Zergling,Speed" Value="0.5"/>
+        <EffectArray Operation="Add" Reference="Effect,Claws,Amount" Value="2"/>
+        <AffectedUnitArray value="Zergling"/>
+        <AffectedUnitArray value="ZerglingBurrowed"/>
+        <Alert value="ResearchComplete"/>
+        <Flags index="TechTreeCheat" value="1"/>
+    </CUpgrade>
+    <!-- §63: 멜레 무기/방어 업그레이드는 효과·유닛을 ID로 하나하나 참조하므로
+         새 로스터 ID(SC2Team*)에는 아무것도 적용되지 않고, 적용이 없으니 유닛
+         정보 패널의 +N 표기도 나오지 않는다. 아래 부분 오버라이드는 멜레
+         업그레이드 레코드에 로스터 참조를 덧붙인다. 수치는 블리자드 캠페인이
+         원본 골리앗/프레데터에 준 값 그대로다(지상 +1, 공중 미사일 발당 +2,
+         프레데터 +2, 방어 +1). HotSTorrasque의 무기(KaiserBlades)는 멜레
+         울트라리스크와 공유라 무기 업그레이드는 이미 적용되며 방어만 빠져 있다. -->
+    <CUpgrade id="TerranVehicleWeaponsLevel1">
+        <EffectArray Reference="Effect,SC2TeamGoliathGroundDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,SC2TeamGoliathAirDamage,Amount" Value="2"/>
+        <EffectArray Reference="Effect,SC2TeamPredatorDirectDamage,Amount" Value="2"/>
+        <EffectArray Reference="Weapon,SC2TeamGoliathGroundWeapon,Level" Value="1"/>
+        <EffectArray Reference="Weapon,SC2TeamGoliathAirWeapon,Level" Value="1"/>
+        <EffectArray Reference="Weapon,SC2TeamPredatorWeapon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamGoliathGroundWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel1.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamGoliathAirWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel1.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamPredatorWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel1.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranVehicleWeaponsLevel2">
+        <EffectArray Reference="Effect,SC2TeamGoliathGroundDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,SC2TeamGoliathAirDamage,Amount" Value="2"/>
+        <EffectArray Reference="Effect,SC2TeamPredatorDirectDamage,Amount" Value="2"/>
+        <EffectArray Reference="Weapon,SC2TeamGoliathGroundWeapon,Level" Value="1"/>
+        <EffectArray Reference="Weapon,SC2TeamGoliathAirWeapon,Level" Value="1"/>
+        <EffectArray Reference="Weapon,SC2TeamPredatorWeapon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamGoliathGroundWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel2.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamGoliathAirWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel2.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamPredatorWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel2.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranVehicleWeaponsLevel3">
+        <EffectArray Reference="Effect,SC2TeamGoliathGroundDamage,Amount" Value="1"/>
+        <EffectArray Reference="Effect,SC2TeamGoliathAirDamage,Amount" Value="2"/>
+        <EffectArray Reference="Effect,SC2TeamPredatorDirectDamage,Amount" Value="2"/>
+        <EffectArray Reference="Weapon,SC2TeamGoliathGroundWeapon,Level" Value="1"/>
+        <EffectArray Reference="Weapon,SC2TeamGoliathAirWeapon,Level" Value="1"/>
+        <EffectArray Reference="Weapon,SC2TeamPredatorWeapon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamGoliathGroundWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel3.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamGoliathAirWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel3.dds"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamPredatorWeapon,Icon" Value="Assets\Textures\btn-upgrade-terran-vehicleweaponslevel3.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranVehicleAndShipArmorsLevel1">
+        <EffectArray Reference="Unit,SC2TeamGoliath,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamGoliath,LifeArmor" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamPredator,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamPredator,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamGoliath,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel1.dds"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamPredator,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel1.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranVehicleAndShipArmorsLevel2">
+        <EffectArray Reference="Unit,SC2TeamGoliath,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamGoliath,LifeArmor" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamPredator,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamPredator,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamGoliath,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel2.dds"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamPredator,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel2.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranVehicleAndShipArmorsLevel3">
+        <EffectArray Reference="Unit,SC2TeamGoliath,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamGoliath,LifeArmor" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamPredator,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamPredator,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamGoliath,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel3.dds"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamPredator,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-vehicleplatinglevel3.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranInfantryArmorsLevel1">
+        <EffectArray Reference="Unit,SC2TeamMedic,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamMedic,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamMedic,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel1.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranInfantryArmorsLevel2">
+        <EffectArray Reference="Unit,SC2TeamMedic,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamMedic,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamMedic,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel2.dds"/>
+    </CUpgrade>
+    <CUpgrade id="TerranInfantryArmorsLevel3">
+        <EffectArray Reference="Unit,SC2TeamMedic,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamMedic,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamMedic,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-terran-infantryarmorlevel3.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ZergMeleeWeaponsLevel1">
+        <EffectArray Reference="Effect,SC2TeamAberrationDamage,Amount" Value="2"/>
+        <EffectArray Reference="Weapon,SC2TeamAberrationWeapon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamAberrationWeapon,Icon" Value="Assets\Textures\btn-upgrade-zerg-meleeattacks-level1.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ZergMeleeWeaponsLevel2">
+        <EffectArray Reference="Effect,SC2TeamAberrationDamage,Amount" Value="2"/>
+        <EffectArray Reference="Weapon,SC2TeamAberrationWeapon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamAberrationWeapon,Icon" Value="Assets\Textures\btn-upgrade-zerg-meleeattacks-level2.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ZergMeleeWeaponsLevel3">
+        <EffectArray Reference="Effect,SC2TeamAberrationDamage,Amount" Value="2"/>
+        <EffectArray Reference="Weapon,SC2TeamAberrationWeapon,Level" Value="1"/>
+        <EffectArray Operation="Set" Reference="Weapon,SC2TeamAberrationWeapon,Icon" Value="Assets\Textures\btn-upgrade-zerg-meleeattacks-level3.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ZergGroundArmorsLevel1">
+        <EffectArray Reference="Unit,SC2TeamAberration,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamAberration,LifeArmor" Value="1"/>
+        <EffectArray Reference="Unit,HotSTorrasque,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,HotSTorrasque,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamAberration,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level1.dds"/>
+        <EffectArray Operation="Set" Reference="Actor,HotSTorrasque,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level1.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ZergGroundArmorsLevel2">
+        <EffectArray Reference="Unit,SC2TeamAberration,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamAberration,LifeArmor" Value="1"/>
+        <EffectArray Reference="Unit,HotSTorrasque,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,HotSTorrasque,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamAberration,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level2.dds"/>
+        <EffectArray Operation="Set" Reference="Actor,HotSTorrasque,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level2.dds"/>
+    </CUpgrade>
+    <CUpgrade id="ZergGroundArmorsLevel3">
+        <EffectArray Reference="Unit,SC2TeamAberration,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,SC2TeamAberration,LifeArmor" Value="1"/>
+        <EffectArray Reference="Unit,HotSTorrasque,LifeArmorLevel" Value="1"/>
+        <EffectArray Reference="Unit,HotSTorrasque,LifeArmor" Value="1"/>
+        <EffectArray Operation="Set" Reference="Actor,SC2TeamAberration,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+        <EffectArray Operation="Set" Reference="Actor,HotSTorrasque,LifeArmorIcon" Value="Assets\Textures\btn-upgrade-zerg-groundcarapace-level3.dds"/>
+    </CUpgrade>
+</Catalog>

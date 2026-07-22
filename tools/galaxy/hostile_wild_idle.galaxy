@@ -1,0 +1,176 @@
+// §93: 야생 저그 비활성 모드의 P15 컨트롤러.
+//
+// 런처에서 "야생 저그"를 끄면 hostile_wild_ai.galaxy 대신 이 파일이 들어간다.
+// 사용자 지시: "비활성화하면 그냥 현재 있는걸로 자원만 채취하고 걍 냅두게 /
+// 생산도 안하게하고". 그래서 이 컨트롤러가 내리는 명령은 DroneHarvest 하나뿐이다
+// — 훈련·건설·확장·테크·습격·수비 소집·은행 보충·귀환 도장이 전부 없다.
+//
+// 생산 차단은 이 파일만으로 되는 게 아니다. §90 에서 P15 를 실제 로비 컴퓨터
+// 슬롯으로 승격시켰기 때문에, Galaxy 를 비워도 블리자드 멜레 AI 가 P15 를 대신
+// 굴려 계속 생산한다. 그래서 비활성 모드에서는 빌더가 승격 자체를 하지 않는다
+// (MapInfo control 원복 + StartLoc 미배정 + player_setups 항목 제외). 즉 P15 는
+// §90 이전의 중립 적대로 돌아가고, 그 상태에서는 드론·대군주 말고는 어떤 전투
+// 유닛도 엔진이 훈련을 거부한다(프로브 12판 실측) — 이중 안전장치다.
+//
+// TechTreeUnitAllow 류 호출도 일부러 없다. 그것들은 §88 에서 중립 적대 P15 에
+// 생산 능력을 열어 주려고 넣은 것이므로, 생산을 막는 이 모드에서 부르면 정반대다.
+
+trigger gt_sc2team_HostileWildIdle;
+// 광물 덩어리를 인덱스로 돌려가며 배정해 드론이 한 덩어리에 뭉치지 않게 한다
+// (§89.6 과 같은 이유 — 그때 사용자 실관측이 "잘 채취하다가 갑자기 한곳으로
+// 뭉친다"였다).
+int gv_sc2team_HostileWildIdleTick;
+
+bool sc2team_IsHostileWildIdleAnchor (unit candidate) {
+    string unitType = UnitGetType(candidate);
+    return unitType == "Hatchery" || unitType == "Lair" || unitType == "Hive";
+}
+
+unitgroup sc2team_HostileWildIdleMineralGroup (point anchor) {
+    unitgroup nearbyUnits;
+    unitgroup minerals;
+    unit currentUnit;
+    string unitType;
+    int unitIndex;
+
+    minerals = UnitGroupEmpty();
+    nearbyUnits = UnitGroup(null, c_playerAny, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(nearbyUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(nearbyUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (unitType == "MineralField" || unitType == "RichMineralField" ||
+            unitType == "MineralField750" || unitType == "RichMineralField750") {
+            UnitGroupAdd(minerals, currentUnit);
+        }
+    }
+    return minerals;
+}
+
+unit sc2team_HostileWildIdleMineralByIndex (unitgroup minerals, int pickIndex) {
+    int total;
+    int wanted;
+
+    total = UnitGroupCount(minerals, c_unitCountAlive);
+    if (total <= 0) {
+        return null;
+    }
+    wanted = pickIndex - (pickIndex / total) * total;
+    return UnitGroupUnit(minerals, wanted + 1);
+}
+
+unit sc2team_HostileWildIdleExtractor (point anchor) {
+    unitgroup nearbyUnits;
+    unit currentUnit;
+
+    nearbyUnits = UnitGroup("Extractor", 15, RegionCircle(anchor, 20.0), UnitFilter(0, 0, 0, 0), 0);
+    currentUnit = UnitGroupUnitFromEnd(nearbyUnits, UnitGroupCount(nearbyUnits, c_unitCountAlive));
+    return currentUnit;
+}
+
+// §89.6: 가스에 붙은 드론은 custom value 25 로 기억한다. "명령 없는 드론만
+// 건드린다"는 구조에서는 이미 가스로 보낸 드론을 달리 셀 방법이 없다.
+int sc2team_HostileWildIdleGasWorkerCount (point anchor) {
+    unitgroup workers;
+    unit currentUnit;
+    int unitIndex;
+    int count = 0;
+
+    workers = UnitGroup("Drone", 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(workers, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(workers, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (UnitGetCustomValue(currentUnit, 25) > 0.0) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+void sc2team_HostileWildIdleHarvest (point anchor) {
+    unitgroup workers;
+    unitgroup minerals;
+    unit currentUnit;
+    unit mineral;
+    unit extractor;
+    int unitIndex;
+    int gasWorkerCount;
+    int assigned = 0;
+
+    extractor = sc2team_HostileWildIdleExtractor(anchor);
+    gasWorkerCount = sc2team_HostileWildIdleGasWorkerCount(anchor);
+    minerals = sc2team_HostileWildIdleMineralGroup(anchor);
+    workers = UnitGroup("Drone", 15, RegionCircle(anchor, 28.0), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(workers, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(workers, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        // §89.6: 이미 명령이 있는 드론은 절대 건드리지 않는다. 채굴 중인 드론을
+        // 다시 발주하면 엔진이 분산해 둔 배치를 무너뜨린다.
+        if (UnitOrderCount(currentUnit) != 0) {
+            continue;
+        }
+        if (extractor != null && gasWorkerCount < 3) {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingUnit(AbilityCommand("DroneHarvest", 0), extractor),
+                c_orderQueueReplace
+            );
+            UnitSetCustomValue(currentUnit, 25, 1.0);
+            gasWorkerCount += 1;
+            continue;
+        }
+        mineral = sc2team_HostileWildIdleMineralByIndex(
+            minerals, gv_sc2team_HostileWildIdleTick + assigned
+        );
+        if (mineral != null) {
+            UnitIssueOrder(
+                currentUnit,
+                OrderTargetingUnit(AbilityCommand("DroneHarvest", 0), mineral),
+                c_orderQueueReplace
+            );
+            assigned += 1;
+        }
+    }
+}
+
+bool sc2team_HostileWildIdle_Func (bool testConds, bool runActions) {
+    unitgroup hostileUnits;
+    unit currentUnit;
+    int unitIndex;
+
+    if (!runActions) {
+        return true;
+    }
+    gv_sc2team_HostileWildIdleTick += 1;
+    // 둥지 앵커를 한 번만 훑어 그 자리에서 채취만 배정한다. 활성 모드처럼 좌표를
+    // 배열로 모을 이유가 없다 — 순서에 따라 달라지는 자원 경합(보급·라바)이
+    // 아예 없기 때문이다.
+    hostileUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(hostileUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(hostileUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        if (sc2team_IsHostileWildIdleAnchor(currentUnit)) {
+            sc2team_HostileWildIdleHarvest(UnitGetPosition(currentUnit));
+        }
+    }
+    return true;
+}
+
+void sc2team_InitializeHostileWildIdle () {
+    gv_sc2team_HostileWildIdleTick = 0;
+    gt_sc2team_HostileWildIdle = TriggerCreate("sc2team_HostileWildIdle_Func");
+    TriggerAddEventTimePeriodic(gt_sc2team_HostileWildIdle, 10.0, c_timeGame);
+}
+

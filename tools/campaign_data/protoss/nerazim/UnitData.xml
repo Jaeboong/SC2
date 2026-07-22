@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Catalog>
+    <CUnit id="Zealot">
+        <AbilArray index="5" Link="ShadowCharge"/>
+        <AbilArray Link="ShadowChargeStun"/>
+        <CardLayouts index="0">
+            <LayoutButtons index="6" Face="VoidZealotShadowCharge" AbilCmd="ShadowCharge,Execute"/>
+            <LayoutButtons Face="VoidZealotShadowChargeStun" Type="AbilCmd" AbilCmd="ShadowChargeStun,Execute" Row="2" Column="1"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="Immortal">
+        <AbilArray index="5" Link="ImmortalShakurasShadowCannon"/>
+        <CardLayouts index="0">
+            <LayoutButtons index="5" Face="ImmortalShakurasShadowCannon" Type="AbilCmd" AbilCmd="ImmortalShakurasShadowCannon,Execute"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="Stalker">
+        <AbilArray index="5" Link="BlinkShieldRestore"/>
+        <CardLayouts index="0">
+            <LayoutButtons index="6" Face="StalkerBlinkShieldRestoreBase" AbilCmd="BlinkShieldRestore,Execute"/>
+        </CardLayouts>
+    </CUnit>
+    <CUnit id="ImmortalShakurasShadowCannonMissile" parent="MISSILE_INVULNERABLE">
+        <Race value="Prot"/><Mover value="MissileDefault"/>
+    </CUnit>
+    <CUnit id="Archon">
+        <EnergyStart value="50"/><EnergyMax value="200"/><EnergyRegenRate value="0.5625"/>
+        <AbilArray Link="DarkArchonMindControl"/>
+        <AbilArray Link="DarkArchonConfusion"/>
+        <CardLayouts index="0">
+            <LayoutButtons Face="DarkArchonConfusion" Type="AbilCmd" AbilCmd="DarkArchonConfusion,Execute" Row="2" Column="0"/>
+            <LayoutButtons Face="DarkArchonMindControl" Type="AbilCmd" AbilCmd="DarkArchonMindControl,Execute" Row="2" Column="1"/>
+        </CardLayouts>
+    </CUnit>
+</Catalog>
