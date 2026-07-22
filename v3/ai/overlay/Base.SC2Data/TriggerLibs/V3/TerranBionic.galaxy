@@ -79,17 +79,16 @@ void V3TerranBionicStock (int player, int phase) {
 
     AIClearStock(player);
 
-    // V3_FAST_NATURAL_14_WORKERS_400: bank 400 minerals after fourteen
-    // completed SCVs and commit the natural before exposing any Barracks.
+    // Keep SCV production active while the opening banks the first 400
+    // minerals. The natural starts immediately once those minerals exist.
     AISetStock(player, 1, c_TB_CommandCenter_Alias);
-    AISetStock(player, 14, c_TU_SCV);
+    AISetStockPeons(player, workerCap, c_TU_SCV, c_stockMaxPeons, c_stockAlways);
     if (AIGetUserInt(player, 144) == 0) {
         if (AITechCount(player, c_TB_CommandCenter_Alias, c_techCountQueuedOrBetter) >= 2) {
             AISetUserInt(player, 144, 1);
         }
         else {
-            if (AITechCount(player, c_TU_SCV, c_techCountCompleteOnly) >= 14 &&
-                !AIIsExpandingOrHasExpanded(player) &&
+            if (!AIIsExpandingOrHasExpanded(player) &&
                 AIHasNearbyOpenExpansion(player) &&
                 AIHasRes(player, 400, 0)) {
                 AIExpand(player, AIGetTownLocation(player, c_townMain), c_TB_CommandCenter);

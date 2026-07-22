@@ -10,18 +10,16 @@
 void V3ProtossGatewayStock (int player, int phase) {
     AIClearStock(player);
 
-    // V3_FAST_NATURAL_14_WORKERS_400: make the first expansion the only opening
-    // spend after fourteen completed workers.  No Gateway target is exposed
-    // until the second Nexus is queued, so the stock system banks 400 minerals.
+    // Keep Probe production active while the first 400 minerals are banked.
+    // No Gateway target is exposed until the natural has been committed.
     AISetStock( player, 1, c_PB_Nexus );
-    AISetStock( player, 14, c_PU_Probe );
+    AISetStockPeons( player, 32, c_PU_Probe, c_stockMaxPeons, c_stockAlways );
     if (AIGetUserInt(player, 144) == 0) {
         if (AITechCount(player, c_PB_Nexus, c_techCountQueuedOrBetter) >= 2) {
             AISetUserInt(player, 144, 1);
         }
         else {
-            if (AITechCount(player, c_PU_Probe, c_techCountCompleteOnly) >= 14 &&
-                !AIIsExpandingOrHasExpanded(player) &&
+            if (!AIIsExpandingOrHasExpanded(player) &&
                 AIHasNearbyOpenExpansion(player) &&
                 AIHasRes(player, 400, 0)) {
                 AIExpand(player, AIGetTownLocation(player, c_townMain), c_PB_Nexus);
