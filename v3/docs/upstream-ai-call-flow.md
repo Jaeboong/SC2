@@ -56,6 +56,7 @@ Init -> RaceInit -> Open -> Mid -> Late
 
 ## 야생 저그 제약
 
-P15의 소유권·동맹·플레이어 슬롯은 변경하지 않는다. 별도 적용 시 P15의 AI main
-state만 시작 시 Disabled로 두고 420초에 Init으로 돌린다. 이 변경은 기준본 재현과
-일반 플레이어 생성 검증을 통과한 뒤 마지막에 독립 검증한다.
+P15의 소유권·동맹·플레이어 슬롯은 변경하지 않는다. `MeleeInitAI()` 직후 P15의
+main state를 Disabled, attack state를 Wait로 두고 420초에 main/sub state를 Init으로
+돌린다. 엔진 검증에서 P15 일꾼은 5초 20기와 419초 20기로 고정됐고 480초에는
+25기로 늘었다. 같은 실행에서 일반 플레이어와 P15 소유자가 모두 보존됐다.

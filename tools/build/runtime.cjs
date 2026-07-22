@@ -77,44 +77,34 @@ void sc2team_InitializeTorrasqueProbeDamage () {
   const torrasqueProbeInit = campaignUnitsProbeDamage
     ? "\n    sc2team_InitializeTorrasqueProbeDamage();"
     : "";
-  // V3 keeps Blizzard's melee AI intact, so P15's opening restriction must
-  // live entirely in MapScript.  P15 sees each real player as neutral until
-  // exactly seven game minutes, while the reverse alliance remains untouched.
-  // That asymmetry prevents all autonomous P15 attacks without protecting its
-  // camps from players.  The harvest-only controller keeps Drones mining and
-  // never trains, builds, researches, or commands combat units.
-  const v3WildNeutral = activeSlots
-    .map((_, index) =>
-      `    libNtve_gf_SetAlliance(15, ${index + 1}, libNtve_ge_AllianceSetting_Neutral);`
-    )
-    .join("\n");
-  const v3WildEnemy = activeSlots
-    .map((_, index) =>
-      `    libNtve_gf_SetAlliance(15, ${index + 1}, libNtve_ge_AllianceSetting_Enemy);`
-    )
-    .join("\n");
-  const v3WildTruce = meleeOnly && wildZergActive
+  // V3 wild Zerg remains a normal lobby Computer and keeps the normal Zerg AI
+  // engine.  Immediately after MeleeInitAI, pause only P15's script state:
+  // AI state indexes 1/2/3 are main/sub/attack in upstream MeleeAI.galaxy.
+  // At 7:00 the one-shot trigger enters ZergInit.  No player slot, ownership,
+  // alliance, harvesting, or unit order is changed by this delay.
+  const v3WildDelay = meleeOnly && wildZergActive
     ? `trigger gt_sc2team_V3WildRelease;
 
 bool sc2team_V3WildRelease_Func (bool testConds, bool runActions) {
     if (!runActions) {
         return true;
     }
-${v3WildEnemy}
+    AISetSpecificState(15, 1, 1);
+    AISetSpecificState(15, 2, 2);
+    AISetSpecificState(15, 3, 1);
     TriggerEnable(gt_sc2team_V3WildRelease, false);
     return true;
 }
 
-void sc2team_InitializeV3WildTruce () {
-${v3WildNeutral}
+void sc2team_InitializeV3WildDelay () {
+    AISetSpecificState(15, 1, -1);
+    AISetSpecificState(15, 2, 1);
+    AISetSpecificState(15, 3, 1);
     gt_sc2team_V3WildRelease = TriggerCreate("sc2team_V3WildRelease_Func");
     TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);
 }
 
 `
-    : "";
-  const v3WildTruceInit = meleeOnly && wildZergActive
-    ? "\n    sc2team_InitializeV3WildTruce();"
     : "";
   // P15 is the map's neutral-hostile owner, not a lobby Computer player, so
   // Blizzard's melee AI cannot run it.  Its preplaced Zerg camps instead get a
@@ -126,13 +116,11 @@ ${v3WildNeutral}
   // DroneHarvest 하나뿐이며, 승격을 되돌린 빌더 쪽 변경과 짝을 이룬다.
   const hostileWildAI = meleeOnly
     ? wildZergActive
-      ? readGalaxyTemplate("hostile_wild_idle") + v3WildTruce
+      ? v3WildDelay
       : ""
     : readGalaxyTemplate(wildZergActive ? "hostile_wild_ai" : "hostile_wild_idle");
   const hostileWildInit = meleeOnly
-    ? wildZergActive
-      ? "\n    sc2team_InitializeHostileWildIdle();" + v3WildTruceInit
-      : ""
+    ? ""
     : wildZergActive
       ? "\n    sc2team_InitializeHostileWildAI();"
       : "\n    sc2team_InitializeHostileWildIdle();";
@@ -187,6 +175,12 @@ function patchMapScript(script, activeSlots, humanRuntimeId, fullVision, strateg
     updated = updated.replace(
       /MeleeInitAI\s*\(\s*\)\s*;/,
       "MeleeInitAI();\n    sc2team_InitializeProductionRules();"
+    );
+  }
+  if (meleeOnly && wildZergActive) {
+    updated = updated.replace(
+      /MeleeInitAI\s*\(\s*\)\s*;/,
+      "MeleeInitAI();\n    sc2team_InitializeV3WildDelay();"
     );
   }
   if ((!strategyBridge || bridgeProbe) && !meleeOnly && /MeleeInitAI\s*\(/.test(updated)) {

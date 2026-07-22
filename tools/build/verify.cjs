@@ -1756,20 +1756,37 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
     }
     if (wildZergActive) {
       for (const marker of [
-        "sc2team_InitializeHostileWildIdle();",
-        "sc2team_InitializeV3WildTruce();",
-        "libNtve_ge_AllianceSetting_Neutral",
-        "libNtve_ge_AllianceSetting_Enemy",
+        "sc2team_InitializeV3WildDelay();",
+        "AISetSpecificState(15, 1, -1);",
+        "AISetSpecificState(15, 2, 1);",
+        "AISetSpecificState(15, 3, 1);",
+        "AISetSpecificState(15, 1, 1);",
+        "AISetSpecificState(15, 2, 2);",
         "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);",
         "TriggerEnable(gt_sc2team_V3WildRelease, false);",
       ]) {
-        if (!script.includes(marker)) fail(`V3 P15 seven-minute truce marker is missing: ${marker}`);
+        if (!script.includes(marker)) fail(`V3 P15 delayed-AI marker is missing: ${marker}`);
+      }
+      for (const forbidden of [
+        "sc2team_InitializeHostileWildIdle();",
+        "sc2team_InitializeV3WildTruce();",
+      ]) {
+        if (script.includes(forbidden)) {
+          fail(`V3 P15 delayed AI changes player relations or runs the old controller: ${forbidden}`);
+        }
+      }
+      const delayFunction = /void sc2team_InitializeV3WildDelay \(\) \{([^}]*)\}/s.exec(script);
+      const releaseFunction = /bool sc2team_V3WildRelease_Func \([^)]*\) \{([\s\S]*?)\n\}/.exec(script);
+      for (const [name, body] of [
+        ["initialize", delayFunction && delayFunction[1]],
+        ["release", releaseFunction && releaseFunction[1]],
+      ]) {
+        if (!body) fail(`V3 P15 delayed-AI ${name} function is missing`);
+        if (/SetAlliance|PlayerSetController|UnitSetOwner/.test(body)) {
+          fail(`V3 P15 delayed-AI ${name} function changes players, alliances, or ownership`);
+        }
       }
       const withoutAllowedWildTimers = script
-        .replace(
-          "TriggerAddEventTimePeriodic(gt_sc2team_HostileWildIdle, 10.0, c_timeGame);",
-          ""
-        )
         .replace(
           "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);",
           ""
@@ -1782,6 +1799,7 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
       for (const forbidden of [
         "sc2team_InitializeHostileWildIdle();",
         "sc2team_InitializeV3WildTruce();",
+        "sc2team_InitializeV3WildDelay();",
         "TriggerAddEventTimePeriodic(gt_sc2team_",
       ]) {
         if (script.includes(forbidden)) {
