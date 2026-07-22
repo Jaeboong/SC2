@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "full_vision": false,
+  "allow_support_air": true,
+  "protoss_faction": "Standard",
+  "wild_zerg": true,
+  "unit_control": false,
+  "fullscreen": true,
+  "slots": [
+    {
+      "slot": 1,
+      "controller": "human",
+      "team": 1,
+      "race": "Terran",
+      "build": "random_ground",
+      "melee_build": ""
+    },
+    {
+      "slot": 2,
+      "controller": "custom_ai",
+      "team": 1,
+      "race": "Terran",
+      "build": "bio_tank",
+      "melee_build": ""
+    },
+    {
+      "slot": 3,
+      "controller": "custom_ai",
+      "team": 1,
+      "race": "Protoss",
+      "build": "stalker_immortal",
+      "melee_build": ""
+    },
+    {
+      "slot": 4,
+      "controller": "custom_ai",
+      "team": 1,
+      "race": "Zerg",
+      "build": "roach_hydra",
+      "melee_build": ""
+    },
+    {
+      "slot": 5,
+      "controller": "empty",
+      "team": 1,
+      "race": "Random",
+      "build": "random_ground",
+      "melee_build": ""
+    },
+    {
+      "slot": 6,
+      "controller": "empty",
+      "team": 1,
+      "race": "Random",
+      "build": "random_ground",
+      "melee_build": ""
+    },
+    {
+      "slot": 7,
+      "controller": "empty",
+      "team": 1,
+      "race": "Random",
+      "build": "random_ground",
+      "melee_build": ""
+    },
+    {
+      "slot": 8,
+      "controller": "custom_ai",
+      "team": 2,
+      "race": "Terran",
+      "build": "mech_macro",
+      "melee_build": ""
+    },
+    {
+      "slot": 9,
+      "controller": "custom_ai",
+      "team": 2,
+      "race": "Protoss",
+      "build": "immortal_colossus",
+      "melee_build": ""
+    },
+    {
+      "slot": 10,
+      "controller": "custom_ai",
+      "team": 2,
+      "race": "Zerg",
+      "build": "ultra_ling_bane",
+      "melee_build": ""
+    },
+    {
+      "slot": 11,
+      "controller": "custom_ai",
+      "team": 2,
+      "race": "Terran",
+      "build": "thor_tank",
+      "melee_build": ""
+    },
+    {
+      "slot": 12,
+      "controller": "empty",
+      "team": 2,
+      "race": "Random",
+      "build": "random_ground",
+      "melee_build": ""
+    },
+    {
+      "slot": 13,
+      "controller": "empty",
+      "team": 2,
+      "race": "Random",
+      "build": "random_ground",
+      "melee_build": ""
+    },
+    {
+      "slot": 14,
+      "controller": "empty",
+      "team": 2,
+      "race": "Random",
+      "build": "random_ground",
+      "melee_build": ""
+    }
+  ]
+}
