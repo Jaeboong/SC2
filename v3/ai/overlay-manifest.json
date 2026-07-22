@@ -13,7 +13,7 @@
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/Zerg.galaxy",
-      "sha256": "8f4f85a86a6add7d5177b053f2803a4d2cfd87887459d03979d24d6ac3b9e7f0"
+      "sha256": "faedfcb7273f9a8c25af01ccacaeffb96eb9aa4eedbd57af5c102b686ff5e1a8"
     }
   ],
   "overlays": [

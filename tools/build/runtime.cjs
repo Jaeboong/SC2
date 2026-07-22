@@ -77,31 +77,72 @@ void sc2team_InitializeTorrasqueProbeDamage () {
   const torrasqueProbeInit = campaignUnitsProbeDamage
     ? "\n    sc2team_InitializeTorrasqueProbeDamage();"
     : "";
-  // V3 wild Zerg remains a normal lobby Computer and keeps the normal Zerg AI
-  // engine.  Immediately after MeleeInitAI, pause only P15's script state:
-  // AI state indexes 1/2/3 are main/sub/attack in upstream MeleeAI.galaxy.
-  // At 7:00 the one-shot trigger enters ZergInit.  No player slot, ownership,
-  // alliance, harvesting, or unit order is changed by this delay.
+  // V3 wild Zerg remains a normal lobby Computer. The V3 Zerg root returns
+  // before ZergInit while user-int 145 is zero, so no invalid main state is
+  // required. Preplaced combat units are held with the same engine-native
+  // script-control mechanism verified in V2, while Drones and structures stay
+  // autonomous. At 7:00 the trigger releases both the build and held units.
   const v3WildDelay = meleeOnly && wildZergActive
     ? `trigger gt_sc2team_V3WildRelease;
+int gv_sc2team_V3WildHoldPhase = 0;
+const int c_sc2teamV3WildHoldMark = 40;
+
+void sc2team_V3SetWildCombatControl (bool controlled) {
+    unitgroup wildUnits = UnitGroup(null, 15, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unit currentUnit;
+    string unitType;
+    int unitIndex = UnitGroupCount(wildUnits, c_unitCountAlive);
+
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(wildUnits, unitIndex);
+        if (currentUnit == null) {
+            break;
+        }
+        unitType = UnitGetType(currentUnit);
+        if (UnitTypeTestAttribute(unitType, c_unitAttributeStructure) ||
+            unitType == "Drone" || unitType == "Larva" || unitType == "Egg" ||
+            unitType == "Overlord" || unitType == "OverlordTransport" ||
+            unitType == "Overseer") {
+            continue;
+        }
+        if (controlled) {
+            UnitSetCustomValue(currentUnit, c_sc2teamV3WildHoldMark, 1.0);
+            AISetUnitScriptControlled(currentUnit, true);
+        }
+        else if (UnitGetCustomValue(currentUnit, c_sc2teamV3WildHoldMark) == 1.0) {
+            AISetUnitScriptControlled(currentUnit, false);
+            UnitSetCustomValue(currentUnit, c_sc2teamV3WildHoldMark, 0.0);
+        }
+    }
+}
 
 bool sc2team_V3WildRelease_Func (bool testConds, bool runActions) {
     if (!runActions) {
         return true;
     }
+    if (AIGetTime() < 420.0) {
+        sc2team_V3SetWildCombatControl(true);
+        gv_sc2team_V3WildHoldPhase = 1;
+        return true;
+    }
+    AISetUserInt(15, 142, 301);
+    AISetUserInt(15, 144, 0);
+    AISetUserInt(15, 145, 1);
     AISetSpecificState(15, 1, 1);
-    AISetSpecificState(15, 2, 2);
+    AISetSpecificState(15, 2, 1);
     AISetSpecificState(15, 3, 1);
+    sc2team_V3SetWildCombatControl(false);
+    gv_sc2team_V3WildHoldPhase = 2;
     TriggerEnable(gt_sc2team_V3WildRelease, false);
     return true;
 }
 
 void sc2team_InitializeV3WildDelay () {
-    AISetSpecificState(15, 1, -1);
-    AISetSpecificState(15, 2, 1);
-    AISetSpecificState(15, 3, 1);
+    AISetUserInt(15, 142, 301);
+    AISetUserInt(15, 144, 0);
+    AISetUserInt(15, 145, 0);
     gt_sc2team_V3WildRelease = TriggerCreate("sc2team_V3WildRelease_Func");
-    TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);
+    TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 2.0, c_timeGame);
 }
 
 `

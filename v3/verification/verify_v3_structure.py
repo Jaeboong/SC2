@@ -90,6 +90,10 @@ def main() -> int:
         if result.returncode:
             failures.append(f"Node syntax failed for {source.name}: {(result.stderr or result.stdout).strip()}")
 
+    layout_source = LAYOUT.read_text(encoding="utf-8") if LAYOUT.is_file() else ""
+    if "player == 15 && AIGetUserInt(player, 145) == 0" not in layout_source:
+        failures.append("Zerg root is missing the P15 pre-420 AI entry guard")
+
     if failures:
         print("V3_STRUCTURE=FAIL")
         print(*[f"- {failure}" for failure in failures], sep="\n")

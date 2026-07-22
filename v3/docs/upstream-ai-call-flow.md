@@ -12,7 +12,7 @@ manifest와 Galaxy 소스를 기준으로 작성한다. V3 정책은 직접 명�
 
 ```
 Init -> RaceInit -> Open -> Mid -> Late
-              \-> Disabled (오류 또는 명시적 지연만)
+              \-> Disabled (종료 또는 오류)
 ```
 
 각 `RaceInit`은 `AIMeleeSharedInit`을 호출한다. 공통 초기화는 위험 유닛 등록,
@@ -56,7 +56,12 @@ Init -> RaceInit -> Open -> Mid -> Late
 
 ## 야생 저그 제약
 
-P15의 소유권·동맹·플레이어 슬롯은 변경하지 않는다. `MeleeInitAI()` 직후 P15의
-main state를 Disabled, attack state를 Wait로 두고 420초에 main/sub state를 Init으로
-돌린다. 엔진 검증에서 P15 일꾼은 5초 20기와 419초 20기로 고정됐고 480초에는
-25기로 늘었다. 같은 실행에서 일반 플레이어와 P15 소유자가 모두 보존됐다.
+P15의 소유권·동맹·플레이어 슬롯은 변경하지 않는다. AI state에 유효하지 않은 값을
+넣지 않는다. 생성된 Zerg root가 user int 145가 0인 P15를 `ZergInit` 전에 반환하고,
+맵 트리거는 V2에서 검증한 `AISetUnitScriptControlled`로 선배치 전투 유닛만 묶는다.
+420초에 build ID 301, 정상 Init state, 플래그와 병력 제어를 함께 해제한다. 드론과
+건물은 이 제어 대상이 아니다.
+
+엔진 측정에서는 419초까지 기준 병력의 8거리 이상 이동이 0기였고, 480초 18기,
+600초 49기가 이동했다. 건물 수도 419초 34에서 480초 36으로 늘어 해제 후 빌드
+실행을 확인했다.

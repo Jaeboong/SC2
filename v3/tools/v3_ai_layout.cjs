@@ -26,6 +26,12 @@ function injectV3Hooks(source, race) {
   // strings used LF while the upstream root uses CRLF. Preserve that exact
   // byte layout so generated roots can be checked against the archive hash.
   let patched = source.replace(includeAnchor, `include "TriggerLibs/${race}/${race}ChIn"\ninclude "${config.hook}"\r\n`);
+  if (race === "Zerg") {
+    const thinkAnchor = "void AIMeleeZerg (int player) {\r\n    int mainState = AIState(player, e_mainState);\r\n";
+    const thinkGuard = "void AIMeleeZerg (int player) {\r\n    int mainState = AIState(player, e_mainState);\n    if (player == 15 && AIGetUserInt(player, 145) == 0) { return; }\r\n";
+    if (!patched.includes(thinkAnchor)) fail("Zerg melee entry anchor is missing");
+    patched = patched.replace(thinkAnchor, thinkGuard);
+  }
   for (const [functionName, phase] of [[`${race}Open`, 0], [`${race}Mid`, 1], [`${race}Late`, 2]]) {
     const anchor = `void ${functionName} (int player) {\r\n    int diff = AIPlayerDifficulty(player);\r\n`;
     const replacement = `void ${functionName} (int player) {\r\n    int diff = AIPlayerDifficulty(player);\n    if (${config.runner}(player, ${phase})) { return; }\r\n`;
@@ -41,6 +47,12 @@ function removeV3Hooks(source, race) {
   const include = `\ninclude "${config.hook}"\r\n`;
   if (!source.includes(include)) fail(`${race} root V3 include is missing`);
   let restored = source.replace(include, "\r\n");
+  if (race === "Zerg") {
+    const thinkGuard = "void AIMeleeZerg (int player) {\r\n    int mainState = AIState(player, e_mainState);\n    if (player == 15 && AIGetUserInt(player, 145) == 0) { return; }\r\n";
+    const thinkOriginal = "void AIMeleeZerg (int player) {\r\n    int mainState = AIState(player, e_mainState);\r\n";
+    if (!restored.includes(thinkGuard)) fail("Zerg delayed-AI guard is missing");
+    restored = restored.replace(thinkGuard, thinkOriginal);
+  }
   for (const [functionName, phase] of [[`${race}Open`, 0], [`${race}Mid`, 1], [`${race}Late`, 2]]) {
     const dispatcher = `void ${functionName} (int player) {\r\n    int diff = AIPlayerDifficulty(player);\n    if (${config.runner}(player, ${phase})) { return; }\r\n`;
     const original = `void ${functionName} (int player) {\r\n    int diff = AIPlayerDifficulty(player);\r\n`;

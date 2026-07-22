@@ -1757,12 +1757,16 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
     if (wildZergActive) {
       for (const marker of [
         "sc2team_InitializeV3WildDelay();",
-        "AISetSpecificState(15, 1, -1);",
+        "AISetUserInt(15, 145, 0);",
+        "AISetUserInt(15, 145, 1);",
+        "AISetUserInt(15, 142, 301);",
+        "AISetSpecificState(15, 1, 1);",
         "AISetSpecificState(15, 2, 1);",
         "AISetSpecificState(15, 3, 1);",
-        "AISetSpecificState(15, 1, 1);",
-        "AISetSpecificState(15, 2, 2);",
-        "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);",
+        "AIGetTime() < 420.0",
+        "AISetUnitScriptControlled(currentUnit, true);",
+        "AISetUnitScriptControlled(currentUnit, false);",
+        "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 2.0, c_timeGame);",
         "TriggerEnable(gt_sc2team_V3WildRelease, false);",
       ]) {
         if (!script.includes(marker)) fail(`V3 P15 delayed-AI marker is missing: ${marker}`);
@@ -1775,11 +1779,16 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
           fail(`V3 P15 delayed AI changes player relations or runs the old controller: ${forbidden}`);
         }
       }
+      if (script.includes("AISetSpecificState(15, 1, -1)")) {
+        fail("V3 P15 delayed AI must not use the invalid Disabled main state");
+      }
       const delayFunction = /void sc2team_InitializeV3WildDelay \(\) \{([^}]*)\}/s.exec(script);
       const releaseFunction = /bool sc2team_V3WildRelease_Func \([^)]*\) \{([\s\S]*?)\n\}/.exec(script);
+      const controlFunction = /void sc2team_V3SetWildCombatControl \([^)]*\) \{([\s\S]*?)\n\}/.exec(script);
       for (const [name, body] of [
         ["initialize", delayFunction && delayFunction[1]],
         ["release", releaseFunction && releaseFunction[1]],
+        ["combat-control", controlFunction && controlFunction[1]],
       ]) {
         if (!body) fail(`V3 P15 delayed-AI ${name} function is missing`);
         if (/SetAlliance|PlayerSetController|UnitSetOwner/.test(body)) {
@@ -1788,7 +1797,7 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
       }
       const withoutAllowedWildTimers = script
         .replace(
-          "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);",
+          "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 2.0, c_timeGame);",
           ""
         );
       if (withoutAllowedWildTimers.includes("TriggerAddEventTimePeriodic(gt_sc2team_")) {

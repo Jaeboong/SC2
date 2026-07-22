@@ -30,10 +30,11 @@ Python과 Node는 게임 시작 전에 맵과 `SC2TeamV3AI.SC2Mod`를 만드는 
 종족별 Open/Mid/Late dispatcher는 build ID가 V3일 때 Blizzard 난이도별 빌드 대신
 V3 Stock 목표를 실행하고, 나머지 엔진 흐름은 그대로 유지한다.
 
-야생 저그가 활성화된 V3 맵은 `MeleeInitAI()` 직후 P15의 AI state index 1/2/3
-(main/sub/attack)만 Disabled/Unset/Wait로 고정한다. 420 게임초의 일회성 트리거가
-main/sub를 Init으로 바꾸면서 저그 AI 빌드가 시작된다. 플레이어 컨트롤러, 유닛
-소유권, 동맹, 채집 명령은 이 지연 경로에서 변경하지 않는다.
+야생 저그가 활성화된 V3 mod의 저그 엔트리는 P15의 AI user int 145가 0이면
+`ZergInit` 전에 반환한다. 맵 트리거는 2초부터 P15의 선배치 전투 유닛만
+`AISetUnitScriptControlled(true)`로 잡고, 420 게임초에 플래그를 1로 바꾼 뒤 표시한
+병력을 반환한다. 해제 시 P15에는 build ID 301과 유효한 Init state를 지정한다.
+드론·건물·플레이어 컨트롤러·소유권·동맹은 변경하지 않는다.
 
 ## 데이터 계약
 
