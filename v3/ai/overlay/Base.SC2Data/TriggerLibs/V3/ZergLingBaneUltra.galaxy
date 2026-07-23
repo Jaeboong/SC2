@@ -85,6 +85,13 @@ bool V3ZergLingBaneUltraMid (int player) {
     AISetStockUnitNext( player, 120, c_ZU_Roach, c_stockAlways );
     AISetStockUnitNext( player, 3, c_ZU_Queen, c_stockAlways );
 
+    // Start the Hive/Ultralisk chain while the Mid gate is still completing.
+    AISetStockUnitNext( player, 1, c_ZB_InfestationPit, c_stockAlways );
+    AISetStockUnitNext( player, 1, c_ZB_Hive, c_stockAlways );
+    AISetStockUnitNext( player, 1, c_ZB_UltraliskCavern, c_stockAlways );
+    AISetStock( player, 1, c_ZR_UltraliskArmor );
+    AISetStockUnitNext( player, 30, c_ZU_Ultralisk, c_stockAlways );
+
     ZergBasicDefenseStock(player);
     ZergHDEmergencyDetectionAntiAir(player);
 

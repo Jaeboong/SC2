@@ -130,4 +130,29 @@ c_stockAlways)`, 공급=`AISetStockFarms(...c_stockNormalFarms)`. 순차 `AISetS
 **남은 것:** 울트라 실전 투입은 별개 이슈(테크 타이밍). 이번 4판 모두 18분에
 Lair까지만 가고 Hive 미완이라 울트라 0. 미러에서 6분부터 교전해 테크가 느린 탓 +
 울트라 체인이 순차 리스트 뒤쪽. 증분 상향으론 안 풀리며, 원하면 Hive/동굴 우선순위를
-앞당기거나 21분+ 관측 필요.
+앞당기거나 21분+ 관측 필요. → V3.7에서 해결.
+
+## V3.7 울트라 테크 앞당김 (2026-07-23)
+
+**진단(측정+코드):** 단계 머신 Open→Mid→Late(userInt 146). Hive·InfestationPit·
+UltraliskCavern·울트라 훈련이 **전부 Late 단계에만** 있는데, Mid→Late 게이트
+(`Drone≥26 AND Roach≥12 AND Baneling(진행중이상)≥8`)가 맹독 morph 불안정으로 잘
+안 열려 **다수 슬롯이 Mid에 갇힘** → Hive 영구 0. Late 재정렬은 도달을 못 하니 무의미.
+
+**수정:** `V3ZergLingBaneUltraMid`에 울트라 테크 체인+훈련을 비차단 연속 트랙으로
+추가(게이트에서 분리). Lair는 이미 Mid에 있어 재사용.
+```
+AISetStockUnitNext( player, 1, c_ZB_InfestationPit, c_stockAlways );
+AISetStockUnitNext( player, 1, c_ZB_Hive, c_stockAlways );
+AISetStockUnitNext( player, 1, c_ZB_UltraliskCavern, c_stockAlways );
+AISetStock( player, 1, c_ZR_UltraliskArmor );
+AISetStockUnitNext( player, 30, c_ZU_Ultralisk, c_stockAlways );
+```
+게이트·Open·Late·일꾼·공급·병력 증분은 불변(가산 변경). manifest bytes 8263,
+sha256 `1b38b9c1…`, 두 검증 PASS.
+
+**측정(12명 미러 18분, `runtime/reports/zerg-lingbane-ultratech-mirror-18m.json`):**
+Hive 12분에 8/12 슬롯 보유(이전 4판 전부 Hive 0), 15분 9/12, 18분 대부분. **울트라
+최초 등장(P12 18분 4기)** — 동굴 완성 직후라 18분 창엔 선두만 잡힘. 무천장 병력·경제
+유지(저글링 P2 192기, 이전 최대 133 초과). 평균 army 62.8은 이번 판 P5 전멸·P4 대파
+전투 변동 탓. 울트라 규모 확인은 21~24분 관측 필요(미확정).
