@@ -111,6 +111,38 @@ include "TriggerLibs/V3/HomeDefense"
 include "TriggerLibs/V3/ProtossGateway"
 include "TriggerLibs/V3/ProtossGatewayRobo"
 
+fixed[16] gv_v3ProtossTechDeadline;
+
+// Force the Forge/Twilight/Templar tech structures via the melee AI's own
+// AIBuild (Blizzard placement + Probe), gated on the real prerequisite so it
+// is §83-safe, plus a per-player 30s latch. The stock requests for these are
+// ignored position-dependently; AIBuild builds them where our own order does not.
+void V3EnsureProtossTech (int player) {
+    if (AIGetTime() < gv_v3ProtossTechDeadline[player]) {
+        return;
+    }
+    // Forge only after a completed Cybernetics Core (keep the early army tech
+    // ahead of it, per the §91 ordering lesson).
+    if (AITechCount(player, c_PB_CyberneticsCore, c_techCountCompleteOnly) >= 1 &&
+        AITechCount(player, c_PB_Forge, c_techCountInProgressOrBetter) < 1) {
+        AIBuild(player, c_makePriorityTown, AIGetMainTown(player), c_PB_Forge, 1, c_makeNoFlags);
+        gv_v3ProtossTechDeadline[player] = AIGetTime() + 30.0;
+        return;
+    }
+    if (AITechCount(player, c_PB_CyberneticsCore, c_techCountCompleteOnly) >= 1 &&
+        AITechCount(player, c_PB_TwilightCouncil, c_techCountInProgressOrBetter) < 1) {
+        AIBuild(player, c_makePriorityTown, AIGetMainTown(player), c_PB_TwilightCouncil, 1, c_makeNoFlags);
+        gv_v3ProtossTechDeadline[player] = AIGetTime() + 30.0;
+        return;
+    }
+    if (AITechCount(player, c_PB_TwilightCouncil, c_techCountCompleteOnly) >= 1 &&
+        AITechCount(player, c_PB_TemplarArchives, c_techCountInProgressOrBetter) < 1) {
+        AIBuild(player, c_makePriorityTown, AIGetMainTown(player), c_PB_TemplarArchives, 1, c_makeNoFlags);
+        gv_v3ProtossTechDeadline[player] = AIGetTime() + 30.0;
+        return;
+    }
+}
+
 bool V3RunProtossBuild (int player, int phase) {
     int build = AIGetUserInt(player, 142);
     if (build != 201 && build != 202) {
@@ -144,6 +176,7 @@ bool V3RunProtossBuild (int player, int phase) {
     V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
     V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
     AIEnableStock(player);
+    V3EnsureProtossTech(player);
     AISetAttackStatus(player, c_PU_Zealot, 6, 10, c_continuousMerge);
     return true;
 }
