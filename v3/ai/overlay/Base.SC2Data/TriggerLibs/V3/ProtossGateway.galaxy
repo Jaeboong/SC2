@@ -7,6 +7,50 @@
 // default-Protoss fallback data to select the concrete faction variants.
 //==================================================================================================
 
+void V3ProtossMergeArchons (int player) {
+    unitgroup templars;
+    unit first;
+    unit partner;
+    order archonOrder;
+    unitgroup partnerGroup;
+    int idx;
+    int idleCount;
+    int reserve;
+    int mergeLimit;
+    int merged;
+
+    templars = UnitGroup(c_PU_HighTemplar, player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    idleCount = 0;
+    idx = UnitGroupCount(templars, c_unitCountAlive);
+    for (;; idx -= 1) {
+        first = UnitGroupUnitFromEnd(templars, idx);
+        if (first == null) { break; }
+        if (UnitOrderCount(first) == 0) { idleCount += 1; }
+    }
+    reserve = 4;
+    mergeLimit = (idleCount - reserve) / 2;
+    if (mergeLimit > 2) { mergeLimit = 2; }
+    if (mergeLimit <= 0) { return; }
+
+    archonOrder = AICreateOrder(player, c_AB_ArchonWarp, 1);
+    merged = 0;
+    idx = UnitGroupCount(templars, c_unitCountAlive);
+    for (;; idx -= 1) {
+        first = UnitGroupUnitFromEnd(templars, idx);
+        if (first == null || merged >= mergeLimit) { break; }
+        if (UnitOrderCount(first) != 0) { continue; }
+        partnerGroup = UnitGroupSearch(c_PU_HighTemplar, player, UnitGetPosition(first), 5.0, UnitFilter((1 << c_targetFilterSelf), 0, 0, 0), c_noMaxCount);
+        partner = OrderGetTargetUnit( AIUnitGroupGetValidOrder(partnerGroup, archonOrder, first, c_forwards) );
+        if (partner == null) { continue; }
+        if (UnitOrderCount(partner) != 0) { continue; }
+        UnitIssueOrder(first,   OrderTargetingUnit(AbilityCommand(c_AB_ArchonWarp, 1), partner), c_orderQueueAddToEnd);
+        UnitIssueOrder(partner, OrderTargetingUnit(AbilityCommand(c_AB_ArchonWarp, 1), first),   c_orderQueueAddToEnd);
+        AISetUnitScriptControlled(first, false);
+        AISetUnitScriptControlled(partner, false);
+        merged += 1;
+    }
+}
+
 void V3ProtossGatewayStock (int player, int phase) {
     int gatewayTarget;
     int openingArmy;
@@ -144,4 +188,5 @@ void V3ProtossGatewayStock (int player, int phase) {
         AISetStockUnitNext( player, 70, c_PU_Sentry, c_stockAlways );
     }
 
+    V3ProtossMergeArchons(player);
 }

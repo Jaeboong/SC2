@@ -415,6 +415,11 @@ def main() -> int:
         action="store_true",
         help="fill a 6v6 (12 players) with the Zerg Roach/Hydra build to average out run-to-run variance",
     )
+    parser.add_argument(
+        "--all-gateway",
+        action="store_true",
+        help="fill a 6v6 (12 players) with the Protoss Gateway build to average out run-to-run variance",
+    )
     parser.add_argument("--report", type=Path, help="write samples and production coordinates as JSON")
     args = parser.parse_args()
     if args.duration < 180 or args.duration % 180:
@@ -424,6 +429,7 @@ def main() -> int:
         for flag, key in (
             (args.all_lingbane, "zerg_ling_bane_ultra"),
             (args.all_roach_hydra, "zerg_roach_hydra_ultra"),
+            (args.all_gateway, "protoss_gateway"),
         )
         if flag
     ]

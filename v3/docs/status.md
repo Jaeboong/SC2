@@ -319,3 +319,26 @@ Hive 10/12·케이븐 6/12, **케이븐 완성 6슬롯 전부 울트라 생산(�
 저글링·맹독은 로치/히드라보다 Hive 도달이 좋아 울트라 슬롯도 더 많음.
 
 **남은 것:** 집정관(트랙 3, 업스트림 MergeToSurvive 미러링 선제 합체).
+
+## V3.13 프로토스 집정관 선제 합체 (2026-07-24)
+
+**증상(사용자 라이브 20분+):** 프로토스가 집정관을 안 만듦. **원인:** 집정관은
+훈련이 아니라 하이템플러 2기 합체인데, Blizzard는 `MergeToSurvive`(TactProtAI)로
+**저체력·피격 시에만 반응적으로** 합체함 → 전투에서 템플러가 합체 전에 죽거나 그냥
+안 터짐. `AISetStock(Archon)`만으론 합체 안 됨.
+
+**수정:** 업스트림 `MergeToSurvive`의 `ArchonWarp` 형태(`AICreateOrder` +
+`UnitGroupSearch` 근접 파트너 + 두 유닛에 `OrderTargetingUnit(AbilityCommand(
+c_AB_ArchonWarp,1))` 동시 발령 + `AISetUnitScriptControlled(false)`)를 미러링한
+**선제 합체 헬퍼** `V3ProtossMergeArchons`를 `ProtossGateway.galaxy`에 추가,
+`V3ProtossGatewayStock` 끝에서 호출. 유휴 하이템플러가 예약분(4, 폭풍용) 초과 시
+쌍으로 합체, 틱당 2쌍 상한, 폭풍 시전 중 템플러는 스킵(UnitOrderCount).
+
+**A/B 프로브(24분 12슬롯 `--all-gateway`, 신규 미러 플래그):**
+- 선제 합체: 집정관 **10/12 슬롯, 총 45기**(최대 7), 하이템플러 38 보존.
+- 반응형만(baseline): 하이템플러 **86 쌓여도 집정관 3기**뿐(3/12 슬롯).
+→ 선제 합체가 잉여 템플러를 집정관으로 15배 전환, 폭풍용 예약도 유지. 결정적 개선.
+
+**세 종족 병력 규명 3트랙 완료:** 저그 울트라(v3.11 로치/히드라·v3.12 저글링/맹독
+직접 모프), 프로토스 집정관(v3.13 선제 합체). 공통 근인 = "멜리 AI 스톡/반응층이
+안 하는 것"을 V3 내장 스크립트가 직접 주문으로 채움(스톡 전용 전제 완화).

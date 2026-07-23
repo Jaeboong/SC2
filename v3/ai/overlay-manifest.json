@@ -26,8 +26,8 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
-      "bytes": 7383,
-      "sha256": "ec1239041bb3543544e97186bbc3a22443fa125cd32f4dea2f4f7a7d345018e2"
+      "bytes": 9212,
+      "sha256": "9c2371da4cdde34ed26830aa83ff7dad7d6fee463f1475eed2117e10421a1e9f"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGatewayRobo.galaxy",
