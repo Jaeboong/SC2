@@ -15,6 +15,18 @@
 
 void V3ZergLingBaneUltraStock (int player, int phase) {
     int macroHatcheryTarget;
+    int openingBanelings;
+
+    // Upstream Ling/Bane openings hold their opening state until a real
+    // Baneling checkpoint exists.  Do not let V3's timed phase overwrite the
+    // Zergling-to-Baneling morph before it can finish.
+    openingBanelings = AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter);
+    // Four is the completed opening morph checkpoint registered below.  The
+    // map's faction data can keep the upstream eight-unit timing checkpoint
+    // queued after the actual four-unit morph is already healthy.
+    if (phase > 0 && openingBanelings < 4) {
+        phase = 0;
+    }
 
     if (phase <= 0) {
         macroHatcheryTarget = 1;
@@ -50,7 +62,10 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
     AISetStock( player, V3WorkerTarget(player, 16), c_ZU_Drone );
     AISetStock( player, 1, c_ZB_Extractor );
-    AISetStockUnitNext( player, 8, c_ZU_Zergling, c_stockAlways );
+    // Match Blizzard's Ling/Bane openings: use normal mixed checkpoints.
+    // A large UnitNext Zergling target monopolizes larva and makes the later
+    // Baneling morph unreachable.
+    AISetStock( player, 8, c_ZU_Zergling );
     V3SetZergMainMacroHatcheries(player, macroHatcheryTarget);
     AISetStock( player, 1, c_ZB_BanelingNest );
     AISetStock( player, V3WorkerTarget(player, 20), c_ZU_Drone );
@@ -65,7 +80,12 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     if (phase <= 0) {
         // Two mining bases plus one town-local macro Hatchery sustain the opening mix.
         AISetStockPeons( player, V3WorkerTarget(player, 32), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-        AISetStockUnitNext( player, 4, c_ZB_Extractor, c_stockAlways );
+        // These are the same alternating normal-Stock shape used by
+        // Blizzard's Ling/Bane openings, extended to V3's 40-supply target.
+        AISetStockUnitNext( player, 18, c_ZU_Zergling, c_stockAlways );
+        AISetStockUnitNext( player, 8, c_ZU_Baneling, c_stockAlways );
+        AISetStockUnitNext( player, 30, c_ZU_Zergling, c_stockAlways );
+        AISetStockUnitNext( player, 16, c_ZU_Baneling, c_stockAlways );
         AISetStockUnitNext( player, 47, c_ZU_Zergling, c_stockAlways );
         AISetStockUnitNext( player, 33, c_ZU_Baneling, c_stockAlways );
 
@@ -76,14 +96,17 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     // the high-count light ground army.  The third base and six gases support upgrades and morphs.
     AISetStockUnitNext( player, 3, c_ZU_Queen, c_stockAlways );
     AISetStockPeons( player, V3WorkerTarget(player, 60), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-    AISetStockUnitNext( player, 6, c_ZB_Extractor, c_stockAlways );
     AISetStock( player, 1, c_ZB_Lair_Alias );
     AISetStock( player, 2, c_ZB_EvolutionChamber );
     AISetStock( player, 1, c_ZR_BanelingSpeed );
     AISetStock( player, 1, c_ZR_MeleeAttacks2 );
     AISetStock( player, 1, c_ZR_GroundCarapace2 );
-    AISetStockUnitNext( player, 141, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 99, c_ZU_Baneling, c_stockAlways );
+    AISetStock( player, 60, c_ZU_Zergling );
+    AISetStock( player, 40, c_ZU_Baneling );
+    AISetStock( player, 100, c_ZU_Zergling );
+    AISetStock( player, 70, c_ZU_Baneling );
+    AISetStock( player, 141, c_ZU_Zergling );
+    AISetStock( player, 99, c_ZU_Baneling );
 
     if (phase == 1) {
         return;
@@ -101,11 +124,14 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
 
     AISetStockUnitNext( player, 6, c_ZU_Queen, c_stockAlways );
     AISetStockPeons( player, V3WorkerTarget(player, 96), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-    AISetStockUnitNext( player, 12, c_ZB_Extractor, c_stockAlways );
-
-    // Exact late target: 180 + 126 + 54 = 360 army supply.
-    AISetStockUnitNext( player, 360, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 252, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 9, c_ZU_Ultralisk, c_stockAlways );
+    // Exact late target: 180 + 126 + 54 = 360 army supply.  Seed each
+    // morph branch before the final totals, so Larva production is mixed
+    // rather than serially consumed by Zerglings.
+    AISetStock( player, 180, c_ZU_Zergling );
+    AISetStock( player, 126, c_ZU_Baneling );
+    AISetStock( player, 3, c_ZU_Ultralisk );
+    AISetStock( player, 360, c_ZU_Zergling );
+    AISetStock( player, 252, c_ZU_Baneling );
+    AISetStock( player, 9, c_ZU_Ultralisk );
 
 }

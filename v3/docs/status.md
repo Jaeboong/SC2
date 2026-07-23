@@ -53,6 +53,14 @@ V3 지상군 빌드 6개가 해시 고정 upstream+overlay SC2Mod로 구현되�
 - 여섯 빌드의 최신 9분 단독 결과와 V3.4 장기 샘플은
   [`verification/v3.4-engine-log.md`](verification/v3.4-engine-log.md)에 있다.
 
+## V3.5 저글링·맹독충 생산 회귀
+
+- 18분 관측에서 `UnitNext(360 Zergling)`이 맹독충·울트라 morph를 뒤에
+  가둔 것을 확인했다. 맹독충 4기 morph 체크포인트가 충족될 때까지 opening을
+  유지한 뒤 진행하도록 고쳤다.
+- 최신 9분 독립 run: 3기지, 일꾼 42, 저글링 22·맹독충 4, 병력 인구 13,
+  `V3_GROUND_BUILDS=PASS`.
+
 ## 남은 확인
 
 - 빌드별 단독 실행으로 2·3·6기지 생산 건물 위치와 총수 확인
