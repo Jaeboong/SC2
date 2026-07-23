@@ -87,6 +87,58 @@ int V3WorkerTarget (int player, int requested) {
     return requested;
 }
 
+// §88 포트(V3 내부 커스텀): 보급 선제 건설. V3는 임베디드 AI라 이 AIBuild는
+// "AI가 자기 빌드 매니저에 내는 자기 주문"이다(V1식 외부 덮어쓰기 아님).
+// Terran SupplyDepot / Protoss Pylon 공용. 사용자 지시: 여유있게, 2~3개씩,
+// 임박(10~20) 전부터 미리. 저그는 대상 아님(오버로드는 네이티브 NormalFarms).
+void V3BuildProactiveSupply (int player, string supplyType) {
+    int made;
+    int used;
+    int headroom;
+    int threshold;
+    int building;
+    int deficit;
+
+    // §83 오프닝 보호 + 턴제로 정지 방지: 사용량 32 미만이거나 보급 구조물이
+    // 한 번도 완성된 적 없으면 발주하지 않는다(오프닝은 멜리 계획 소유).
+    used = PlayerGetPropertyInt(player, c_playerPropSuppliesUsed);
+    if (used < 32) {
+        return;
+    }
+    if (AITechCount(player, supplyType, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    // §91.10: 여유분은 Made - Used 다(Limit은 800 천장이라 금지). made < 800
+    // 이면 최대 보급에서의 무한 발주를 막는다.
+    made = PlayerGetPropertyInt(player, c_playerPropSuppliesMade);
+    if (made >= 800) {
+        return;
+    }
+    headroom = made - used;
+
+    // 선제 임계값은 소모량에 비례해 키운다(후반 폭발 대비, 미리미리).
+    threshold = 20;
+    if (made >= 100) {
+        threshold = 26;
+    }
+    if (made >= 200) {
+        threshold = 32;
+    }
+    if (headroom >= threshold) {
+        return;
+    }
+
+    // 동시 건설 3개 상한(사용자 "2~3개씩"). 부족분을 한 번에 발주하고, 매 틱
+    // 재평가하되 상한으로 중복 폭주를 막는다.
+    building = AITechCount(player, supplyType, c_techCountQueuedOrBetter)
+             - AITechCount(player, supplyType, c_techCountCompleteOnly);
+    deficit = 3 - building;
+    if (deficit <= 0) {
+        return;
+    }
+    AIBuild(player, c_makePriorityTown, AIGetMainTown(player), supplyType, deficit, c_nearChokePoint);
+}
+
 // Unlike the ordered milestones, this continuous target fills every completed
 // mining town to its exact mineral/gas capacity as new expansions come online.
 void V3SetMiningWorkerStock (int player, string workerType) {

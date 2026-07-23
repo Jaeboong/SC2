@@ -421,6 +421,7 @@ def main() -> int:
         help="fill a 6v6 (12 players) with the Protoss Gateway build to average out run-to-run variance",
     )
     parser.add_argument("--report", type=Path, help="write samples and production coordinates as JSON")
+    parser.add_argument("--mirror-count", type=int, default=12, help="even number of mirror slots (2..12); split evenly across the two teams")
     args = parser.parse_args()
     if args.duration < 180 or args.duration % 180:
         parser.error("duration must be a multiple of 180 and at least 180 seconds")
@@ -442,7 +443,12 @@ def main() -> int:
         template = next(case for case in CASES if case.key == mirror_keys[0])
         # Slot 1 is the human/observer slot (a Computer at runtime P1 in observer
         # mode); slots 7 and 14 stay empty so this is a symmetric 6v6 mirror.
-        mirror_slots = (1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13)
+        if args.mirror_count < 2 or args.mirror_count > 12 or args.mirror_count % 2:
+            parser.error("--mirror-count must be an even number between 2 and 12")
+        per_team = args.mirror_count // 2
+        team_a = (1, 2, 3, 4, 5, 6)[:per_team]
+        team_b = (8, 9, 10, 11, 12, 13)[:per_team]
+        mirror_slots = team_a + team_b
         cases = tuple(replace(template, logical_slot=slot) for slot in mirror_slots)
     elif args.build:
         selected = next(case for case in CASES if case.key == args.build)

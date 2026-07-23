@@ -129,6 +129,7 @@ bool V3RunProtossBuild (int player, int phase) {
     else {
         V3ProtossGatewayRoboStock(player, phase);
     }
+    V3BuildProactiveSupply(player, c_PB_Pylon);
     AIDefaultEconomy(
         player,
         c_PB_Nexus,
