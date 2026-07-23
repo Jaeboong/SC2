@@ -138,10 +138,10 @@ void V3ProtossGatewayStock (int player, int phase) {
         // Seed the Templar branch before the large late Gateway target so
         // the native ordered stock cannot spend the whole phase on Zealots.
         AISetStock( player, 1, c_PU_HighTemplar );
-        AISetStockUnitNext( player, 63, c_PU_Zealot, c_stockAlways );
-        AISetStockUnitNext( player, 27, c_PU_Archon, c_stockAlways );
-        AISetStockUnitNext( player, 36, c_PU_HighTemplar, c_stockAlways );
-        AISetStockUnitNext( player, 27, c_PU_Sentry, c_stockAlways );
+        AISetStockUnitNext( player, 164, c_PU_Zealot, c_stockAlways );
+        AISetStockUnitNext( player, 70, c_PU_Archon, c_stockAlways );
+        AISetStockUnitNext( player, 94, c_PU_HighTemplar, c_stockAlways );
+        AISetStockUnitNext( player, 70, c_PU_Sentry, c_stockAlways );
     }
 
 }

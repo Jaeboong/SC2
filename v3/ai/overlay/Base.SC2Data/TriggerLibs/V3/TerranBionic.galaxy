@@ -188,7 +188,7 @@ void V3TerranBionicStock (int player, int phase) {
         V3SetBionicCombatStage(player, 135, 37, 25);
     }
     if (marineTarget >= 162) {
-        V3SetBionicCombatStage(player, 162, 45, 30);
+        V3SetBionicCombatStage(player, 450, 120, 80);
     }
 
     // Register every stock unit with the standard wave merger.  Medic follows the army as support.

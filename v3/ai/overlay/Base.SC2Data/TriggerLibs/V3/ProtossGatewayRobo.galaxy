@@ -135,10 +135,10 @@ void V3ProtossGatewayRoboStock (int player, int phase) {
     AISetStockPeons( player, V3WorkerTarget(player, 96), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
 
     // Late target: 90/108/36/72/54 supply = exactly 360 at 25/30/10/20/15 percent.
-    AISetStockUnitNext( player, 45, c_PU_Zealot, c_stockAlways );
-    AISetStockUnitNext( player, 54, c_PU_Stalker, c_stockAlways );
-    AISetStockUnitNext( player, 18, c_PU_Sentry, c_stockAlways );
-    AISetStockUnitNext( player, 18, c_PU_Immortal, c_stockAlways );
-    AISetStockUnitNext( player, 9, c_PU_Colossus, c_stockAlways );
+    AISetStockUnitNext( player, 117, c_PU_Zealot, c_stockAlways );
+    AISetStockUnitNext( player, 140, c_PU_Stalker, c_stockAlways );
+    AISetStockUnitNext( player, 47, c_PU_Sentry, c_stockAlways );
+    AISetStockUnitNext( player, 47, c_PU_Immortal, c_stockAlways );
+    AISetStockUnitNext( player, 23, c_PU_Colossus, c_stockAlways );
 
 }

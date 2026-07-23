@@ -26,14 +26,14 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
-      "bytes": 7382,
-      "sha256": "390b2bef22a65385a615aa48a55072f855135bc754012dcdd6da3d564aa78d51"
+      "bytes": 7383,
+      "sha256": "ec1239041bb3543544e97186bbc3a22443fa125cd32f4dea2f4f7a7d345018e2"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGatewayRobo.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ProtossGatewayRobo.galaxy",
-      "bytes": 6617,
-      "sha256": "dd987a0705e7b77f1e20cc9e848a8971ec9fa962d17e1b7547a5f2bcdf384733"
+      "bytes": 6620,
+      "sha256": "f8dae10c5530095360286bffb396959d624ca8d4c68aaef6e35ac9447b6aeada"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Terran.galaxy",
@@ -44,14 +44,14 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranBionic.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/TerranBionic.galaxy",
-      "bytes": 7963,
-      "sha256": "35f9640e82264d203873caed068f0ac9a8f2de3d45106786c67c98f8dae4135d"
+      "bytes": 7964,
+      "sha256": "3d5aa69ac340ee634886195bf71b32fed5c1590eff82455d7dcec6297011b021"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
-      "bytes": 7457,
-      "sha256": "53f9f7d25876abf2d6d1f20a4974f07da966fbc3974e1ea9f958e9a09905ad6d"
+      "bytes": 7459,
+      "sha256": "b84bafb390d4d7bbf52c62e23d797bfedc6e4e0ffc74967fac1d0c40de103c48"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",

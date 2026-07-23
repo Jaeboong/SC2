@@ -159,9 +159,9 @@ void V3TerranMechanicStock (int player, int phase) {
     V3SetTerranTownProduction(player, 16, c_TB_Factory);
 
     // Late target: 126/90/90/54 supply = exactly 35/25/25/15 percent.
-    AISetStockUnitNext( player, 63, "SC2TeamGoliath", c_stockAlways );
-    AISetStockUnitNext( player, 45, c_TU_Cyclone, c_stockAlways );
-    AISetStockUnitNext( player, 30, c_TU_SiegeTank, c_stockAlways );
-    AISetStockUnitNext( player, 9, c_TU_Thor, c_stockAlways );
+    AISetStockUnitNext( player, 126, "SC2TeamGoliath", c_stockAlways );
+    AISetStockUnitNext( player, 90, c_TU_Cyclone, c_stockAlways );
+    AISetStockUnitNext( player, 60, c_TU_SiegeTank, c_stockAlways );
+    AISetStockUnitNext( player, 18, c_TU_Thor, c_stockAlways );
 
 }
