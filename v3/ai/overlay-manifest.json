@@ -62,8 +62,8 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
-      "bytes": 13554,
-      "sha256": "e03a3d1ff23abef8784f98a083019ff273ce3096dbb76c45f5fde1ee18c3ff1c"
+      "bytes": 12352,
+      "sha256": "b48e3a88ba62b13d1c16f9a92ea79f1be61d4b58050e691b9312bc2d7dacad8c"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",

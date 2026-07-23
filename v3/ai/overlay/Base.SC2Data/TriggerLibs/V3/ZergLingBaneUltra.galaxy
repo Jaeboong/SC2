@@ -108,11 +108,8 @@ void V3LingBaneMorphUltralisks (int player) {
 
 void V3EnsureLingBaneUltraTech (int player) {
     unitgroup candidates;
-    unit builder;
     unit lair;
-    order buildOrder;
     order hiveOrder;
-    point buildPoint;
     point townPoint;
 
     if (AIGetTime() < gv_v3LingBaneUltraTechDeadline[player]) {
@@ -141,37 +138,17 @@ void V3EnsureLingBaneUltraTech (int player) {
     if (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) >= 1 &&
         AITechCount(player, c_ZB_InfestationPit, c_techCountInProgressOrBetter) < 1 &&
         AIHasRes(player, 100, 100)) {
-        candidates = UnitGroup("Drone", player, RegionCircle(townPoint, 22.0), UnitFilter(0, 0, 0, 0), 0);
-        builder = UnitGroupUnitFromEnd(candidates, UnitGroupCount(candidates, c_unitCountAlive));
-        if (builder != null) {
-            buildPoint = AIGetBuildingPlacement(player, townPoint, c_ZB_InfestationPit, c_makeNoFlags);
-            if (buildPoint != null) {
-                buildOrder = OrderTargetingPoint(AbilityCommand("ZergBuild", 8), buildPoint);
-                if (UnitOrderIsValid(builder, buildOrder)) {
-                    UnitIssueOrder(builder, buildOrder, c_orderQueueReplace);
-                    gv_v3LingBaneUltraTechDeadline[player] = AIGetTime() + 30.0;
-                    return;
-                }
-            }
-        }
+        AIBuild(player, c_makePriorityTown, AIGetMainTown(player), c_ZB_InfestationPit, 1, c_makeNoFlags);
+        gv_v3LingBaneUltraTechDeadline[player] = AIGetTime() + 30.0;
+        return;
     }
 
     if (AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) >= 1 &&
         AITechCount(player, c_ZB_UltraliskCavern, c_techCountInProgressOrBetter) < 1 &&
         AIHasRes(player, 150, 200)) {
-        candidates = UnitGroup("Drone", player, RegionCircle(townPoint, 22.0), UnitFilter(0, 0, 0, 0), 0);
-        builder = UnitGroupUnitFromEnd(candidates, UnitGroupCount(candidates, c_unitCountAlive));
-        if (builder != null) {
-            buildPoint = AIGetBuildingPlacement(player, townPoint, c_ZB_UltraliskCavern, c_makeNoFlags);
-            if (buildPoint != null) {
-                buildOrder = OrderTargetingPoint(AbilityCommand("ZergBuild", 7), buildPoint);
-                if (UnitOrderIsValid(builder, buildOrder)) {
-                    UnitIssueOrder(builder, buildOrder, c_orderQueueReplace);
-                    gv_v3LingBaneUltraTechDeadline[player] = AIGetTime() + 30.0;
-                    return;
-                }
-            }
-        }
+        AIBuild(player, c_makePriorityTown, AIGetMainTown(player), c_ZB_UltraliskCavern, 1, c_makeNoFlags);
+        gv_v3LingBaneUltraTechDeadline[player] = AIGetTime() + 30.0;
+        return;
     }
 }
 
