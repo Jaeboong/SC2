@@ -54,6 +54,54 @@ bool V3ZergLingBaneUltraOpen (int player) {
     return true;
 }
 
+void V3LingBaneMorphUltralisks (int player) {
+    unitgroup larvae;
+    unit larva;
+    order ultraliskMorphOrder;
+    int larvaIndex;
+    int idleLarvaCount;
+    int ultraliskMorphLimit;
+    int ultraliskMorphIssued;
+
+    if (AITechCount(player, c_ZB_UltraliskCavern, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    larvae = UnitGroup("Larva", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    idleLarvaCount = 0;
+    larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+    for (;; larvaIndex -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+        if (larva == null) {
+            break;
+        }
+        if (UnitOrderCount(larva) == 0) {
+            idleLarvaCount += 1;
+        }
+    }
+    ultraliskMorphLimit = idleLarvaCount - 3;
+    if (ultraliskMorphLimit > 4) {
+        ultraliskMorphLimit = 4;
+    }
+    if (ultraliskMorphLimit > 0) {
+        ultraliskMorphOrder = Order(AbilityCommand("LarvaTrain", 6));
+        ultraliskMorphIssued = 0;
+        larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+        for (;; larvaIndex -= 1) {
+            larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+            if (larva == null || ultraliskMorphIssued >= ultraliskMorphLimit) {
+                break;
+            }
+            if (UnitOrderCount(larva) != 0) {
+                continue;
+            }
+            if (UnitOrderIsValid(larva, ultraliskMorphOrder)) {
+                UnitIssueOrder(larva, ultraliskMorphOrder, c_orderQueueAddToEnd);
+                ultraliskMorphIssued += 1;
+            }
+        }
+    }
+}
+
 bool V3ZergLingBaneUltraMid (int player) {
     AIClearStock(player);
 
@@ -105,6 +153,7 @@ bool V3ZergLingBaneUltraMid (int player) {
     V3SetZergMainMacroHatcheries(player, 2);
 
     AIEnableStock(player);
+    V3LingBaneMorphUltralisks(player);
 
     AISetAttackStatus(player, c_ZU_Zergling, 2, 30, c_continuousMerge);
     if (AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly) >= 12) {
@@ -169,6 +218,7 @@ bool V3ZergLingBaneUltraLate (int player) {
     V3SetZergMainMacroHatcheries(player, 4);
 
     AIEnableStock(player);
+    V3LingBaneMorphUltralisks(player);
 
     AISetAttackStatus(player, c_ZU_Roach, 2, 999, c_continuousMerge);
     AISetAttackStatus(player, c_ZU_Hydralisk, 1, 999, c_continuousMerge);
