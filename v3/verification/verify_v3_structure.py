@@ -51,8 +51,8 @@ def main() -> int:
     overlay_manifest = json.loads(overlay_manifest_bytes)
     if len(manifest["files"]) != 54:
         failures.append(f"upstream manifest must contain 54 files, found {len(manifest['files'])}")
-    if len(overlay_manifest["overlays"]) != 9:
-        failures.append(f"overlay manifest must contain 9 files, found {len(overlay_manifest['overlays'])}")
+    if len(overlay_manifest["overlays"]) != 10:
+        failures.append(f"overlay manifest must contain 10 files, found {len(overlay_manifest['overlays'])}")
     if sha256(manifest_bytes) != overlay_manifest["upstream_manifest_sha256"]:
         failures.append("overlay manifest does not authenticate manifest.json")
 
@@ -94,12 +94,90 @@ def main() -> int:
     if "player == 15 && AIGetUserInt(player, 145) == 0" not in layout_source:
         failures.append("Zerg root is missing the P15 pre-420 AI entry guard")
 
+    # The six policies must use the race-local wrappers that in turn call the
+    # native town stock API.  A bare AISetStockExpand is intentionally not
+    # sufficient: it only creates a town and cannot place production there.
+    town_helpers = {
+        "Terran.galaxy": "V3SetTerranTownProduction",
+        "Protoss.galaxy": "V3SetProtossTownProduction",
+        "Zerg.galaxy": "V3SetZergMainMacroHatcheries",
+    }
+    for filename, helper in town_helpers.items():
+        text = (OVERLAY_ROOT / "Base.SC2Data" / "TriggerLibs" / "V3" / filename).read_text(encoding="utf-8")
+        for required in (helper, "AISetStockEx", "AIGetTownState", "c_townStateEstablished"):
+            if required not in text:
+                failures.append(f"town-local helper missing {required}: {filename}")
+
+    policy_helpers = {
+        "TerranBionic.galaxy": "V3SetTerranTownProduction",
+        "TerranMechanic.galaxy": "V3SetTerranTownProduction",
+        "ProtossGateway.galaxy": "V3SetProtossTownProduction",
+        "ProtossGatewayRobo.galaxy": "V3SetProtossTownProduction",
+        "ZergRoachHydraUltra.galaxy": "V3SetZergMainMacroHatcheries",
+        "ZergLingBaneUltra.galaxy": "V3SetZergMainMacroHatcheries",
+    }
+    v3_root = OVERLAY_ROOT / "Base.SC2Data" / "TriggerLibs" / "V3"
+    for filename, helper in policy_helpers.items():
+        if helper not in (v3_root / filename).read_text(encoding="utf-8"):
+            failures.append(f"policy has no town-local production path: {filename}")
+
+    gas_policy = v3_root / "ExpansionGas.galaxy"
+    if not gas_policy.is_file():
+        failures.append("missing shared expansion gas policy")
+    else:
+        gas_text = gas_policy.read_text(encoding="utf-8")
+        for required in (
+            "V3SetExpansionGasPolicy",
+            "AIGetRawGasNumSpots",
+            "AIGetHarvestableGasNumSpots",
+            "AISetStockEx(player, town, rawGas, gasType, c_makeDefault, 0)",
+            "AISetGasPeonCountOverride(player, town, harvestableGas * 3)",
+            "V3MiningWorkerCapacity",
+            "capacity = capacity + (mineralSpots * 2) + (gasSpots * 3)",
+            "V3WorkerTarget",
+            "V3EnsureMiningExpansion",
+            "established < maximumTowns",
+            "currentWorkers >= requiredWorkers",
+            "AIExpand(player, AIGetTownLocation(player, c_townMain), expandType)",
+        ):
+            if required not in gas_text:
+                failures.append(f"expansion economy policy missing {required}")
+    for filename in ("Terran.galaxy", "Protoss.galaxy", "Zerg.galaxy"):
+        text = (v3_root / filename).read_text(encoding="utf-8")
+        for required in (
+            'include "TriggerLibs/V3/ExpansionGas"',
+            "V3SetExpansionGasPolicy",
+            "V3EnsureMiningExpansion",
+        ):
+            if required not in text:
+                failures.append(f"race runner has no expansion economy policy {required}: {filename}")
+
+    worker_types = ("c_TU_SCV", "c_PU_Probe", "c_ZU_Drone")
+    for filename in policy_helpers:
+        text = (v3_root / filename).read_text(encoding="utf-8")
+        if "AISetStockExpand(" in text or "AIDefaultExpansion(" in text:
+            failures.append(f"policy retains time/stock-driven expansion target: {filename}")
+        if "AIEnableStock(player)" in text:
+            failures.append(f"policy enables stock before shared economy targets: {filename}")
+        for line in text.splitlines():
+            if ("AISetStock(" in line or "AISetStockPeons(" in line) and any(
+                worker in line for worker in worker_types
+            ) and "V3WorkerTarget(player," not in line:
+                failures.append(f"worker target bypasses live town capacity: {filename}: {line.strip()}")
+
+    forbidden = ("AIBuild(", "AITrain(", "AIResearch(", "UnitIssueOrder(")
+    for source in v3_root.glob("*.galaxy"):
+        text = source.read_text(encoding="utf-8")
+        for call in forbidden:
+            if call in text:
+                failures.append(f"forbidden forced production call {call}: {source.name}")
+
     if failures:
         print("V3_STRUCTURE=FAIL")
         print(*[f"- {failure}" for failure in failures], sep="\n")
         return 1
     print(
-        "V3_STRUCTURE=PASS upstream=54 overlays=9 roots=3 "
+        "V3_STRUCTURE=PASS upstream=54 overlays=10 roots=3 "
         f"manifest={sha256(manifest_bytes)} snapshot_present={(AI_ROOT / 'snapshot').exists()}"
     )
     return 0

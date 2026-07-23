@@ -1,0 +1,165 @@
+//--------------------------------------------------------------------------------------------------
+//  V3 expansion economy policy
+//
+//  Raw gas spots describe geysers at the town, including unbuilt ones.  Harvestable spots describe
+//  completed gas structures.  Keep those two facts separate: town-local stock claims every raw
+//  geyser, while the worker override is raised only after a refinery/assimilator/extractor exists.
+//--------------------------------------------------------------------------------------------------
+void V3SetExpansionGasPolicy (int player, string townHallType, string gasType) {
+    int town = 0;
+    int mainTown = AIGetMainTown(player);
+    int rawGas;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(player, town, townHallType, c_techCountCompleteOnly) > 0) {
+            rawGas = AIGetRawGasNumSpots(player, town);
+            if (town != mainTown && rawGas > 0) {
+                // c_makeDefault is the upstream town-local stock placement mode.  Do not use a
+                // global total here: an already-satisfied main-base goal must not hide this town.
+                AISetStockEx(player, town, rawGas, gasType, c_makeDefault, 0);
+            }
+
+        }
+        town = town + 1;
+    }
+}
+
+// Call after AIEnableStock.  This is the upstream stock/harvest ordering: the
+// stock executor first makes the town's economy decisions, then the harvest
+// engine receives its final per-town gas target for this tick.
+void V3SetGasWorkerDistribution (int player, string townHallType, string gasType) {
+    int town = 0;
+    int rawGas;
+    int harvestableGas;
+    int completedGas;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(player, town, townHallType, c_techCountCompleteOnly) > 0) {
+            rawGas = AIGetRawGasNumSpots(player, town);
+            harvestableGas = AIGetHarvestableGasNumSpots(player, town);
+            completedGas = AIGetBuildingCountInTown(player, town, gasType, c_techCountCompleteOnly);
+            if (completedGas > harvestableGas) {
+                harvestableGas = completedGas;
+            }
+            if (harvestableGas == 0 && rawGas > 0) {
+                harvestableGas = rawGas;
+            }
+            AISetGasPeonCountOverride(player, town, harvestableGas * 3);
+            AIHarvest(player, town);
+        }
+        town = town + 1;
+    }
+}
+
+// Optimal workers are two per remaining mineral patch plus three per completed
+// gas structure.  Counting established towns directly avoids the engine's
+// absolute max-peon value, which may include inefficient third mineral workers.
+int V3MiningWorkerCapacity (int player) {
+    int town = 0;
+    int mineralSpots;
+    int gasSpots;
+    int capacity = 0;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished) {
+            mineralSpots = AIGetMineralNumSpots(player, town);
+            if (mineralSpots > 0) {
+                gasSpots = AIGetHarvestableGasNumSpots(player, town);
+                capacity = capacity + (mineralSpots * 2) + (gasSpots * 3);
+            }
+        }
+        town = town + 1;
+    }
+    return capacity;
+}
+
+// Keep every scripted worker milestone below the optimal capacity of the
+// currently established mining towns. Only the upper bound is applied here so
+// the ordered opening milestones keep their original pacing.
+int V3WorkerTarget (int player, int requested) {
+    int capacity = V3MiningWorkerCapacity(player);
+
+    if (capacity > 0 && requested > capacity) {
+        return capacity;
+    }
+    return requested;
+}
+
+// Unlike the ordered milestones, this continuous target fills every completed
+// mining town to its exact mineral/gas capacity as new expansions come online.
+void V3SetMiningWorkerStock (int player, string workerType) {
+    int capacity = V3MiningWorkerCapacity(player);
+
+    if (capacity > 0) {
+        AISetStockPeons(
+            player,
+            capacity,
+            workerType,
+            c_stockMaxPeons,
+            c_stockAlways
+        );
+    }
+}
+
+// Expansion progress is driven by town state rather than game time.
+//
+// * The first expansion is handled by each opening policy.  Every later
+//   expansion waits until the current mining economy has reached two workers
+//   per mineral and three per completed gas, so a new base never drains gas
+//   workers from an under-saturated economy.
+// * Never have more than one Claimed/Building expansion at a time.
+//
+// Macro production buildings do not create a new town and towns without
+// mineral spots are not counted as mining expansions.
+void V3EnsureMiningExpansion (int player, string townHallType, string expandType, int expandMinerals, int maximumTowns) {
+    int town = 0;
+    int state;
+    int established = 0;
+    int currentWorkers;
+    int requiredWorkers;
+    bool pending = false;
+    bool shouldExpand = false;
+
+    if (AIGetUserInt(player, 144) == 0) {
+        return;
+    }
+
+    while (town < c_townMax) {
+        state = AIGetTownState(player, town);
+        if (state == c_townStateClaimed || state == c_townStateBuilding) {
+            pending = true;
+        }
+        else if (state == c_townStateEstablished &&
+                 AIGetMineralNumSpots(player, town) > 0 &&
+                 AIGetBuildingCountInTown(
+                     player,
+                     town,
+                     townHallType,
+                     c_techCountCompleteOnly
+                 ) > 0) {
+            established = established + 1;
+        }
+        town = town + 1;
+    }
+
+    if (established < maximumTowns) {
+        currentWorkers = AIGetCurPeonCount(player, c_townMax);
+        requiredWorkers = V3MiningWorkerCapacity(player);
+        if (requiredWorkers > 0 && currentWorkers >= requiredWorkers) {
+            shouldExpand = true;
+        }
+    }
+
+    if (shouldExpand && !pending && AIHasNearbyOpenExpansion(player)) {
+        // Match the upstream expand state machine: stock the next town hall
+        // before attempting the native claim.  This reserves its minerals
+        // against continuous unit production; AIExpand then registers the
+        // actual town only once the money is present.
+        AISetStockExpand(player, expandType, established + 1);
+        if (AIHasRes(player, expandMinerals, 0)) {
+            AIExpand(player, AIGetTownLocation(player, c_townMain), expandType);
+        }
+    }
+}

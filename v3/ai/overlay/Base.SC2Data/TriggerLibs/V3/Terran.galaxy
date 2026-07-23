@@ -1,3 +1,73 @@
+// Register a production-building target directly with the town stock engine.
+// The main town receives at most floor(total / 2); remaining targets exist
+// only after an expansion has reached the upstream Established state.
+void V3SetTerranTownProduction (int player, int total, string aliasType) {
+    int mainTown = AIGetMainTown(player);
+    int town = 0;
+    int established = 0;
+    int homeTarget = total / 2;
+    int remaining = total - homeTarget;
+    int each;
+    int extra;
+    int index = 0;
+    int desired;
+    int inTown;
+    int selectedTown = c_townInvalid;
+    int selectedCount = 9999;
+    int selectedDesired = 0;
+
+    while (town < c_townMax) {
+        if (town != mainTown && AIGetTownState(player, town) == c_townStateEstablished) {
+            established = established + 1;
+        }
+        town = town + 1;
+    }
+    if (established == 0) {
+        // There is no future-town reservation before an expansion exists,
+        // but the opening still needs one real producer in the main town.
+        // Keep this town-local so the normal target cannot race the later
+        // distributed StockEx request in the same pass.
+        AISetStockEx(player, mainTown, 1, aliasType, c_makeDefault, 0);
+        return;
+    }
+
+    each = remaining / established;
+    extra = remaining - (each * established);
+
+    // Keep one same-type request per stock pass: the native executor keeps
+    // only one active same-type request. Its count is the selected town's
+    // local target, matching the upstream StockEx contract.
+    if (AIGetTownState(player, mainTown) == c_townStateEstablished) {
+        inTown = AIGetBuildingCountInTown(player, mainTown, aliasType, c_techCountInProgressOrBetter);
+        if (inTown < homeTarget) {
+            selectedTown = mainTown;
+            selectedCount = inTown;
+            selectedDesired = homeTarget;
+        }
+    }
+    town = 0;
+    while (town < c_townMax) {
+        if (town != mainTown && AIGetTownState(player, town) == c_townStateEstablished) {
+            desired = each;
+            if (index < extra) {
+                desired = desired + 1;
+            }
+            inTown = AIGetBuildingCountInTown(player, town, aliasType, c_techCountInProgressOrBetter);
+            if (inTown < desired && inTown < selectedCount) {
+                selectedTown = town;
+                selectedCount = inTown;
+                selectedDesired = desired;
+            }
+            index = index + 1;
+        }
+        town = town + 1;
+    }
+    if (selectedTown != c_townInvalid) {
+        AISetStockEx(player, selectedTown, selectedDesired, aliasType, c_makeDefault, 0);
+    }
+}
+
+include "TriggerLibs/V3/ExpansionGas"
 include "TriggerLibs/V3/TerranBionic"
 include "TriggerLibs/V3/TerranMechanic"
 
@@ -30,5 +100,19 @@ bool V3RunTerranBuild (int player, int phase) {
         V3TerranMechanicStock(player, phase);
         AISetAttackStatus(player, "SC2TeamGoliath", 6, 10, c_continuousMerge);
     }
+    AIDefaultEconomy(
+        player,
+        c_TB_CommandCenter_Alias,
+        c_TB_Refinery,
+        c_TB_SupplyDepot,
+        c_TU_SCV,
+        V3MiningWorkerCapacity(player),
+        c_stockAlways
+    );
+    V3SetExpansionGasPolicy(player, c_TB_CommandCenter_Alias, c_TB_Refinery);
+    V3SetMiningWorkerStock(player, c_TU_SCV);
+    V3EnsureMiningExpansion(player, c_TB_CommandCenter_Alias, c_TB_CommandCenter, 400, 6);
+    AIEnableStock(player);
+    V3SetGasWorkerDistribution(player, c_TB_CommandCenter_Alias, c_TB_Refinery);
     return true;
 }

@@ -14,12 +14,23 @@
 //==================================================================================================
 
 void V3ZergLingBaneUltraStock (int player, int phase) {
+    int macroHatcheryTarget;
+
+    if (phase <= 0) {
+        macroHatcheryTarget = 1;
+    }
+    else if (phase == 1) {
+        macroHatcheryTarget = 2;
+    }
+    else {
+        macroHatcheryTarget = 4;
+    }
+
     AIClearStock(player);
 
-    // Keep Drone production active while the first 400 minerals are banked.
+    // Keep Drone production active while the first 300 minerals are banked.
     // The natural starts immediately once those minerals exist.
-    AISetStock( player, 1, c_ZB_Hatchery_Alias );
-    AISetStockPeons( player, 32, c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+    AISetStockPeons( player, V3WorkerTarget(player, 32), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
     if (AIGetUserInt(player, 144) == 0) {
         if (AITechCount(player, c_ZB_Hatchery_Alias, c_techCountQueuedOrBetter) >= 2) {
             AISetUserInt(player, 144, 1);
@@ -27,10 +38,9 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
         else {
             if (!AIIsExpandingOrHasExpanded(player) &&
                 AIHasNearbyOpenExpansion(player) &&
-                AIHasRes(player, 400, 0)) {
+                AIHasRes(player, 300, 0)) {
                 AIExpand(player, AIGetTownLocation(player, c_townMain), c_ZB_Hatchery);
             }
-            AIEnableStock(player);
             return;
         }
     }
@@ -38,11 +48,12 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     // Establish supply, gas, and both core unit paths immediately after the natural starts.
     AISetStock( player, 1, c_ZB_SpawningPool );
     AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
-    AISetStock( player, 16, c_ZU_Drone );
+    AISetStock( player, V3WorkerTarget(player, 16), c_ZU_Drone );
     AISetStock( player, 1, c_ZB_Extractor );
     AISetStockUnitNext( player, 8, c_ZU_Zergling, c_stockAlways );
+    V3SetZergMainMacroHatcheries(player, macroHatcheryTarget);
     AISetStock( player, 1, c_ZB_BanelingNest );
-    AISetStock( player, 20, c_ZU_Drone );
+    AISetStock( player, V3WorkerTarget(player, 20), c_ZU_Drone );
     AISetStock( player, 2, c_ZB_Extractor );
     AISetStockUnitNext( player, 4, c_ZU_Baneling, c_stockAlways );
     AISetStockUnitNext( player, 2, c_ZU_Queen, c_stockAlways );
@@ -52,23 +63,19 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     AISetStock( player, 1, c_ZR_GroundCarapace1 );
 
     if (phase <= 0) {
-        // Two mining bases plus a macro Hatchery sustain the normalized 50:35 opening mix.
-        AISetStockUnitNext( player, 3, c_ZB_Hatchery_Alias, c_stockAlways );
-        AISetStockPeons( player, 32, c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+        // Two mining bases plus one town-local macro Hatchery sustain the opening mix.
+        AISetStockPeons( player, V3WorkerTarget(player, 32), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
         AISetStockUnitNext( player, 4, c_ZB_Extractor, c_stockAlways );
         AISetStockUnitNext( player, 47, c_ZU_Zergling, c_stockAlways );
         AISetStockUnitNext( player, 33, c_ZU_Baneling, c_stockAlways );
 
-        AIEnableStock(player);
         return;
     }
 
-    // Mid game: Lair unlocks Baneling speed while six Hatcheries provide enough larva to replenish
+    // Mid game: Lair unlocks Baneling speed while town-local macro Hatcheries provide larva to replenish
     // the high-count light ground army.  The third base and six gases support upgrades and morphs.
-    AISetStockExpand( player, c_ZB_Hatchery, 3 );
-    AISetStockUnitNext( player, 6, c_ZB_Hatchery_Alias, c_stockAlways );
     AISetStockUnitNext( player, 3, c_ZU_Queen, c_stockAlways );
-    AISetStockPeons( player, 60, c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+    AISetStockPeons( player, V3WorkerTarget(player, 60), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
     AISetStockUnitNext( player, 6, c_ZB_Extractor, c_stockAlways );
     AISetStock( player, 1, c_ZB_Lair_Alias );
     AISetStock( player, 2, c_ZB_EvolutionChamber );
@@ -79,13 +86,11 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     AISetStockUnitNext( player, 99, c_ZU_Baneling, c_stockAlways );
 
     if (phase == 1) {
-        AIEnableStock(player);
         return;
     }
 
     // Late game only: finish the Hive and Ultralisk prerequisite chain before adding any Ultralisk
-    // target.  Six mining bases and twelve total Hatcheries feed the final 621-unit ground force.
-    AISetStockExpand( player, c_ZB_Hatchery, 4 );
+    // target.  Six mining bases and six town-local macro Hatcheries feed the final ground force.
     AISetStockUnitNext( player, 1, c_ZB_InfestationPit, c_stockAlways );
     AISetStockUnitNext( player, 1, c_ZB_Hive, c_stockAlways );
     AISetStockUnitNext( player, 1, c_ZB_UltraliskCavern, c_stockAlways );
@@ -94,10 +99,8 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     AISetStock( player, 1, c_ZR_MeleeAttacks3 );
     AISetStock( player, 1, c_ZR_GroundCarapace3 );
 
-    AISetStockExpand( player, c_ZB_Hatchery, 6 );
-    AISetStockUnitNext( player, 12, c_ZB_Hatchery_Alias, c_stockAlways );
     AISetStockUnitNext( player, 6, c_ZU_Queen, c_stockAlways );
-    AISetStockPeons( player, 96, c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+    AISetStockPeons( player, V3WorkerTarget(player, 96), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
     AISetStockUnitNext( player, 12, c_ZB_Extractor, c_stockAlways );
 
     // Exact late target: 180 + 126 + 54 = 360 army supply.
@@ -105,5 +108,4 @@ void V3ZergLingBaneUltraStock (int player, int phase) {
     AISetStockUnitNext( player, 252, c_ZU_Baneling, c_stockAlways );
     AISetStockUnitNext( player, 9, c_ZU_Ultralisk, c_stockAlways );
 
-    AIEnableStock(player);
 }

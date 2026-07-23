@@ -36,7 +36,7 @@ const manifest = JSON.parse(manifestBytes.toString("utf8"));
 const overlayManifestBytes = fs.readFileSync(path.join(aiRoot, "overlay-manifest.json"));
 const overlayManifest = JSON.parse(overlayManifestBytes.toString("utf8"));
 if (manifest.files.length !== 54) fail(`expected 54 upstream files, found ${manifest.files.length}`);
-if (overlayManifest.overlays.length !== 9) fail(`expected 9 overlays, found ${overlayManifest.overlays.length}`);
+if (overlayManifest.overlays.length !== 10) fail(`expected 10 overlays, found ${overlayManifest.overlays.length}`);
 if (sha256(manifestBytes) !== overlayManifest.upstream_manifest_sha256) {
   fail("manifest.json does not match the overlay manifest's upstream hash");
 }
@@ -67,4 +67,4 @@ try {
   archive.close();
 }
 
-console.log(`V3_AI_MOD_BUILD=PASS upstream=54 overlays=9 generated_roots=3 manifest=${sha256(manifestBytes)}`);
+console.log(`V3_AI_MOD_BUILD=PASS upstream=54 overlays=10 generated_roots=3 manifest=${sha256(manifestBytes)}`);

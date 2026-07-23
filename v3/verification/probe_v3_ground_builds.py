@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import shutil
 import sys
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,9 @@ WORKERS = frozenset({"SCV", "Probe", "Drone"})
 TOWN_HALLS = frozenset({"CommandCenter", "OrbitalCommand", "PlanetaryFortress", "Nexus", "Hatchery", "Lair", "Hive"})
 SUPPORT = frozenset({"Overlord", "Overseer", "Queen", "Observer"})
 AIR_COMBAT = frozenset({"VikingFighter", "Banshee", "Battlecruiser", "Phoenix", "VoidRay", "Carrier", "Tempest", "Mutalisk", "Corruptor", "BroodLord", "Viper"})
+PRODUCTION_BUILDINGS = frozenset({"Barracks", "Factory", "Gateway", "WarpGate", "RoboticsFacility", "Hatchery", "Lair", "Hive"})
+GAS_BUILDINGS = frozenset({"Refinery", "RefineryRich", "Assimilator", "AssimilatorRich", "Extractor", "ExtractorRich"})
+POWER_BUILDINGS = frozenset({"Pylon"})
 
 
 @dataclass(frozen=True)
@@ -56,12 +60,15 @@ CASES = (
 )
 
 
-def make_config() -> CustomLauncherConfig:
-    by_slot = {case.logical_slot: case for case in CASES}
+def make_config(cases: tuple[BuildCase, ...]) -> CustomLauncherConfig:
+    by_slot = {case.logical_slot: case for case in cases}
     slots = []
     for slot_id in range(1, 15):
         case = by_slot.get(slot_id)
-        controller = "human" if slot_id == 1 else "custom_ai" if case else "empty"
+        # The map contract requires both teams.  In a single-build probe P8
+        # is only a normal melee opponent; it never receives build ID 142 and
+        # therefore cannot contend as another V3 expansion policy.
+        controller = "human" if slot_id == 1 else "custom_ai" if case or (len(cases) == 1 and slot_id == 8) else "empty"
         race = case.race if case else "Random"
         fallback = {"Terran": "bio_tank", "Protoss": "stalker_immortal", "Zerg": "roach_hydra", "Random": "random_ground"}[race]
         slots.append(SlotConfig(slot=slot_id, controller=controller, team=1 if slot_id <= 7 else 2, race=race, build=fallback, melee_build="Macro" if case else ""))
@@ -87,25 +94,108 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
     counts = Counter(names.get(unit.unit_type, str(unit.unit_type)) for unit in units)
     workers = sum(counts[name] for name in WORKERS)
     buildings = sum(1 for unit in units if unit.unit_type in structures)
-    bases = sum(counts[name] for name in TOWN_HALLS)
+    gas_tags = {
+        unit.tag
+        for unit in units
+        if names.get(unit.unit_type) in GAS_BUILDINGS and unit.build_progress >= 1
+    }
+    gas_positions = [
+        (float(unit.pos.x), float(unit.pos.y))
+        for unit in units
+        if names.get(unit.unit_type) in GAS_BUILDINGS and unit.build_progress >= 1
+    ]
+    gas_workers = sum(
+        1
+        for unit in units
+        if names.get(unit.unit_type) in WORKERS
+        and len(unit.orders) > 0
+        and unit.orders[0].target_unit_tag in gas_tags
+    )
+    gas_workers_nearby = sum(
+        1
+        for unit in units
+        if names.get(unit.unit_type) in WORKERS
+        and any((float(unit.pos.x) - x) ** 2 + (float(unit.pos.y) - y) ** 2 <= 25.0 for x, y in gas_positions)
+    )
+    gas_buildings = len(gas_tags)
     army_units = [unit for unit in units if unit.unit_type not in structures and names.get(unit.unit_type) not in WORKERS | SUPPORT]
     army_supply = sum(abs(float(data[unit.unit_type].food_required)) for unit in army_units if unit.unit_type in data)
+    combat_upgrade_levels = {
+        "attack": max((int(unit.attack_upgrade_level) for unit in army_units), default=0),
+        "armor": max((int(unit.armor_upgrade_level) for unit in army_units), default=0),
+        "shield": max((int(unit.shield_upgrade_level) for unit in army_units), default=0),
+    }
     supply_cap = sum(max(0.0, float(data[unit.unit_type].food_provided)) for unit in units if unit.unit_type in data)
+    mineral_points = [
+        (float(unit.pos.x), float(unit.pos.y))
+        for unit in observation.observation.raw_data.units
+        if unit.mineral_contents > 0
+    ]
+    towns = []
+    for unit in units:
+        if names.get(unit.unit_type) not in TOWN_HALLS or unit.build_progress < 1:
+            continue
+        x, y = float(unit.pos.x), float(unit.pos.y)
+        mineral_patches = sum(
+            1 for mineral_x, mineral_y in mineral_points
+            if (x - mineral_x) ** 2 + (y - mineral_y) ** 2 <= 196.0
+        )
+        towns.append((names.get(unit.unit_type, str(unit.unit_type)), x, y, mineral_patches))
+    # A Zerg macro Hatchery is not a mining base.  Resource centers on this
+    # map have a cluster of mineral fields within 14 game units; the report
+    # records the patch count so this classification stays auditable.
+    mining_towns = [town for town in towns if town[3] >= 5]
+    bases = len(mining_towns)
+    town_halls = len(towns)
+    macro_hatcheries = max(0, town_halls - bases) if any(town[0] in {"Hatchery", "Lair", "Hive"} for town in towns) else 0
+    production_sites = []
+    power_sites = []
+    for unit in units:
+        name = names.get(unit.unit_type, str(unit.unit_type))
+        if name not in PRODUCTION_BUILDINGS | POWER_BUILDINGS or name in TOWN_HALLS:
+            continue
+        nearest = min(mining_towns, key=lambda town: (float(unit.pos.x) - town[1]) ** 2 + (float(unit.pos.y) - town[2]) ** 2, default=None)
+        site = {
+            "type": name,
+            "x": round(float(unit.pos.x), 1),
+            "y": round(float(unit.pos.y), 1),
+            "progress": round(float(unit.build_progress), 2),
+            "nearest_town": nearest[0] if nearest else None,
+            "nearest_x": round(nearest[1], 1) if nearest else None,
+            "nearest_y": round(nearest[2], 1) if nearest else None,
+            "distance": round((((float(unit.pos.x) - nearest[1]) ** 2 + (float(unit.pos.y) - nearest[2]) ** 2) ** 0.5), 1) if nearest else None,
+        }
+        if name in POWER_BUILDINGS:
+            power_sites.append(site)
+        else:
+            production_sites.append(site)
     return {
         "army_supply": round(army_supply, 1),
         "supply_cap": round(supply_cap, 1),
         "workers": workers,
+        "gas_workers": gas_workers,
+        "gas_workers_nearby": gas_workers_nearby,
+        "gas_buildings": gas_buildings,
+        "combat_upgrade_levels": combat_upgrade_levels,
         "army": len(army_units),
         "buildings": buildings,
         "bases": bases,
+        "town_halls": town_halls,
+        "macro_hatcheries": macro_hatcheries,
         "expansions": max(0, bases - baseline_bases),
         "counts": counts,
+        "towns": [
+            {"type": name, "x": round(x, 1), "y": round(y, 1), "mineral_patches": patches}
+            for name, x, y, patches in towns
+        ],
+        "power_sites": power_sites,
+        "production_sites": production_sites,
     }
 
 
-async def run(duration: int, archive_baseline_mod: bool = False) -> int:
-    config = make_config()
-    v3_config = V3BuildConfig(campaign_units=True, player_builds=tuple((case.logical_slot, case.key) for case in CASES))
+async def run(duration: int, cases: tuple[BuildCase, ...], archive_baseline_mod: bool = False, report_path: Path | None = None) -> int:
+    config = make_config(cases)
+    v3_config = V3BuildConfig(campaign_units=True, player_builds=tuple((case.logical_slot, case.key) for case in cases))
     build_v3_map(PROJECT_ROOT, BASE_MAP, OUTPUT_MAP, config, v3_config, observer_mode=True, active_config_file=OUTPUT_MAP.with_suffix(".json"))
     if archive_baseline_mod:
         if not ARCHIVE_BASELINE_MOD.is_file():
@@ -120,8 +210,9 @@ async def run(duration: int, archive_baseline_mod: bool = False) -> int:
     connection: Sc2Connection | None = None
     failures: list[str] = []
     final: dict[int, dict[str, Any]] = {}
-    peak_roster: dict[int, Counter[str]] = {owner: Counter() for owner in range(1, len(CASES) + 1)}
-    peak_expansions: dict[int, int] = {owner: 0 for owner in range(1, len(CASES) + 1)}
+    peak_roster: dict[int, Counter[str]] = {owner: Counter() for owner in range(1, len(cases) + 1)}
+    peak_expansions: dict[int, int] = {owner: 0 for owner in range(1, len(cases) + 1)}
+    samples: list[dict[str, Any]] = []
     try:
         connection = await Sc2Connection.open(PORT)
         await connection.create_game_with_setups(OUTPUT_MAP.name, OUTPUT_MAP.read_bytes(), player_setups(config, observer=True), realtime=False)
@@ -132,8 +223,8 @@ async def run(duration: int, archive_baseline_mod: bool = False) -> int:
         owner_counts = Counter(int(unit.owner) for unit in first.observation.raw_data.units)
         print(f"RAW_OWNERS at=5s counts={dict(sorted(owner_counts.items()))}")
         baseline_bases = {
-            owner: sum(1 for unit in first.observation.raw_data.units if unit.owner == owner and names.get(unit.unit_type) in TOWN_HALLS)
-            for owner in range(1, len(CASES) + 1)
+            owner: snapshot(first, owner, names, data, structures, 0)["bases"]
+            for owner in range(1, len(cases) + 1)
         }
         print(f"V3_GROUND_COMPILE=PASS players={len(CASES)} unit_types={len(data)}")
         elapsed = 5
@@ -142,18 +233,26 @@ async def run(duration: int, archive_baseline_mod: bool = False) -> int:
             elapsed = game_seconds
             observation = await connection.observation(disable_fog=True)
             print(f"SAMPLE minute={game_seconds // 60}")
-            for owner, case in enumerate(CASES, start=1):
+            sample = {"second": game_seconds, "players": {}}
+            for owner, case in enumerate(cases, start=1):
                 state = snapshot(observation, owner, names, data, structures, baseline_bases[owner])
                 final[owner] = state
+                sample["players"][str(owner)] = {
+                    **{key: value for key, value in state.items() if key != "counts"},
+                    "counts": dict(state["counts"]),
+                }
                 for unit_name in case.roster:
                     peak_roster[owner][unit_name] = max(peak_roster[owner][unit_name], state["counts"][unit_name])
                 peak_expansions[owner] = max(peak_expansions[owner], state["expansions"])
                 roster = {name: state["counts"][name] for name in case.roster}
+                production = {name: state["counts"][name] for name in PRODUCTION_BUILDINGS if state["counts"][name] > 0}
                 print(
                     f"  P{owner} {case.label}: pop={state['army_supply']:g}/{state['supply_cap']:g} "
                     f"workers={state['workers']} army={state['army']} buildings={state['buildings']} "
-                    f"bases={state['bases']} expansions={state['expansions']} roster={roster}"
+                    f"bases={state['bases']} macro_hatcheries={state['macro_hatcheries']} "
+                    f"expansions={state['expansions']} production={production} roster={roster}"
                 )
+            samples.append(sample)
     finally:
         if connection is not None:
             try:
@@ -166,7 +265,12 @@ async def run(duration: int, archive_baseline_mod: bool = False) -> int:
                 pass
         stop_process(process)
 
-    for owner, case in enumerate(CASES, start=1):
+    if report_path is not None:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps({"cases": [case.__dict__ for case in cases], "samples": samples}, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"V3_GROUND_REPORT={report_path}")
+
+    for owner, case in enumerate(cases, start=1):
         state = final.get(owner)
         if state is None:
             failures.append(f"P{owner} has no final snapshot")
@@ -178,12 +282,21 @@ async def run(duration: int, archive_baseline_mod: bool = False) -> int:
         if unwanted_air:
             failures.append(f"P{owner} produced combat air: {unwanted_air}")
     if duration >= 360:
-        for owner, case in enumerate(CASES, start=1):
+        for owner, case in enumerate(cases, start=1):
             state = final.get(owner)
             if state is not None and state["workers"] <= 14:
                 failures.append(f"P{owner} {case.label} workers stalled at {state['workers']}")
             if peak_expansions[owner] < 1:
                 failures.append(f"P{owner} {case.label} did not complete the first expansion")
+    if duration >= 540:
+        for owner, case in enumerate(cases, start=1):
+            state = final.get(owner)
+            if state is None:
+                continue
+            if state["gas_buildings"] > 0 and state["gas_workers_nearby"] == 0:
+                failures.append(f"P{owner} {case.label} has gas structures but no nearby gas workers")
+            if state["army_supply"] < 10:
+                failures.append(f"P{owner} {case.label} army supply too low at {duration // 60} minutes: {state['army_supply']:g}")
     if failures:
         print("V3_GROUND_BUILDS=FAIL " + "; ".join(failures))
         return 1
@@ -199,10 +312,16 @@ def main() -> int:
         action="store_true",
         help="install the immutable 03:47 MPQ after map assembly",
     )
+    parser.add_argument("--build", choices=[case.key for case in CASES], help="run one build alone as runtime P1")
+    parser.add_argument("--report", type=Path, help="write samples and production coordinates as JSON")
     args = parser.parse_args()
     if args.duration < 180 or args.duration % 180:
         parser.error("duration must be a multiple of 180 and at least 180 seconds")
-    return asyncio.run(run(args.duration, args.archive_baseline_mod))
+    cases = CASES
+    if args.build:
+        selected = next(case for case in CASES if case.key == args.build)
+        cases = (replace(selected, logical_slot=1),)
+    return asyncio.run(run(args.duration, cases, args.archive_baseline_mod, args.report))
 
 
 if __name__ == "__main__":

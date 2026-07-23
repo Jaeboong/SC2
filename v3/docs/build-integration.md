@@ -5,7 +5,7 @@
 
 1. `build_v3_ai_mod.cjs`가 upstream manifest의 54개 SHA-256을 검증한다.
 2. 종족 root 세 곳에 V3 include와 Open/Mid/Late dispatcher를 생성한다.
-3. overlay manifest의 V3 파일 9개를 검증하여 mod에 패키징한다.
+3. overlay manifest의 V3 파일 10개를 검증하여 mod에 패키징한다.
 4. `patch_v3_ai.cjs`가 맵에 mod dependency와 build ID 142를 삽입한다.
 5. 성공한 맵·mod·plan만 최종 경로로 원자적으로 승격한다.
 

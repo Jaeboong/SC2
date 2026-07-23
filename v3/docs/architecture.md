@@ -5,7 +5,7 @@
 ```text
 런처 빌드 선택
   → Python이 슬롯/종족/build ID plan 작성
-    → Node 빌더가 고정 업스트림 54개와 V3 overlay 9개로 SC2Mod 생성
+    → Node 빌더가 고정 업스트림 54개와 V3 overlay 10개로 SC2Mod 생성
       → 종족 root 세 곳에 빌드 시점 dispatcher hook 생성
         → 맵에 mod dependency와 플레이어별 build ID 삽입
           → SC2가 MeleeInitAI()로 AI를 초기화하고 V3 Stock 정책 실행
@@ -46,3 +46,15 @@ V3 Stock 목표를 실행하고, 나머지 엔진 흐름은 그대로 유지한�
 첫 확장은 14기·400광물 조건 후 `AIExpand()`로 타운을 등록하며
 `AIIsExpandingOrHasExpanded()`로 중복 요청을 막는다. 직접 유닛 생산 명령은
 사용하지 않는다.
+
+첫 확장 이후에는 `AIIsExpandingOrHasExpanded()`를 사용하지 않는다. 이 업스트림
+함수는 두 번째 town이 존재하면 계속 true이므로 후속 확장 판정에 적합하지 않다.
+공통 확장 경제 정책은 `Claimed`·`Building` town이 없는지 직접 검사하고, 완성된
+채광 town이 4개 미만이면 이전 town 완성 후 다음 `AIExpand()`를 요청한다. 4기지
+이후에는 현재 일꾼이 `광물 지점×2 + 완성 가스×3` 목표에 도달했을 때만 최대
+6기지까지 확장한다.
+
+일꾼 Stock의 모든 고정 목표는 완성된 채광 town의 `광물 지점×2 + 완성 가스×3`
+상한으로 제한한다. 확장 가스는 전역 총량과 별도로 established non-main town에
+`AISetStockEx`로 등록하고, `AIGetHarvestableGasNumSpots * 3`을 해당 town의 가스
+일꾼 목표로 사용한다.

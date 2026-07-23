@@ -1,3 +1,30 @@
+// Mining Hatcheries come from the normal expansion engine.  Extra Hatcheries
+// are macro production at the main town; Zerg expansions are already larva
+// production and deliberately have no six-base cap here.
+void V3SetZergMainMacroHatcheries (int player, int macroTotal) {
+    int mainTown = AIGetMainTown(player);
+    int inTown;
+    int desired = 1 + macroTotal;
+
+    if (AIGetTownState(player, mainTown) == c_townStateEstablished) {
+        inTown = AIGetBuildingCountInTown(player, mainTown, c_ZB_Hatchery_Alias, c_techCountInProgressOrBetter);
+        if (inTown < desired) {
+            // Match the upstream StockEx town-local target contract. Do not use
+            // c_makeDefault: that maps Hatchery to the occupied resource
+            // center; macro Hatcheries need ordinary placement on main creep.
+        AISetStockEx(
+            player,
+            mainTown,
+            desired,
+            c_ZB_Hatchery_Alias,
+            c_makeStandard,
+            0
+        );
+        }
+    }
+}
+
+include "TriggerLibs/V3/ExpansionGas"
 include "TriggerLibs/V3/ZergRoachHydraUltra"
 include "TriggerLibs/V3/ZergLingBaneUltra"
 
@@ -22,5 +49,19 @@ bool V3RunZergBuild (int player, int phase) {
         V3ZergLingBaneUltraStock(player, phase);
         AISetAttackStatus(player, c_ZU_Zergling, 16, 28, c_continuousMerge);
     }
+    AIDefaultEconomy(
+        player,
+        c_ZB_Hatchery_Alias,
+        c_ZB_Extractor,
+        c_ZU_Overlord,
+        c_ZU_Drone,
+        V3MiningWorkerCapacity(player),
+        c_stockAlways
+    );
+    V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+    V3SetMiningWorkerStock(player, c_ZU_Drone);
+    V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
+    AIEnableStock(player);
+    V3SetGasWorkerDistribution(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
     return true;
 }

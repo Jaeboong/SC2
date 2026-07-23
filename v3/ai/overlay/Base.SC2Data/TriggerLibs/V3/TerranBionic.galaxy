@@ -14,9 +14,17 @@
 //  the army-supply target.  This file only declares stock; it never issues a production or unit
 //  order directly.
 //--------------------------------------------------------------------------------------------------
+void V3SetBionicCombatStage (int player, int marine, int marauder, int tank) {
+    // Preserve Blizzard's ordered-stock semantics while making each reachable
+    // checkpoint a mixed ground force.  A single 54-Marine entry would block
+    // every later producer until all 54 complete.
+    AISetStockUnitNext(player, marauder, c_TU_Marauder, c_stockAlways);
+    AISetStockUnitNext(player, marine, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, tank, c_TU_SiegeTank, c_stockAlways);
+}
+
 void V3TerranBionicStock (int player, int phase) {
     int workerCap;
-    int townTarget;
     int refineryTarget;
     int barracksTarget;
     int barracksTechLabTarget;
@@ -33,7 +41,6 @@ void V3TerranBionicStock (int player, int phase) {
     // Treat invalid low phases as the opening and retain the late-game policy after phase 2.
     if (phase <= 0) {
         workerCap = 45;
-        townTarget = 2;
         refineryTarget = 3;
         barracksTarget = 3;
         barracksTechLabTarget = 2;
@@ -48,7 +55,6 @@ void V3TerranBionicStock (int player, int phase) {
     }
     else if (phase == 1) {
         workerCap = 60;
-        townTarget = 3;
         refineryTarget = 5;
         barracksTarget = 6;
         barracksTechLabTarget = 4;
@@ -63,7 +69,6 @@ void V3TerranBionicStock (int player, int phase) {
     }
     else {
         workerCap = 85;
-        townTarget = 6;
         refineryTarget = 11;
         barracksTarget = 14;
         barracksTechLabTarget = 8;
@@ -82,7 +87,7 @@ void V3TerranBionicStock (int player, int phase) {
     // Keep SCV production active while the opening banks the first 400
     // minerals. The natural starts immediately once those minerals exist.
     AISetStock(player, 1, c_TB_CommandCenter_Alias);
-    AISetStockPeons(player, workerCap, c_TU_SCV, c_stockMaxPeons, c_stockAlways);
+    AISetStockPeons(player, V3WorkerTarget(player, workerCap), c_TU_SCV, c_stockMaxPeons, c_stockAlways);
     if (AIGetUserInt(player, 144) == 0) {
         if (AITechCount(player, c_TB_CommandCenter_Alias, c_techCountQueuedOrBetter) >= 2) {
             AISetUserInt(player, 144, 1);
@@ -93,38 +98,24 @@ void V3TerranBionicStock (int player, int phase) {
                 AIHasRes(player, 400, 0)) {
                 AIExpand(player, AIGetTownLocation(player, c_townMain), c_TB_CommandCenter);
             }
-            AIEnableStock(player);
             return;
         }
     }
 
-    // Start the Barracks immediately after the natural is committed, then let
-    // the normal economy and phase targets take over.
+    // Town-local production is the bootstrap and repeat target: no global
+    // Barracks/Factory entry can duplicate it in this stock pass.
     AISetStockFarms(player, c_TB_SupplyDepot, c_stockNeededFarms);
-    AISetStock(player, 1, c_TB_Barracks);
 
-    // Economy, gas and staged expansion.  StockExpand gives each phase a definite base target;
-    // DefaultExpansion also lets the normal AI react before mineral or gas fields are exhausted.
-    AISetStockPeons(player, workerCap, c_TU_SCV, c_stockMinPeons, c_stockAlways);
-    AIDefaultEconomy(
-        player,
-        c_TB_CommandCenter_Alias,
-        c_TB_Refinery,
-        c_TB_SupplyDepot,
-        c_TU_SCV,
-        workerCap,
-        c_stockAlways
-    );
+    // Economy and gas. Expansion cadence is handled centrally from established town state.
+    AISetStockPeons(player, V3WorkerTarget(player, workerCap), c_TU_SCV, c_stockMinPeons, c_stockAlways);
     AISetStockUnitNext(player, refineryTarget, c_TB_Refinery, c_stockAlways);
-    AISetStockExpand(player, c_TB_CommandCenter_Alias, townTarget);
-    AIDefaultExpansion(player, c_TB_CommandCenter, 7000, 3000, c_expandVitalHard);
     AISetStockFarms(player, c_TB_SupplyDepot, c_stockNormalFarms);
 
     // Ground production and its prerequisites.  No air-production structure is requested.
-    AISetStockUnitNext(player, barracksTarget, c_TB_Barracks, c_stockIdle);
+    V3SetTerranTownProduction(player, barracksTarget, c_TB_Barracks);
     AISetStockUnitNext(player, barracksTechLabTarget, c_TB_BarracksTechLab, c_stockIdle);
     AISetStockUnitNext(player, barracksReactorTarget, c_TB_BarracksReactor, c_stockIdle);
-    AISetStockUnitNext(player, factoryTarget, c_TB_Factory, c_stockIdle);
+    V3SetTerranTownProduction(player, factoryTarget, c_TB_Factory);
     AISetStockUnitNext(player, factoryTechLabTarget, c_TB_FactoryTechLab, c_stockIdle);
     AISetStockUnitNext(player, 1, c_TB_EngineeringBay, c_stockAlways);
     AISetStockUnitNext(player, 1, c_TB_Armory, c_stockAlways);
@@ -153,10 +144,9 @@ void V3TerranBionicStock (int player, int phase) {
         AISetStock(player, 1, c_TR_MechPlating3);
     }
 
-    // A Medic costs two supply.  One Medic therefore requires at least 38 non-Medic army supply:
-    //   2 / (38 + 2) = 5 percent.
-    // Gate every newly stocked Medic on the live/in-progress non-Medic force as well as the phase
-    // target.  This prevents parallel Barracks production from getting ahead of the tank quota.
+    // The medic target remains capped from the live non-Medic force.  Combat
+    // targets use mixed cumulative checkpoints below instead of one serial
+    // all-Marine gate.
     nonMedicSupply =
         AITechCount(player, c_TU_Marine, c_techCountInProgressOrBetter) +
         (2 * AITechCount(player, c_TU_Marauder, c_techCountInProgressOrBetter)) +
@@ -166,15 +156,40 @@ void V3TerranBionicStock (int player, int phase) {
         medicTarget = medicAllowedTarget;
     }
     if (medicTarget > 0) {
-        AISetStockUnitNext(player, medicTarget, "SC2TeamMedic", c_stockAlways);
+        AISetStock(player, medicTarget, "SC2TeamMedic");
     }
 
-    // The other three allowed ground units follow the capped support target.
-    // Putting Medic after the full 360-supply combat targets starved it forever
-    // because StockUnitNext is ordered and casualties kept reopening earlier goals.
-    AISetStockUnitNext(player, marineTarget, c_TU_Marine, c_stockAlways);
-    AISetStockUnitNext(player, marauderTarget, c_TU_Marauder, c_stockAlways);
-    AISetStockUnitNext(player, tankTarget, c_TU_SiegeTank, c_stockAlways);
+    V3SetBionicCombatStage(player, 3, 1, 1);
+    if (marineTarget >= 7) {
+        V3SetBionicCombatStage(player, 7, 2, 1);
+    }
+    if (marineTarget >= 12) {
+        V3SetBionicCombatStage(player, 12, 3, 2);
+    }
+    if (marineTarget >= 19) {
+        V3SetBionicCombatStage(player, 19, 5, 3);
+    }
+    if (marineTarget >= 27) {
+        V3SetBionicCombatStage(player, 27, 7, 5);
+    }
+    if (marineTarget >= 38) {
+        V3SetBionicCombatStage(player, 38, 10, 7);
+    }
+    if (marineTarget >= 54) {
+        V3SetBionicCombatStage(player, 54, 15, 10);
+    }
+    if (marineTarget >= 81) {
+        V3SetBionicCombatStage(player, 81, 22, 15);
+    }
+    if (marineTarget >= 108) {
+        V3SetBionicCombatStage(player, 108, 30, 20);
+    }
+    if (marineTarget >= 135) {
+        V3SetBionicCombatStage(player, 135, 37, 25);
+    }
+    if (marineTarget >= 162) {
+        V3SetBionicCombatStage(player, 162, 45, 30);
+    }
 
     // Register every stock unit with the standard wave merger.  Medic follows the army as support.
     AISetAttackStatus(player, c_TU_Marine, 2, 999, c_continuousMerge);
@@ -182,5 +197,4 @@ void V3TerranBionicStock (int player, int phase) {
     AISetAttackStatus(player, "SC2TeamMedic", 1, 999, c_continuousMerge);
     AISetAttackStatus(player, c_TU_SiegeTank, 1, 999, c_continuousMerge);
 
-    AIEnableStock(player);
 }

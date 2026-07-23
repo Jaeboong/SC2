@@ -1,3 +1,112 @@
+// Match upstream ProtossAtEachTown: an established expansion receives its
+// resource-side power first.  Without this, a town-local Gateway/Robotics
+// request has no valid powered placement and can remain pending forever.
+bool V3EnsureProtossExpansionPower (int player) {
+    int mainTown = AIGetMainTown(player);
+    int town = 0;
+    int inTown;
+
+    while (town < c_townMax) {
+        if (town != mainTown &&
+            AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(player, town, c_PB_Nexus, c_techCountCompleteOnly) >= 1) {
+            inTown = AIGetBuildingCountInTown(player, town, c_PB_Pylon, c_techCountInProgressOrBetter);
+            if (inTown < 1) {
+                AISetStockEx(
+                    player,
+                    town,
+                    1,
+                    c_PB_Pylon,
+                    c_makeExpanPower,
+                    0
+                );
+                return false;
+            }
+            if (inTown < 2) {
+                AISetStockEx(
+                    player,
+                    town,
+                    2,
+                    c_PB_Pylon,
+                    c_makeResourceDefense | c_nearDropoff,
+                    0
+                );
+                // One completed resource-side Pylon is sufficient for the
+                // local Gateway/Robotics request below.  The second Pylon is
+                // a backup, not a production gate.
+            }
+        }
+        town = town + 1;
+    }
+    return true;
+}
+
+// See V3SetTerranTownProduction.  This is deliberately town-local instead of
+// a global stock target so unopened towns never reserve production buildings.
+void V3SetProtossTownProduction (int player, int total, string aliasType) {
+    int mainTown = AIGetMainTown(player);
+    int town = 0;
+    int established = 0;
+    int homeTarget = total / 2;
+    int remaining = total - homeTarget;
+    int each;
+    int extra;
+    int index = 0;
+    int desired;
+    int inTown;
+    int selectedTown = c_townInvalid;
+    int selectedCount = 9999;
+    int selectedDesired = 0;
+
+    while (town < c_townMax) {
+        if (town != mainTown && AIGetTownState(player, town) == c_townStateEstablished) {
+            established = established + 1;
+        }
+        town = town + 1;
+    }
+    if (established == 0) {
+        // Bootstrap exactly one powered producer at the main town.  Do not
+        // reserve the later expansion share until that town is Established.
+        AISetStockEx(player, mainTown, 1, aliasType, c_makeDefault, 0);
+        return;
+    }
+
+    each = remaining / established;
+    extra = remaining - (each * established);
+
+    // The native stock executor has one active request per same-type stock
+    // pass. Select the least-filled town, but pass that town's local target.
+    if (AIGetTownState(player, mainTown) == c_townStateEstablished) {
+        inTown = AIGetBuildingCountInTown(player, mainTown, aliasType, c_techCountInProgressOrBetter);
+        if (inTown < homeTarget) {
+            selectedTown = mainTown;
+            selectedCount = inTown;
+            selectedDesired = homeTarget;
+        }
+    }
+    town = 0;
+    while (town < c_townMax) {
+        if (town != mainTown && AIGetTownState(player, town) == c_townStateEstablished) {
+            desired = each;
+            if (index < extra) {
+                desired = desired + 1;
+            }
+            inTown = AIGetBuildingCountInTown(player, town, aliasType, c_techCountInProgressOrBetter);
+            if (inTown < desired && inTown < selectedCount) {
+                selectedTown = town;
+                selectedCount = inTown;
+                selectedDesired = desired;
+            }
+            index = index + 1;
+        }
+        town = town + 1;
+    }
+    if (selectedTown != c_townInvalid) {
+        AISetStockEx(player, selectedTown, selectedDesired, aliasType, c_makeDefault, 0);
+    }
+}
+
+include "TriggerLibs/V3/ExpansionGas"
 include "TriggerLibs/V3/ProtossGateway"
 include "TriggerLibs/V3/ProtossGatewayRobo"
 
@@ -20,6 +129,18 @@ bool V3RunProtossBuild (int player, int phase) {
     else {
         V3ProtossGatewayRoboStock(player, phase);
     }
+    AIDefaultEconomy(
+        player,
+        c_PB_Nexus,
+        c_PB_Assimilator,
+        c_PB_Pylon,
+        c_PU_Probe,
+        70,
+        c_stockAlways
+    );
+    V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
+    V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
+    AIEnableStock(player);
     AISetAttackStatus(player, c_PU_Zealot, 6, 10, c_continuousMerge);
     return true;
 }

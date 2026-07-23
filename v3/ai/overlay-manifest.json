@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "overlay_revision": "first-expansion-400-continuous-workers",
+  "version": 3,
+  "overlay_revision": "town-local-production-and-dynamic-expansion-economy",
   "upstream_manifest_sha256": "d2291e803890de1268b900dc7d7034255b6ee5342825430e8144287a293114ba",
   "generated_root_patches": [
     {
@@ -20,56 +20,62 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Protoss.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Protoss.galaxy",
-      "bytes": 758,
-      "sha256": "da0edacccb9f4a67db74fe7e77df3ccd396255c394b8e9d6ca31a7e73658e67b"
+      "bytes": 5035,
+      "sha256": "b5ab0da689adabf9eded688284019679f218387d46941cb233ad78da813e7d90"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
-      "bytes": 6382,
-      "sha256": "2eb2013aac887fba551138ab55371c1eeb1d0f65d22685e9a933556358c649ab"
+      "bytes": 7382,
+      "sha256": "390b2bef22a65385a615aa48a55072f855135bc754012dcdd6da3d564aa78d51"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGatewayRobo.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ProtossGatewayRobo.galaxy",
-      "bytes": 7098,
-      "sha256": "eb483440838d08c1723b9cadc40df2197bab47fd96c81a8aca4c5d9ad5ee6ae5"
+      "bytes": 6617,
+      "sha256": "dd987a0705e7b77f1e20cc9e848a8971ec9fa962d17e1b7547a5f2bcdf384733"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Terran.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Terran.galaxy",
-      "bytes": 1306,
-      "sha256": "65895b409e224e1576e4a0ce01a56671ba15b4196a0a2457ccbd0c754d9067af"
+      "bytes": 4515,
+      "sha256": "5352d250f45d26d8dc1274dbc0353537e43923ab093cdde75de5f19430ac7cc7"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranBionic.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/TerranBionic.galaxy",
-      "bytes": 7781,
-      "sha256": "e6c18914435932d5abd462c83f53af84f13ec82fc2828f489fc0efc61260b66c"
+      "bytes": 7963,
+      "sha256": "35f9640e82264d203873caed068f0ac9a8f2de3d45106786c67c98f8dae4135d"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
-      "bytes": 7057,
-      "sha256": "50c287e72229122c76d66b3b57b903eb8d22b0747c9d5882fddfde95b974851c"
+      "bytes": 7457,
+      "sha256": "53f9f7d25876abf2d6d1f20a4974f07da966fbc3974e1ea9f958e9a09905ad6d"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",
-      "bytes": 843,
-      "sha256": "35b6c8224d9fc507f5f68db5c66d4d285d0cdb8a49d448e40b4b4b9aa4e1314d"
+      "bytes": 2408,
+      "sha256": "961c8c3a0e2d2871b7c879ee7e9358b6a8a7647136891ed589fa559dc0e65c98"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
-      "bytes": 5466,
-      "sha256": "7486f93e12c31b31a9f9a7f41978130cf78f9d57b9e949c80e62e2e97403f917"
+      "bytes": 5334,
+      "sha256": "e21c6bf1713d0dc5e39fb1c23d7f98b37e9ab4a3de416c8f86393bf7dbc23fae"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",
-      "bytes": 6055,
-      "sha256": "784c55d8c4a041cd55f82c3c2ec74c646bf9044654c6a3cfa8334df9f77c0283"
+      "bytes": 6177,
+      "sha256": "90d03a60ddc8b27c5d77fdc7602af4aad8be2e8c357e614d5619e55df9383ecc"
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",
+      "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",
+      "bytes": 6514,
+      "sha256": "77f413a3753a50305db17fd948a44d160d41a1ea87b74e27dbaa57ee6d6d5278"
     }
   ]
 }
