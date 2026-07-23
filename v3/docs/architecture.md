@@ -44,8 +44,11 @@ V3 Stock 목표를 실행하고, 나머지 엔진 흐름은 그대로 유지한�
 - 단계: 0~5분, 5~12분, 12분 이후
 
 첫 확장은 14기·400광물 조건 후 `AIExpand()`로 타운을 등록하며
-`AIIsExpandingOrHasExpanded()`로 중복 요청을 막는다. 직접 유닛 생산 명령은
-사용하지 않는다.
+`AIIsExpandingOrHasExpanded()`로 중복 요청을 막는다. V3는 기본적으로 Stock
+목표만 제공하지만, Stock으로 멜리 AI가 안정적으로 만들지 못하는 것(울트라리스크
+모프, 집정관 합체 — §71/§87 방식, v3.11~13)은 게이트된 직접 주문(`UnitIssueOrder`)으로
+처리한다. `AITrain`/`AIResearch`는 여전히 쓰지 않는다. 자세한 근거는
+[`references.md`](references.md)·[`status.md`](status.md) 참조.
 
 첫 확장 이후에는 `AIIsExpandingOrHasExpanded()`를 사용하지 않는다. 이 업스트림
 함수는 두 번째 town이 존재하면 계속 true이므로 후속 확장 판정에 적합하지 않다.
