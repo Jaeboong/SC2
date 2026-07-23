@@ -25,3 +25,39 @@ node --check v3/tools/patch_v3_ai.cjs
 .\.venv\Scripts\python.exe v3/verification/verify_v3_structure.py
 .\.venv\Scripts\python.exe v3/verification/probe_v3_ground_builds.py --duration 540
 ```
+
+## 함정: 오버레이 galaxy의 네이티브 스코프는 map galaxy와 다르다
+
+**V3 AI mod 오버레이(`overlay/Base.SC2Data/TriggerLibs/V3/*.galaxy`)가 컴파일되는
+include 컨텍스트는 런타임 map galaxy(`tools/galaxy/*.galaxy`)와 다르다.** map galaxy에
+있는 일반 트리거 네이티브가 AI mod에는 **미정의**일 수 있고, 그런 심볼을 오버레이에서
+참조하면 **V3 mod galaxy 전체 컴파일이 깨진다**. 이 커스텀 맵은 mod dependency에
+의존하므로, mod가 안 뜨면 **로비 플레이어 1~N이 시작 유닛도 없이 스폰 실패한다**
+(관전 시 owner 15=야생저그·16=중립만 남고 1~N은 유닛 0).
+
+- **실제 사례 (2026-07-24):** 302 직접-테크 함수에 컴파일 깨는 galaxy 이슈가 **둘**
+  동시에 있어 모든 미러 프로브가 플레이어 0으로 실패했다. 하나를 고쳐도 나머지가
+  남아 계속 깨졌다:
+  1. `PointWithOffsetPolar`(map galaxy P15 코드엔 있음) 사용 — 이 네이티브는 다른
+     오버레이 0번 사용 + `v3/ai/upstream/`에 정의 없음.
+  2. 전역 배열을 C 스타일 `fixed gv_x[16];`로 선언 — Galaxy는 **`fixed[16] gv_x;`**
+     (`type[size] name`) 구문만 허용한다. 관례는 HomeDefense.galaxy의
+     `fixed[16] gv_v3HomeDefenseNextOrder;` 참고.
+- **배치점 계산이 필요하면** map 전용 `PointWithOffsetPolar` 대신 AI 네이티브
+  **`AIGetBuildingPlacement(player, center, aliasUnitType, c_makeNoFlags)`** 를 쓴다
+  (upstream `AI.galaxy` 선언, 컴파일 안전, melee AI 자체 배치 로직).
+- **전역 배열은 `type[size] name;`** 구문으로 선언한다 (C 스타일 `type name[size];` 금지).
+- **오버레이에 네이티브를 새로 추가하기 전** 그게 다른 오버레이에서 이미 쓰이는지,
+  또는 `v3/ai/upstream/`에 선언돼 있는지 grep으로 먼저 확인한다. "map galaxy(P15)에서
+  됐으니 오버레이에서도 된다"는 가정은 금물.
+
+### 이 컴파일 에러는 구조 검증으로 안 잡힌다 — 진단법
+
+`verify_v3_structure.py`와 `build_v3_ai_mod.cjs`는 파일 목록·SHA-256·주입 구조만
+검사하므로 **galaxy 컴파일 에러를 못 잡는다**(둘 다 PASS로 나온다). 프로브의
+`GROUND_COMPILE=PASS`도 "맵 로드 + 카탈로그 읽힘"만 뜻하지 트리거 컴파일 성공을
+보장하지 않는다. SC2 galaxy 에러 로그도 이 환경에는 남지 않는다.
+
+- **격리 진단:** `probe_v3_ground_builds.py --upstream-timing`(V3 mod을 설치하지 않고
+  블리자드 순정 AI로 같은 맵 구동). 이게 **정상 스폰이면 범인은 V3 mod**, 여전히
+  플레이어 0이면 맵/환경 문제다. 5초 시점 `RAW_OWNERS` 한 줄로 판별된다.

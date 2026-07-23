@@ -1,0 +1,541 @@
+//--------------------------------------------------------------------------------------------------
+//  V3 home defense and ally support
+//
+//  이 레이어는 밀리 AI의 파동을 대체하지 않는다. 위협 도시 주변의 소수 전투
+//  유닛만 script-control 한다. 본진 주둔군은 유지하고, 나머지는 위협 또는 지원
+//  요청이 끝나면 즉시 돌려준다.
+//--------------------------------------------------------------------------------------------------
+const fixed c_v3HomeDefenseThreatRadius = 30.0;
+const fixed c_v3HomeDefenseGarrisonRadius = 36.0;
+const fixed c_v3HomeDefensePullbackDistance = -6.0;
+const fixed c_v3HomeDefenseOrderInterval = 2.5;
+const fixed c_v3HomeDefenseAttackLeash = 12.0;
+const fixed c_v3GarrisonRatio = 0.25;
+const fixed c_v3GarrisonRallyDistance = 6.0;
+const fixed c_v3GarrisonRallyTolerance = 5.0;
+const int c_v3HomeDefenseTownScanLimit = 3;
+const int c_v3HomeDefenseOrderBatch = 24;
+const int c_v3HomeDefenseSupportMinimum = 6;
+const int c_v3HomeDefenseReturnAtValue = 45;
+const int c_v3HomeDefenseGarrisonValue = 46;
+const int c_v3GarrisonMin = 4;
+const int c_v3GarrisonArmyThreshold = 8;
+
+unitgroup[16] gv_v3HomeDefenseControlled;
+fixed[16] gv_v3HomeDefenseNextOrder;
+int[16] gv_v3HomeDefenseHomeTown;
+
+bool V3HomeDefenseIsCombatUnit (unit candidate) {
+    string unitType;
+
+    if (candidate == null || !UnitIsAlive(candidate) || AIIsNotUsableInWaves(candidate)) {
+        return false;
+    }
+    unitType = UnitGetType(candidate);
+    return unitType != "SCV" && unitType != "Probe" && unitType != "Drone" &&
+        unitType != "MULE" && unitType != "Larva" && unitType != "Egg" &&
+        unitType != "Overlord" && unitType != "OverlordTransport" &&
+        unitType != "Overseer";
+}
+
+unitfilter V3HomeDefenseCombatFilter () {
+    unitfilter filter = UnitFilter(0, 0, 0, 0);
+
+    UnitFilterSetState(filter, c_targetFilterWorker, c_unitFilterExcluded);
+    UnitFilterSetState(filter, c_targetFilterStructure, c_unitFilterExcluded);
+    UnitFilterSetState(filter, c_targetFilterUnderConstruction, c_unitFilterExcluded);
+    UnitFilterSetState(filter, c_targetFilterUncommandable, c_unitFilterExcluded);
+    return filter;
+}
+
+unitgroup V3HomeDefenseOwnGroup (int player, point center, fixed radius) {
+    return UnitGroup(null, player, RegionCircle(center, radius), V3HomeDefenseCombatFilter(), c_noMaxCount);
+}
+
+unitgroup V3HomeDefenseAllOwnGroup (int player) {
+    return UnitGroup(null, player, RegionEntireMap(), V3HomeDefenseCombatFilter(), c_noMaxCount);
+}
+
+unitgroup V3HomeDefenseEnemyGroup (int player, point center, fixed radius) {
+    return UnitGroupAlliance(
+        player,
+        c_unitAllianceEnemy,
+        RegionCircle(center, radius),
+        V3HomeDefenseCombatFilter(),
+        c_noMaxCount
+    );
+}
+
+// 양쪽 모두 같은 전투 유닛 필터의 실제 기수를 값으로 쓴다. 명령 발행 묶음과
+// 전력 비교를 분리한다. 전력 비교 또는 주둔군에는 인위적 상한을 두지 않는다.
+int V3HomeDefenseCombatCount (unitgroup candidates) {
+    int index = UnitGroupCount(candidates, c_unitCountAlive);
+    int count = 0;
+    unit currentUnit;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(candidates, index);
+        if (currentUnit == null) {
+            break;
+        }
+        if (V3HomeDefenseIsCombatUnit(currentUnit)) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+int V3HomeDefenseNonGarrisonCombatCount (unitgroup candidates) {
+    int index = UnitGroupCount(candidates, c_unitCountAlive);
+    int count = 0;
+    unit currentUnit;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(candidates, index);
+        if (currentUnit == null) {
+            break;
+        }
+        if (V3HomeDefenseIsCombatUnit(currentUnit) &&
+            UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) <= 0.0) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+void V3HomeDefenseTrack (int player, unit controlledUnit) {
+    if (!UnitGroupHasUnit(gv_v3HomeDefenseControlled[player], controlledUnit)) {
+        UnitGroupAdd(gv_v3HomeDefenseControlled[player], controlledUnit);
+    }
+}
+
+// 위협/지원으로 잠시 잡은 유닛만 돌려준다. 영구 주둔군(cv46)은 위협이 사라져도
+// 여기서 해제하지 않으며, 아래 주둔군 정원 조절만 해제할 수 있다.
+void V3HomeDefenseReleaseTemporary (int player) {
+    int index = UnitGroupCount(gv_v3HomeDefenseControlled[player], c_unitCountAll);
+    unit currentUnit;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(gv_v3HomeDefenseControlled[player], index);
+        if (currentUnit == null) {
+            break;
+        }
+        if (!UnitIsAlive(currentUnit)) {
+            UnitGroupRemove(gv_v3HomeDefenseControlled[player], currentUnit);
+            continue;
+        }
+        if (UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) <= 0.0) {
+            AISetUnitScriptControlled(currentUnit, false);
+            UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, 0.0);
+            UnitGroupRemove(gv_v3HomeDefenseControlled[player], currentUnit);
+        }
+    }
+}
+
+int V3HomeDefenseGarrisonCount (int player) {
+    int index = UnitGroupCount(gv_v3HomeDefenseControlled[player], c_unitCountAll);
+    int count = 0;
+    unit currentUnit;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(gv_v3HomeDefenseControlled[player], index);
+        if (currentUnit == null) {
+            break;
+        }
+        if (!UnitIsAlive(currentUnit)) {
+            UnitGroupRemove(gv_v3HomeDefenseControlled[player], currentUnit);
+            continue;
+        }
+        if (UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) <= 0.0) {
+            continue;
+        }
+        if (!AIIsScriptControlled(currentUnit)) {
+            UnitSetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue, 0.0);
+            UnitGroupRemove(gv_v3HomeDefenseControlled[player], currentUnit);
+            continue;
+        }
+        count += 1;
+    }
+    return count;
+}
+
+void V3HomeDefenseReleaseGarrisonExcess (int player, int keep) {
+    int index;
+    int reserved;
+    unit currentUnit;
+
+    reserved = V3HomeDefenseGarrisonCount(player);
+    index = UnitGroupCount(gv_v3HomeDefenseControlled[player], c_unitCountAll);
+    for (;; index -= 1) {
+        if (reserved <= keep) {
+            break;
+        }
+        currentUnit = UnitGroupUnitFromEnd(gv_v3HomeDefenseControlled[player], index);
+        if (currentUnit == null) {
+            break;
+        }
+        if (UnitIsAlive(currentUnit) &&
+            UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) > 0.0 &&
+            AIIsScriptControlled(currentUnit)) {
+            AISetUnitScriptControlled(currentUnit, false);
+            UnitSetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue, 0.0);
+            UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, 0.0);
+            reserved -= 1;
+            UnitGroupRemove(gv_v3HomeDefenseControlled[player], currentUnit);
+        } else if (!UnitIsAlive(currentUnit) ||
+            UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) > 0.0) {
+            UnitGroupRemove(gv_v3HomeDefenseControlled[player], currentUnit);
+        }
+    }
+}
+
+// 공격-이동은 적 정찰병을 쫓아 기지 밖으로 빠질 수 있다. 기한을 넘긴 유닛은
+// 다음 판단 전에 자기 도시로 Move 시킨다. 이 시점에는 계속 제어 중이므로 명령이
+// 밀리 AI 파동과 경쟁하지 않는다.
+void V3HomeDefenseReturnExpired (int player, fixed now) {
+    int index = UnitGroupCount(gv_v3HomeDefenseControlled[player], c_unitCountAll);
+    fixed returnAt;
+    point home;
+    unit currentUnit;
+    order moveOrder;
+
+    if (gv_v3HomeDefenseHomeTown[player] < 0 || gv_v3HomeDefenseHomeTown[player] >= c_townMax) {
+        return;
+    }
+    home = AIGetTownLocation(player, gv_v3HomeDefenseHomeTown[player]);
+    if (home == null) {
+        return;
+    }
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(gv_v3HomeDefenseControlled[player], index);
+        if (currentUnit == null) {
+            break;
+        }
+        if (!UnitIsAlive(currentUnit)) {
+            UnitGroupRemove(gv_v3HomeDefenseControlled[player], currentUnit);
+            continue;
+        }
+        returnAt = UnitGetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue);
+        if (returnAt <= 0.0 || returnAt > now) {
+            continue;
+        }
+        moveOrder = OrderTargetingPoint(AbilityCommand(c_AB_Move, 0), home);
+        if (UnitOrderIsValid(currentUnit, moveOrder)) {
+            UnitIssueOrder(currentUnit, moveOrder, c_orderQueueReplace);
+        }
+        UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, 0.0);
+    }
+}
+
+// 후보는 도시에서 적 쪽의 반대편이다. 각 유닛의 실제 경로가 유효하지 않으면
+// 명시적으로 타운홀 위치를 사용한다. 두 경우 모두 Move 유효성 검사를 거친다.
+bool V3HomeDefenseIssueMove (int player, unit currentUnit, point destination, point townHall) {
+    order moveOrder;
+
+    if (AIPathingCostUnit(currentUnit, destination, true) < 0) {
+        destination = townHall;
+    }
+    moveOrder = OrderTargetingPoint(AbilityCommand(c_AB_Move, 0), destination);
+    if (!UnitOrderIsValid(currentUnit, moveOrder)) {
+        moveOrder = OrderTargetingPoint(AbilityCommand(c_AB_Move, 0), townHall);
+    }
+    if (!UnitOrderIsValid(currentUnit, moveOrder)) {
+        return false;
+    }
+    AISetUnitScriptControlled(currentUnit, true);
+    V3HomeDefenseTrack(player, currentUnit);
+    UnitIssueOrder(currentUnit, moveOrder, c_orderQueueReplace);
+    return true;
+}
+
+void V3HomeDefenseMoveGroup (int player, unitgroup candidates, point pullback, point townHall) {
+    int index = UnitGroupCount(candidates, c_unitCountAlive);
+    int commanded = 0;
+    unit currentUnit;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(candidates, index);
+        if (currentUnit == null || commanded >= c_v3HomeDefenseOrderBatch) {
+            break;
+        }
+        if (!V3HomeDefenseIsCombatUnit(currentUnit) ||
+            !V3HomeDefenseIssueMove(player, currentUnit, pullback, townHall)) {
+            continue;
+        }
+        UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, 0.0);
+        commanded += 1;
+    }
+}
+
+void V3HomeDefenseAttackGroup (int player, unitgroup candidates, point enemyPoint, fixed now) {
+    int index = UnitGroupCount(candidates, c_unitCountAlive);
+    int commanded = 0;
+    unit currentUnit;
+    order attackOrder;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(candidates, index);
+        if (currentUnit == null || commanded >= c_v3HomeDefenseOrderBatch) {
+            break;
+        }
+        if (!V3HomeDefenseIsCombatUnit(currentUnit)) {
+            continue;
+        }
+        attackOrder = OrderTargetingPoint(AbilityCommand(c_AB_Attack, 0), enemyPoint);
+        if (!UnitOrderIsValid(currentUnit, attackOrder)) {
+            continue;
+        }
+        AISetUnitScriptControlled(currentUnit, true);
+        V3HomeDefenseTrack(player, currentUnit);
+        UnitIssueOrder(currentUnit, attackOrder, c_orderQueueReplace);
+        UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, now + c_v3HomeDefenseAttackLeash);
+        commanded += 1;
+    }
+}
+
+void V3HomeDefenseSupportGroup (int player, unitgroup candidates, point allyPoint) {
+    int index = UnitGroupCount(candidates, c_unitCountAlive);
+    int commanded = 0;
+    unit currentUnit;
+    order moveOrder;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(candidates, index);
+        if (currentUnit == null || commanded >= c_v3HomeDefenseOrderBatch) {
+            break;
+        }
+        if (!V3HomeDefenseIsCombatUnit(currentUnit) ||
+            UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) > 0.0) {
+            continue;
+        }
+        moveOrder = OrderTargetingPoint(AbilityCommand(c_AB_Move, 0), allyPoint);
+        if (!UnitOrderIsValid(currentUnit, moveOrder)) {
+            continue;
+        }
+        AISetUnitScriptControlled(currentUnit, true);
+        V3HomeDefenseTrack(player, currentUnit);
+        UnitIssueOrder(currentUnit, moveOrder, c_orderQueueReplace);
+        UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, 0.0);
+        commanded += 1;
+    }
+}
+
+// 본진에서 맵 중심 쪽으로 여섯 칸 들어간 점을 주둔 집결점으로 쓴다. 각 실제
+// 유닛은 아래 Move 발행 시 경로를 검사하고, 불가하면 타운홀 자체로 되돌린다.
+point V3HomeDefenseGarrisonRally (point townHall) {
+    point mapCenter = MidPoint(RegionGetBoundsMin(RegionPlayableMap()), RegionGetBoundsMax(RegionPlayableMap()));
+
+    if (mapCenter == null) {
+        return townHall;
+    }
+    return PointAlongLine(townHall, mapCenter, c_v3GarrisonRallyDistance);
+}
+
+int V3HomeDefenseReturnGarrison (int player, point rally, point townHall, int maximum) {
+    int index = UnitGroupCount(gv_v3HomeDefenseControlled[player], c_unitCountAll);
+    int commanded = 0;
+    unit currentUnit;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(gv_v3HomeDefenseControlled[player], index);
+        if (currentUnit == null || commanded >= maximum) {
+            break;
+        }
+        if (!UnitIsAlive(currentUnit) ||
+            UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) <= 0.0 ||
+            !AIIsScriptControlled(currentUnit) ||
+            DistanceBetweenPoints(UnitGetPosition(currentUnit), rally) <= c_v3GarrisonRallyTolerance) {
+            continue;
+        }
+        if (!V3HomeDefenseIssueMove(player, currentUnit, rally, townHall)) {
+            continue;
+        }
+        UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, 0.0);
+        commanded += 1;
+    }
+    return commanded;
+}
+
+int V3HomeDefenseReserveGarrison (int player, unitgroup candidates, point townHall, point rally, int need, int maximum, bool preferIdleNearMain) {
+    int index = UnitGroupCount(candidates, c_unitCountAlive);
+    int commanded = 0;
+    unit currentUnit;
+
+    for (;; index -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(candidates, index);
+        if (currentUnit == null || commanded >= maximum || commanded >= need) {
+            break;
+        }
+        if (!V3HomeDefenseIsCombatUnit(currentUnit) || AIIsScriptControlled(currentUnit) ||
+            UnitGetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue) > 0.0) {
+            continue;
+        }
+        if (preferIdleNearMain &&
+            (DistanceBetweenPoints(UnitGetPosition(currentUnit), townHall) > c_v3HomeDefenseGarrisonRadius ||
+             UnitOrderCount(currentUnit) > 0)) {
+            continue;
+        }
+        if (!V3HomeDefenseIssueMove(player, currentUnit, rally, townHall)) {
+            continue;
+        }
+        UnitSetCustomValue(currentUnit, c_v3HomeDefenseGarrisonValue, 1.0);
+        UnitSetCustomValue(currentUnit, c_v3HomeDefenseReturnAtValue, 0.0);
+        commanded += 1;
+    }
+    return commanded;
+}
+
+void V3HomeDefenseMaintainGarrison (int player, unitgroup allCombat, point townHall) {
+    int totalArmy = V3HomeDefenseCombatCount(allCombat);
+    int target;
+    int reserved;
+    int issued;
+    int added;
+    point rally;
+
+    if (totalArmy < c_v3GarrisonArmyThreshold) {
+        V3HomeDefenseReleaseGarrisonExcess(player, 0);
+        return;
+    }
+    target = FixedToInt((c_v3GarrisonRatio * IntToFixed(totalArmy)) + 0.5);
+    if (target < c_v3GarrisonMin) {
+        target = c_v3GarrisonMin;
+    }
+    V3HomeDefenseReleaseGarrisonExcess(player, target);
+    reserved = V3HomeDefenseGarrisonCount(player);
+    rally = V3HomeDefenseGarrisonRally(townHall);
+    issued = V3HomeDefenseReturnGarrison(player, rally, townHall, c_v3HomeDefenseOrderBatch);
+    if (reserved < target && issued < c_v3HomeDefenseOrderBatch) {
+        added = V3HomeDefenseReserveGarrison(
+            player, allCombat, townHall, rally, target - reserved,
+            c_v3HomeDefenseOrderBatch - issued, true
+        );
+        reserved += added;
+        issued += added;
+    }
+    if (reserved < target && issued < c_v3HomeDefenseOrderBatch) {
+        V3HomeDefenseReserveGarrison(
+            player, allCombat, townHall, rally, target - reserved,
+            c_v3HomeDefenseOrderBatch - issued, false
+        );
+    }
+}
+
+// 이 함수는 V3Run*Build가 빌드 식별자 142를 확인한 뒤에만 호출한다. 따라서
+// 일반 게임의 사람 슬롯에는 도달하지 않으며, 관전자 실험에서는 컴퓨터로 승격된
+// 슬롯만 해당 빌드 ID를 갖는다.
+void V3HomeDefenseSteer (int player) {
+    int town = 0;
+    int scanned = 0;
+    int threatenedTown = c_townInvalid;
+    int strongestEnemy = 0;
+    int enemyCount;
+    int ownCount;
+    int supportEnemyCount;
+    int supportOwnCount;
+    int mainTown;
+    fixed now = AIGetTime();
+    point townPoint;
+    point enemyPoint;
+    point pullback;
+    point allyPoint;
+    unit enemyLeader;
+    unitgroup enemies;
+    unitgroup defenders;
+    unitgroup support;
+    unitgroup allCombat;
+    wave defendWave;
+
+    V3HomeDefenseReturnExpired(player, now);
+
+    // 최대 세 도시만 국소 반경으로 살핀다. 도시별/유닛별 전역 검색은 금지한다.
+    while (town < c_townMax && scanned < c_v3HomeDefenseTownScanLimit) {
+        if (AIGetTownState(player, town) == c_townStateEstablished) {
+            scanned += 1;
+            townPoint = AIGetTownLocation(player, town);
+            if (townPoint != null && AIHasNearbyAttackers(player, townPoint, c_v3HomeDefenseThreatRadius)) {
+                enemies = V3HomeDefenseEnemyGroup(player, townPoint, c_v3HomeDefenseThreatRadius);
+                enemyCount = V3HomeDefenseCombatCount(enemies);
+                if (enemyCount > strongestEnemy) {
+                    strongestEnemy = enemyCount;
+                    threatenedTown = town;
+                }
+            }
+        }
+        town += 1;
+    }
+
+    if (threatenedTown != c_townInvalid) {
+        townPoint = AIGetTownLocation(player, threatenedTown);
+        enemies = V3HomeDefenseEnemyGroup(player, townPoint, c_v3HomeDefenseThreatRadius);
+        defenders = V3HomeDefenseOwnGroup(player, townPoint, c_v3HomeDefenseGarrisonRadius);
+        enemyCount = V3HomeDefenseCombatCount(enemies);
+        ownCount = V3HomeDefenseCombatCount(defenders);
+        enemyLeader = UnitGroupUnit(enemies, 1);
+        if (enemyLeader != null) {
+            enemyPoint = UnitGetPosition(enemyLeader);
+        }
+        gv_v3HomeDefenseHomeTown[player] = threatenedTown;
+
+        // 매 틱 비율을 다시 계산한다. 명령 발행만 2.5초로 제한해 주문 폭주를 막는다.
+        if (now < gv_v3HomeDefenseNextOrder[player]) {
+            return;
+        }
+        gv_v3HomeDefenseNextOrder[player] = now + c_v3HomeDefenseOrderInterval;
+        if (enemyCount <= 0 || enemyPoint == null) {
+            return;
+        }
+        if (ownCount > 0 && ownCount < enemyCount) {
+            // town -> enemy 의 반대 방향, 즉 적에서 본진 안쪽이다.
+            pullback = PointAlongLine(townPoint, enemyPoint, c_v3HomeDefensePullbackDistance);
+            V3HomeDefenseMoveGroup(player, defenders, pullback, townPoint);
+        } else if (ownCount > 0) {
+            V3HomeDefenseAttackGroup(player, defenders, enemyPoint, now);
+        }
+        return;
+    }
+
+    // 위협이 사라진 즉시 임시 회군/방어/지원 유닛만 native 파동으로 돌린다.
+    // 이 분기의 전역 전투군은 아래 주둔군 총수 계산용 단 한 번뿐이다.
+    V3HomeDefenseReleaseTemporary(player);
+    mainTown = AIGetMainTown(player);
+    if (mainTown >= 0 && mainTown < c_townMax &&
+        AIGetTownState(player, mainTown) == c_townStateEstablished) {
+        townPoint = AIGetTownLocation(player, mainTown);
+        if (townPoint != null) {
+            allCombat = V3HomeDefenseAllOwnGroup(player);
+            V3HomeDefenseMaintainGarrison(player, allCombat, townPoint);
+        }
+    } else {
+        V3HomeDefenseReleaseGarrisonExcess(player, 0);
+    }
+
+    // 우리 도시에 실위협이 없을 때만 지원한다. native가 선택한 동맹 방어 지점과
+    // 같은 반경의 적 수를 비교해, 최소 6기의 동등 이상 전력이 있을 때만 보낸다.
+    defendWave = AIWaveGet(player, c_waveDefend);
+    if (AIAnyAllyNeedsDefending(player, defendWave)) {
+        allyPoint = AIBestAllyDefendPoint(player, defendWave);
+        if (allyPoint != null) {
+            enemies = V3HomeDefenseEnemyGroup(player, allyPoint, c_v3HomeDefenseThreatRadius);
+            support = V3HomeDefenseOwnGroup(
+                player,
+                AIGetTownLocation(player, AIGetMainTown(player)),
+                c_v3HomeDefenseGarrisonRadius
+            );
+            supportEnemyCount = V3HomeDefenseCombatCount(enemies);
+            supportOwnCount = V3HomeDefenseNonGarrisonCombatCount(support);
+            if (now >= gv_v3HomeDefenseNextOrder[player] &&
+                supportOwnCount >= c_v3HomeDefenseSupportMinimum &&
+                supportOwnCount >= supportEnemyCount) {
+                gv_v3HomeDefenseNextOrder[player] = now + c_v3HomeDefenseOrderInterval;
+                V3HomeDefenseSupportGroup(player, support, allyPoint);
+                return;
+            }
+            // 지원 조건을 충족하지 못하면 토큰 부대를 보내지 않고 즉시 반환한다.
+            V3HomeDefenseReleaseTemporary(player);
+            return;
+        }
+    }
+
+    V3HomeDefenseReleaseTemporary(player);
+}

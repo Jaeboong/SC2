@@ -25,6 +25,7 @@ void V3SetZergMainMacroHatcheries (int player, int macroTotal) {
 }
 
 include "TriggerLibs/V3/ExpansionGas"
+include "TriggerLibs/V3/HomeDefense"
 include "TriggerLibs/V3/ZergRoachHydraUltra"
 include "TriggerLibs/V3/ZergLingBaneUltra"
 
@@ -73,6 +74,7 @@ bool V3RunZergBuild (int player, int phase) {
     // ordering and change only V3's declared economy/production targets.
     if (build == 302) {
         if (!V3EnsureZergFirstExpansion(player)) {
+            V3HomeDefenseSteer(player);
             return true;
         }
 
@@ -96,6 +98,7 @@ bool V3RunZergBuild (int player, int phase) {
             V3ZergLingBaneUltraLate(player);
         }
 
+        V3HomeDefenseSteer(player);
         V3SetGasWorkerDistribution(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
         return true;
     }
@@ -110,6 +113,7 @@ bool V3RunZergBuild (int player, int phase) {
     }
     V3ZergRoachHydraUltraStock(player, phase);
     AISetAttackStatus(player, c_ZU_Roach, 8, 14, c_continuousMerge);
+    V3HomeDefenseSteer(player);
     AIDefaultEconomy(
         player,
         c_ZB_Hatchery_Alias,

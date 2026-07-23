@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "overlay_revision": "town-local-production-and-dynamic-expansion-economy",
+  "overlay_revision": "home-defense-and-ally-support",
   "upstream_manifest_sha256": "d2291e803890de1268b900dc7d7034255b6ee5342825430e8144287a293114ba",
   "generated_root_patches": [
     {
@@ -20,8 +20,8 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Protoss.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Protoss.galaxy",
-      "bytes": 5083,
-      "sha256": "059e9d2a0333a383a7a585e349ad79ba3352c87bb627bbef4f58375695997c2e"
+      "bytes": 5152,
+      "sha256": "fb153cba25fcd7097f0b4229f74149ce11cbc57ff0ecdb64a1dc66fe9416dc58"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
@@ -38,8 +38,8 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Terran.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Terran.galaxy",
-      "bytes": 4569,
-      "sha256": "a959eecbc65ef020abe116a3a6d1ef4bfa0e966e8ccdca143d1465fb5cee3569"
+      "bytes": 4638,
+      "sha256": "c7e6751fa63a35746e742c7efab59992075020ecd623bcd8f27d60ac97cbb860"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranBionic.galaxy",
@@ -56,14 +56,14 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",
-      "bytes": 4369,
-      "sha256": "8aad4a81fb8eb649f5a9a19ab55af98f49f0d012396dec1f4653560e4fa2c74c"
+      "bytes": 4514,
+      "sha256": "0853329915bdde5e4481e182a3ddf5ce248a33f2e906d208286dc32442952f04"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
-      "bytes": 9916,
-      "sha256": "16806df2a37ad072e564b6160fbeb06e43819b603b0ca612d36a561e31872df4"
+      "bytes": 13554,
+      "sha256": "e03a3d1ff23abef8784f98a083019ff273ce3096dbb76c45f5fde1ee18c3ff1c"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",
@@ -76,6 +76,12 @@
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",
       "bytes": 8936,
       "sha256": "5cf38fb8fd5ae9bdcd584b74b03fe6af215ac9426928203b6c15253093dac5d5"
+    },
+    {
+      "virtual_path": "Base.SC2Data/TriggerLibs/V3/HomeDefense.galaxy",
+      "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/HomeDefense.galaxy",
+      "bytes": 21682,
+      "sha256": "6cf26cdfc844771ed820702146b02f255b834a832bcb66cbee6ed167ed90088a"
     }
   ]
 }
