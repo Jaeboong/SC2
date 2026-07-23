@@ -379,15 +379,30 @@ def main() -> int:
         action="store_true",
         help="fill a 6v6 (12 players) with the Zerg Ling/Bane build to average out run-to-run variance",
     )
+    parser.add_argument(
+        "--all-roach-hydra",
+        action="store_true",
+        help="fill a 6v6 (12 players) with the Zerg Roach/Hydra build to average out run-to-run variance",
+    )
     parser.add_argument("--report", type=Path, help="write samples and production coordinates as JSON")
     args = parser.parse_args()
     if args.duration < 180 or args.duration % 180:
         parser.error("duration must be a multiple of 180 and at least 180 seconds")
-    if args.all_lingbane and args.build:
-        parser.error("--all-lingbane and --build are mutually exclusive")
+    mirror_keys = [
+        key
+        for flag, key in (
+            (args.all_lingbane, "zerg_ling_bane_ultra"),
+            (args.all_roach_hydra, "zerg_roach_hydra_ultra"),
+        )
+        if flag
+    ]
+    if len(mirror_keys) > 1:
+        parser.error("choose only one mirror flag")
+    if mirror_keys and args.build:
+        parser.error("a mirror flag and --build are mutually exclusive")
     cases = CASES
-    if args.all_lingbane:
-        template = next(case for case in CASES if case.key == "zerg_ling_bane_ultra")
+    if mirror_keys:
+        template = next(case for case in CASES if case.key == mirror_keys[0])
         # Slot 1 is the human/observer slot (a Computer at runtime P1 in observer
         # mode); slots 7 and 14 stay empty so this is a symmetric 6v6 mirror.
         mirror_slots = (1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13)

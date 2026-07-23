@@ -68,8 +68,8 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",
-      "bytes": 6177,
-      "sha256": "90d03a60ddc8b27c5d77fdc7602af4aad8be2e8c357e614d5619e55df9383ecc"
+      "bytes": 6707,
+      "sha256": "37adb9b71de75bcb1a0f057c294413f9d1bf932d35613ef061b83e72ffc7b5a0"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",

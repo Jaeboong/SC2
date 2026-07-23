@@ -1,13 +1,11 @@
 //==================================================================================================
 //  V3 Zerg ground policy: Roach / Hydralisk / Ultralisk
 //
-//  Core army supply targets:
-//    phase 0:  40 = 11 Roaches (22) +  9 Hydralisks (18)
-//    phase 1: 120 = 32 Roaches (64) + 28 Hydralisks (56)
-//    phase 2: 360 = 81 Roaches (162) + 72 Hydralisks (144) + 9 Ultralisks (54)
+//  Core army supply pacing checkpoints culminate in unreachable final increments (no army cap).
+//  Ultralisk tech begins on the phase-1 continuous track; phase 2 retains its late-game steps.
 //
 //  Before phase 2 the 45:40 Roach/Hydralisk weights are normalized over the two available units.
-//  Phase 2 is the first and only phase that stocks Ultralisks or their tech and upgrades.
+//  Phase 2 is the first phase with the full Ultralisk stock and upgrade sequence.
 //  Overlords are supply providers and Queens are production support; neither is part of the core
 //  army-supply target above. No air combat unit is stocked by this policy.
 //==================================================================================================
@@ -68,13 +66,13 @@ void V3ZergRoachHydraUltraStock (int player, int phase) {
     AISetStock(player, 4, c_ZB_Extractor);
     AISetStock(player, 1, c_ZB_EvolutionChamber);
 
-    // Opening upgrades and exact 40-supply core target.
+    // Opening upgrades and final phase-0 core target.
     AISetStock(player, 1, c_ZR_MissileAttacks1);
     AISetStock(player, 1, c_ZR_GroundCarapace1);
     AISetStock(player, 1, c_ZR_HydraliskRange);
     AISetStock(player, 1, c_ZR_RoachSpeed);
-    AISetStockUnitNext(player, 11, c_ZU_Roach, c_stockAlways);
-    AISetStockUnitNext(player, 9, c_ZU_Hydralisk, c_stockAlways);
+    AISetStockUnitNext(player, 200, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 160, c_ZU_Hydralisk, c_stockAlways);
     AISetStock(player, V3WorkerTarget(player, 40), c_ZU_Drone);
     AISetStockUnitNext(player, 3, c_ZU_Queen, c_stockAlways);
 
@@ -92,12 +90,21 @@ void V3ZergRoachHydraUltraStock (int player, int phase) {
     AISetStock(player, 1, c_ZR_MissileAttacks2);
     AISetStock(player, 1, c_ZR_GroundCarapace2);
 
-    // Exact 120-supply core target on four bases.
+    // Final phase-1 core target on four bases.
     AISetStock(player, V3WorkerTarget(player, 72), c_ZU_Drone);
     AISetStock(player, 8, c_ZB_Extractor);
     AISetStockUnitNext(player, 6, c_ZU_Queen, c_stockAlways);
-    AISetStockUnitNext(player, 32, c_ZU_Roach, c_stockAlways);
-    AISetStockUnitNext(player, 28, c_ZU_Hydralisk, c_stockAlways);
+    AISetStockUnitNext(player, 300, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 240, c_ZU_Hydralisk, c_stockAlways);
+
+    // v3.7 port: pull the ultralisk tech chain off the phase-2 gate so a slot stuck
+    // in phase 1 still reaches Hive and Ultralisks. Continuous non-blocking track;
+    // the serial UltraliskArmor upgrade stays last so it blocks nothing after it.
+    AISetStockUnitNext(player, 1, c_ZB_InfestationPit, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_ZB_Hive, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_ZB_UltraliskCavern, c_stockAlways);
+    AISetStock(player, 1, c_ZR_UltraliskArmor);
+    AISetStockUnitNext(player, 30, c_ZU_Ultralisk, c_stockAlways);
 
     if (phase == 1) {
         return;
@@ -132,9 +139,9 @@ void V3ZergRoachHydraUltraStock (int player, int phase) {
     AISetStockUnitNext(player, 10, c_ZU_Queen, c_stockAlways);
     AISetStock(player, 1, c_ZR_MeleeAttacks3);
 
-    // Exact late target: 162/144/54 supply = 45/40/15 percent of 360.
-    AISetStockUnitNext(player, 81, c_ZU_Roach, c_stockAlways);
-    AISetStockUnitNext(player, 72, c_ZU_Hydralisk, c_stockAlways);
-    AISetStockUnitNext(player, 9, c_ZU_Ultralisk, c_stockAlways);
+    // Unreachable final increments keep army production uncapped.
+    AISetStockUnitNext(player, 470, c_ZU_Roach, c_stockAlways);
+    AISetStockUnitNext(player, 380, c_ZU_Hydralisk, c_stockAlways);
+    AISetStockUnitNext(player, 30, c_ZU_Ultralisk, c_stockAlways);
 
 }
