@@ -74,8 +74,8 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",
-      "bytes": 6514,
-      "sha256": "77f413a3753a50305db17fd948a44d160d41a1ea87b74e27dbaa57ee6d6d5278"
+      "bytes": 6903,
+      "sha256": "b21d68f2dc6e1c4f18e7fc596c1a7b61fae14f0e8154e19307cf01c523f288d2"
     }
   ]
 }

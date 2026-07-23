@@ -146,7 +146,12 @@ void V3EnsureMiningExpansion (int player, string townHallType, string expandType
 
     if (established < maximumTowns) {
         currentWorkers = AIGetCurPeonCount(player, c_townMax);
-        requiredWorkers = V3MiningWorkerCapacity(player);
+        // Use the native economy saturation value for expansion timing.
+        // The manual worker-production cap above is intentionally conservative
+        // (two mineral workers plus gas workers), but its spot accounting is
+        // not the stock engine's own saturation threshold on every map.
+        // Blizzard's economy helpers use AIGetMinPeonCount for this decision.
+        requiredWorkers = AIGetMinPeonCount(player, c_townMax);
         if (requiredWorkers > 0 && currentWorkers >= requiredWorkers) {
             shouldExpand = true;
         }

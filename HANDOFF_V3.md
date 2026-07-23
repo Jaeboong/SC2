@@ -99,6 +99,10 @@ V3.3 단독 18분 기록은 `v3/docs/verification/v3.3-engine-log.md`에 있다.
 시험 맵에서는 3개 광물 기지 뒤 `AIHasNearbyOpenExpansion`이 false여서 6기지 이상은
 아직 실증하지 않았다.
 
+V3.4는 후속 확장 포화 판정을 upstream native `AIGetMinPeonCount`로 교체했다.
+관문+로보는 18분에 3기지로 확장했고 여섯 빌드 9분 독립 회귀도 통과했다.
+기록은 `v3/docs/verification/v3.4-engine-log.md`에 있다.
+
 다음 검증은 더 큰 맵에서 빌드별 단독 18~21분 실행으로 후반 울트라, 2·3·4·6기지 생산 건물 분산,
 확장별 가스 2개와 가스 일꾼 6명, 기지 수에 따른 일꾼 상한을 함께 확인하는 것이다.
 

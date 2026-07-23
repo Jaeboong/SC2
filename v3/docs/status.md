@@ -45,6 +45,14 @@ V3 지상군 빌드 6개가 해시 고정 upstream+overlay SC2Mod로 구현되�
   6기지 이상을 관측하지 못했다. 이는 6기지 구현 PASS가 아니라 별도 큰 맵
   검증이 남았다는 뜻이다.
 
+## V3.4 확장 포화 판정 재검증
+
+- 관문+로보의 2기지 정체는 수동 spot 산식과 native 경제 포화값의 불일치였다.
+  후속 확장 판단을 upstream `AIGetMinPeonCount`로 맞춘 뒤 18분에 3기지까지
+  실제 확장됨을 확인했다.
+- 여섯 빌드의 최신 9분 단독 결과와 V3.4 장기 샘플은
+  [`verification/v3.4-engine-log.md`](verification/v3.4-engine-log.md)에 있다.
+
 ## 남은 확인
 
 - 빌드별 단독 실행으로 2·3·6기지 생산 건물 위치와 총수 확인
