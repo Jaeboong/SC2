@@ -170,6 +170,29 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
             power_sites.append(site)
         else:
             production_sites.append(site)
+    # Engine-authoritative saturation: the harvester counts the sim maintains on
+    # each resource structure. Unlike the order-target gas_workers count, this does
+    # not miss workers on the return leg of a gas round-trip. ideal is 3 per gas.
+    gas_assigned = sum(
+        int(unit.assigned_harvesters)
+        for unit in units
+        if names.get(unit.unit_type) in GAS_BUILDINGS and unit.build_progress >= 1
+    )
+    gas_ideal = sum(
+        int(unit.ideal_harvesters)
+        for unit in units
+        if names.get(unit.unit_type) in GAS_BUILDINGS and unit.build_progress >= 1
+    )
+    mineral_assigned = sum(
+        int(unit.assigned_harvesters)
+        for unit in units
+        if names.get(unit.unit_type) in TOWN_HALLS and unit.build_progress >= 1
+    )
+    mineral_ideal = sum(
+        int(unit.ideal_harvesters)
+        for unit in units
+        if names.get(unit.unit_type) in TOWN_HALLS and unit.build_progress >= 1
+    )
     return {
         "army_supply": round(army_supply, 1),
         "supply_cap": round(supply_cap, 1),
@@ -178,6 +201,10 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
         "gas_workers": gas_workers,
         "gas_workers_nearby": gas_workers_nearby,
         "gas_buildings": gas_buildings,
+        "gas_assigned": gas_assigned,
+        "gas_ideal": gas_ideal,
+        "mineral_assigned": mineral_assigned,
+        "mineral_ideal": mineral_ideal,
         "combat_upgrade_levels": combat_upgrade_levels,
         "army": len(army_units),
         "buildings": buildings,
@@ -277,6 +304,8 @@ async def run(
                     f"  P{owner} {case.label}: pop={state['army_supply']:g}/{state['supply_cap']:g} "
                     f"workers={state['workers']} larva={state['larva']} army={state['army']} "
                     f"buildings={state['buildings']} gas={state['gas_buildings']} "
+                    f"gas_sat={state['gas_assigned']}/{state['gas_ideal']} "
+                    f"min_sat={state['mineral_assigned']}/{state['mineral_ideal']} "
                     f"gas_workers_nearby={state['gas_workers_nearby']} "
                     f"upgrades={state['combat_upgrade_levels']['attack']}/{state['combat_upgrade_levels']['armor']} "
                     f"bases={state['bases']} macro_hatcheries={state['macro_hatcheries']} "
@@ -296,6 +325,8 @@ async def run(
                     f"army={mean(lambda e: e['army']):.1f} "
                     f"buildings={mean(lambda e: e['buildings']):.1f} "
                     f"gas={mean(lambda e: e['gas_buildings']):.1f} "
+                    f"gas_sat={mean(lambda e: e['gas_assigned']):.1f}/{mean(lambda e: e['gas_ideal']):.1f} "
+                    f"min_sat={mean(lambda e: e['mineral_assigned']):.1f}/{mean(lambda e: e['mineral_ideal']):.1f} "
                     f"gas_workers_nearby={mean(lambda e: e['gas_workers_nearby']):.1f} "
                     f"upgrades={mean(lambda e: e['combat_upgrade_levels']['attack']):.2f}/"
                     f"{mean(lambda e: e['combat_upgrade_levels']['armor']):.2f} "
