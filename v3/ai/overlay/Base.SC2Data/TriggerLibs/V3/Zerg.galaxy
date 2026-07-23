@@ -28,11 +28,78 @@ include "TriggerLibs/V3/ExpansionGas"
 include "TriggerLibs/V3/ZergRoachHydraUltra"
 include "TriggerLibs/V3/ZergLingBaneUltra"
 
+// The one intentional V3 opening deviation: keep making Drones, then start
+// the natural as soon as 300 minerals are available.  Once it exists, the
+// selected upstream build owns its stock and state machine.
+bool V3EnsureZergFirstExpansion (int player) {
+    if (AIGetUserInt(player, 144) != 0) {
+        return true;
+    }
+
+    AIClearStock(player);
+    AISetStockPeons(
+        player,
+        V3MiningWorkerCapacity(player),
+        c_ZU_Drone,
+        c_stockMaxPeons,
+        c_stockAlways
+    );
+
+    if (AITechCount(player, c_ZB_Hatchery_Alias, c_techCountQueuedOrBetter) >= 2) {
+        AISetUserInt(player, 144, 1);
+        AIEnableStock(player);
+        return true;
+    }
+
+    if (!AIIsExpandingOrHasExpanded(player) &&
+        AIHasNearbyOpenExpansion(player) &&
+        AIHasRes(player, 300, 0)) {
+        AIExpand(player, AIGetTownLocation(player, c_townMain), c_ZB_Hatchery);
+    }
+
+    AIEnableStock(player);
+    return false;
+}
+
 bool V3RunZergBuild (int player, int phase) {
     int build = AIGetUserInt(player, 142);
+    int v3Stage;
     if (build != 301 && build != 302) {
         return false;
     }
+
+    // Build 302 keeps Blizzard's three-stage Ling/Bane -> Ling/Bane/Roach ->
+    // macro-Ultralisk state flow.  The overlay functions retain that stock
+    // ordering and change only V3's declared economy/production targets.
+    if (build == 302) {
+        if (!V3EnsureZergFirstExpansion(player)) {
+            return true;
+        }
+
+        // The generated dispatcher can be entered with an engine main state
+        // that predates the V3 natural.  Track the copied upstream build's
+        // own done->Init transition rather than using that external phase.
+        v3Stage = AIGetUserInt(player, 146);
+        if (v3Stage <= 0) {
+            if (V3ZergLingBaneUltraOpen(player)) {
+                AISetUserInt(player, 146, 1);
+                ZergHDInitMid(player);
+            }
+        }
+        else if (v3Stage == 1) {
+            if (V3ZergLingBaneUltraMid(player)) {
+                AISetUserInt(player, 146, 2);
+                ZergHDInitLate(player);
+            }
+        }
+        else {
+            V3ZergLingBaneUltraLate(player);
+        }
+
+        V3SetGasWorkerDistribution(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+        return true;
+    }
+
     if (phase == 0 && AIGetTime() >= 300) {
         AISetMainState(player, e_mainState_Mid, e_mainSubState_Build);
         phase = 1;
@@ -41,14 +108,8 @@ bool V3RunZergBuild (int player, int phase) {
         AISetMainState(player, e_mainState_Late, e_mainSubState_Build);
         phase = 2;
     }
-    if (build == 301) {
-        V3ZergRoachHydraUltraStock(player, phase);
-        AISetAttackStatus(player, c_ZU_Roach, 8, 14, c_continuousMerge);
-    }
-    else {
-        V3ZergLingBaneUltraStock(player, phase);
-        AISetAttackStatus(player, c_ZU_Zergling, 16, 28, c_continuousMerge);
-    }
+    V3ZergRoachHydraUltraStock(player, phase);
+    AISetAttackStatus(player, c_ZU_Roach, 8, 14, c_continuousMerge);
     AIDefaultEconomy(
         player,
         c_ZB_Hatchery_Alias,

@@ -1,137 +1,179 @@
 //==================================================================================================
-// V3 Zerg zergling/baneling/ultralisk ground policy
+// V3 Zerg Ling/Bane/Ultra policy
 //
-// Army targets are measured in army supply, not raw unit count.  Zerglings and Banelings cost
-// 0.5 supply and Ultralisks cost 6 supply.  Ultralisks are deliberately absent from phases 0 and 1;
-// the available 50:35 Zergling/Baneling split is normalized in those phases so that the army still
-// reaches the requested total supply.
-//
-//   phase 0:  47 Zergling +  33 Baneling               =  40 supply
-//   phase 1: 141 Zergling +  99 Baneling               = 120 supply
-//   phase 2: 360 Zergling + 252 Baneling + 9 Ultralisk = 360 supply (50% / 35% / 15%)
-//
-// Overlords and Queens are economy/support units.  No air combat unit or air upgrade is stocked.
+// The three upstream phase functions stay intact, but economy, supply, and
+// army use independent stock tracks.  In particular, never put an unreachable
+// army total ahead of Drone, Overlord, or tech milestones in the serial list.
 //==================================================================================================
 
-void V3ZergLingBaneUltraStock (int player, int phase) {
-    int macroHatcheryTarget;
-    int openingBanelings;
-
-    // Upstream Ling/Bane openings hold their opening state until a real
-    // Baneling checkpoint exists.  Do not let V3's timed phase overwrite the
-    // Zergling-to-Baneling morph before it can finish.
-    openingBanelings = AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter);
-    // Four is the completed opening morph checkpoint registered below.  The
-    // map's faction data can keep the upstream eight-unit timing checkpoint
-    // queued after the actual four-unit morph is already healthy.
-    if (phase > 0 && openingBanelings < 4) {
-        phase = 0;
-    }
-
-    if (phase <= 0) {
-        macroHatcheryTarget = 1;
-    }
-    else if (phase == 1) {
-        macroHatcheryTarget = 2;
-    }
-    else {
-        macroHatcheryTarget = 4;
-    }
-
+bool V3ZergLingBaneUltraOpen (int player) {
     AIClearStock(player);
 
-    // Keep Drone production active while the first 300 minerals are banked.
-    // The natural starts immediately once those minerals exist.
+    // Continuous economy and supply tracks.
     AISetStockPeons( player, V3WorkerTarget(player, 32), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-    if (AIGetUserInt(player, 144) == 0) {
-        if (AITechCount(player, c_ZB_Hatchery_Alias, c_techCountQueuedOrBetter) >= 2) {
-            AISetUserInt(player, 144, 1);
-        }
-        else {
-            if (!AIIsExpandingOrHasExpanded(player) &&
-                AIHasNearbyOpenExpansion(player) &&
-                AIHasRes(player, 300, 0)) {
-                AIExpand(player, AIGetTownLocation(player, c_townMain), c_ZB_Hatchery);
-            }
-            return;
-        }
-    }
-
-    // Establish supply, gas, and both core unit paths immediately after the natural starts.
-    AISetStock( player, 1, c_ZB_SpawningPool );
     AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
-    AISetStock( player, V3WorkerTarget(player, 16), c_ZU_Drone );
+
+    // Serial stock is reserved for prerequisites and upgrades.
+    AISetStock( player, 1, c_ZB_Hatchery_Alias );
+    AISetStock( player, 1, c_ZB_SpawningPool );
     AISetStock( player, 1, c_ZB_Extractor );
-    // Match Blizzard's Ling/Bane openings: use normal mixed checkpoints.
-    // A large UnitNext Zergling target monopolizes larva and makes the later
-    // Baneling morph unreachable.
-    AISetStock( player, 8, c_ZU_Zergling );
-    V3SetZergMainMacroHatcheries(player, macroHatcheryTarget);
     AISetStock( player, 1, c_ZB_BanelingNest );
-    AISetStock( player, V3WorkerTarget(player, 20), c_ZU_Drone );
-    AISetStock( player, 2, c_ZB_Extractor );
-    AISetStockUnitNext( player, 4, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 2, c_ZU_Queen, c_stockAlways );
     AISetStock( player, 1, c_ZB_EvolutionChamber );
     AISetStock( player, 1, c_ZR_ZerglingSpeed );
     AISetStock( player, 1, c_ZR_MeleeAttacks1 );
     AISetStock( player, 1, c_ZR_GroundCarapace1 );
 
-    if (phase <= 0) {
-        // Two mining bases plus one town-local macro Hatchery sustain the opening mix.
-        AISetStockPeons( player, V3WorkerTarget(player, 32), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-        // These are the same alternating normal-Stock shape used by
-        // Blizzard's Ling/Bane openings, extended to V3's 40-supply target.
-        AISetStockUnitNext( player, 18, c_ZU_Zergling, c_stockAlways );
-        AISetStockUnitNext( player, 8, c_ZU_Baneling, c_stockAlways );
-        AISetStockUnitNext( player, 30, c_ZU_Zergling, c_stockAlways );
-        AISetStockUnitNext( player, 16, c_ZU_Baneling, c_stockAlways );
-        AISetStockUnitNext( player, 47, c_ZU_Zergling, c_stockAlways );
-        AISetStockUnitNext( player, 33, c_ZU_Baneling, c_stockAlways );
+    // Parallel, unbounded Ling/Bane production tracks.
+    AISetStockUnitNext( player, 18, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 8, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 30, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 16, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 200, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 140, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 2, c_ZU_Queen, c_stockAlways );
 
-        return;
+    ZergBasicDefenseStock(player);
+    ZergHDEmergencyDetectionAntiAir(player);
+    ZergHDDefaultExtraStock(player);
+    V3SetZergMainMacroHatcheries(player, 1);
+
+    AIEnableStock(player);
+
+    AIScoutingEnableWithPreReq(player, 12, c_ZU_Drone, 1, c_ZU_Zergling, c_techCountCompleteOnly);
+    AISetAttackStatus(player, c_ZU_Zergling, 4, 18, c_continuousMerge);
+
+    // The upstream opening normally begins immediately.  V3 deliberately
+    // spends the first 300 minerals on a natural, so retain this upstream
+    // stock list until its own final Drone and Baneling milestones exist
+    // rather than switching at the original absolute 360-second deadline.
+    if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) < 24 ||
+        AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter) < 4) {
+        return false;
     }
 
-    // Mid game: Lair unlocks Baneling speed while town-local macro Hatcheries provide larva to replenish
-    // the high-count light ground army.  The third base and six gases support upgrades and morphs.
-    AISetStockUnitNext( player, 3, c_ZU_Queen, c_stockAlways );
+    return true;
+}
+
+bool V3ZergLingBaneUltraMid (int player) {
+    AIClearStock(player);
+
+    // Continuous economy and supply tracks.
     AISetStockPeons( player, V3WorkerTarget(player, 60), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+    AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
+
+    // Serial stock is reserved for prerequisites and upgrades.
+    AISetStock( player, 1, c_ZB_Hatchery_Alias );
+    AISetStock( player, 1, c_ZB_SpawningPool );
+    AISetStock( player, 2, c_ZB_Extractor );
+    AISetStock( player, 1, c_ZB_BanelingNest );
+    AISetStock( player, 1, c_ZB_RoachWarren );
     AISetStock( player, 1, c_ZB_Lair_Alias );
     AISetStock( player, 2, c_ZB_EvolutionChamber );
+    AISetStock( player, 1, c_ZR_ZerglingSpeed );
     AISetStock( player, 1, c_ZR_BanelingSpeed );
+    AISetStock( player, 1, c_ZR_MeleeAttacks1 );
+    AISetStock( player, 1, c_ZR_GroundCarapace1 );
     AISetStock( player, 1, c_ZR_MeleeAttacks2 );
     AISetStock( player, 1, c_ZR_GroundCarapace2 );
-    AISetStock( player, 60, c_ZU_Zergling );
-    AISetStock( player, 40, c_ZU_Baneling );
-    AISetStock( player, 100, c_ZU_Zergling );
-    AISetStock( player, 70, c_ZU_Baneling );
-    AISetStock( player, 141, c_ZU_Zergling );
-    AISetStock( player, 99, c_ZU_Baneling );
 
-    if (phase == 1) {
-        return;
+    // Parallel, unbounded Ling/Bane/Roach production tracks.
+    AISetStockUnitNext( player, 30, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 16, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 8, c_ZU_Roach, c_stockAlways );
+    AISetStockUnitNext( player, 300, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 200, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 120, c_ZU_Roach, c_stockAlways );
+    AISetStockUnitNext( player, 3, c_ZU_Queen, c_stockAlways );
+
+    ZergBasicDefenseStock(player);
+    ZergHDEmergencyDetectionAntiAir(player);
+
+    if (AITechCount(player, c_ZU_Roach, c_techCountQueuedOrBetter) >= 8) {
+        if (ZergHDFastExpand(player)) {
+            return false;
+        }
     }
 
-    // Late game only: finish the Hive and Ultralisk prerequisite chain before adding any Ultralisk
-    // target.  Six mining bases and six town-local macro Hatcheries feed the final ground force.
-    AISetStockUnitNext( player, 1, c_ZB_InfestationPit, c_stockAlways );
-    AISetStockUnitNext( player, 1, c_ZB_Hive, c_stockAlways );
-    AISetStockUnitNext( player, 1, c_ZB_UltraliskCavern, c_stockAlways );
-    AISetStock( player, 1, c_ZR_ZerglingHaste );
+    ZergHDDefaultExtraStock(player);
+    V3SetZergMainMacroHatcheries(player, 2);
+
+    AIEnableStock(player);
+
+    AISetAttackStatus(player, c_ZU_Zergling, 2, 30, c_continuousMerge);
+    if (AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly) >= 12) {
+        AISetAttackStatus(player, c_ZU_Baneling, 1, 4, c_continuousMerge);
+        AISetAttackStatus(player, c_ZU_Roach, 1, 4, c_continuousMerge);
+    }
+
+    // Keep the upstream final mid-game milestones as completion gates.  The
+    // original 390-second shortcut assumes a one-base opening; V3's earlier
+    // natural can otherwise send this build to the Ultra stage before its
+    // Ling/Bane/Roach bridge has been produced.
+    if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) < 26 ||
+        AITechCount(player, c_ZU_Roach, c_techCountInProgressOrBetter) < 12 ||
+        AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter) < 8) {
+        return false;
+    }
+
+    return true;
+}
+
+bool V3ZergLingBaneUltraLate (int player) {
+    AIClearStock(player);
+
+    // Continuous economy and supply tracks.
+    AISetStockPeons( player, V3WorkerTarget(player, 96), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
+    AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
+
+    // Serial stock is reserved for the ground-tech chain and upgrades.
+    AISetStock( player, 1, c_ZB_Hatchery_Alias );
+    AISetStock( player, 1, c_ZB_SpawningPool );
+    AISetStock( player, 4, c_ZB_Extractor );
+    AISetStock( player, 1, c_ZB_BanelingNest );
+    AISetStock( player, 1, c_ZB_RoachWarren );
+    AISetStock( player, 1, c_ZB_Lair_Alias );
+    AISetStock( player, 1, c_ZB_InfestationPit );
+    AISetStock( player, 1, c_ZB_HydraliskDen );
+    AISetStock( player, 1, c_ZB_Hive );
+    AISetStock( player, 2, c_ZB_EvolutionChamber );
+    AISetStock( player, 1, c_ZB_UltraliskCavern );
+    AISetStock( player, 1, c_ZR_ZerglingSpeed );
+    AISetStock( player, 1, c_ZR_BanelingSpeed );
     AISetStock( player, 1, c_ZR_UltraliskArmor );
+    AISetStock( player, 1, c_ZR_MeleeAttacks1 );
+    AISetStock( player, 1, c_ZR_GroundCarapace1 );
+    AISetStock( player, 1, c_ZR_MeleeAttacks2 );
+    AISetStock( player, 1, c_ZR_GroundCarapace2 );
     AISetStock( player, 1, c_ZR_MeleeAttacks3 );
     AISetStock( player, 1, c_ZR_GroundCarapace3 );
 
+    // Parallel, unbounded late-game army tracks.
+    AISetStockUnitNext( player, 470, c_ZU_Zergling, c_stockAlways );
+    AISetStockUnitNext( player, 330, c_ZU_Baneling, c_stockAlways );
+    AISetStockUnitNext( player, 160, c_ZU_Roach, c_stockAlways );
+    AISetStockUnitNext( player, 120, c_ZU_Hydralisk, c_stockAlways );
+    AISetStockUnitNext( player, 40, c_ZU_Infestor, c_stockAlways );
+    AISetStockUnitNext( player, 30, c_ZU_Ultralisk, c_stockAlways );
     AISetStockUnitNext( player, 6, c_ZU_Queen, c_stockAlways );
-    AISetStockPeons( player, V3WorkerTarget(player, 96), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-    // Exact late target: 180 + 126 + 54 = 360 army supply.  Seed each
-    // morph branch before the final totals, so Larva production is mixed
-    // rather than serially consumed by Zerglings.
-    AISetStock( player, 180, c_ZU_Zergling );
-    AISetStock( player, 126, c_ZU_Baneling );
-    AISetStock( player, 3, c_ZU_Ultralisk );
-    AISetStock( player, 360, c_ZU_Zergling );
-    AISetStock( player, 252, c_ZU_Baneling );
-    AISetStock( player, 9, c_ZU_Ultralisk );
 
+    ZergBasicDefenseStock(player);
+    ZergHDDefaultExtraStock(player);
+    ZergHDEmergencyDetectionAntiAir(player);
+    V3SetZergMainMacroHatcheries(player, 4);
+
+    AIEnableStock(player);
+
+    AISetAttackStatus(player, c_ZU_Roach, 2, 999, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Hydralisk, 1, 999, c_continuousMerge);
+
+    if (AIGetTime() < 540) {
+        if (AITechCount(player, c_ZU_Ultralisk, c_techCountInProgressOrBetter) < 6) {
+            return false;
+        }
+        if (AITechCount(player, c_ZR_UltraliskArmor, c_techCountInProgressOrBetter) < 1) {
+            return false;
+        }
+    }
+
+    return true;
 }

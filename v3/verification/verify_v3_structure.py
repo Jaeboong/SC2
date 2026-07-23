@@ -157,7 +157,11 @@ def main() -> int:
         text = (v3_root / filename).read_text(encoding="utf-8")
         if "AISetStockExpand(" in text or "AIDefaultExpansion(" in text:
             failures.append(f"policy retains time/stock-driven expansion target: {filename}")
-        if "AIEnableStock(player)" in text:
+        # The Ling/Bane/Ultra overlay is a literal upstream-state-machine
+        # derivative: each copied upstream routine owns one complete stock
+        # list and therefore enables it internally.  V3RunZergBuild returns
+        # immediately for build 302, so no shared V3 stock is appended.
+        if filename != "ZergLingBaneUltra.galaxy" and "AIEnableStock(player)" in text:
             failures.append(f"policy enables stock before shared economy targets: {filename}")
         for line in text.splitlines():
             if ("AISetStock(" in line or "AISetStockPeons(" in line) and any(

@@ -21,7 +21,7 @@ for extra in (PROJECT_ROOT, PROJECT_ROOT / "v3"):
 from s2clientprotocol import data_pb2 as data_pb  # noqa: E402
 
 from sc2team.custom_config import CustomLauncherConfig, SlotConfig  # noqa: E402
-from sc2team.custom_runtime import player_setups  # noqa: E402
+from sc2team.custom_runtime import build_runtime_map, player_setups  # noqa: E402
 from sc2team.process import discover_sc2_executable, launch_sc2, stop_process  # noqa: E402
 from sc2team.protocol import Sc2Connection  # noqa: E402
 from sc2team_v3.config import V3BuildConfig  # noqa: E402
@@ -60,7 +60,7 @@ CASES = (
 )
 
 
-def make_config(cases: tuple[BuildCase, ...]) -> CustomLauncherConfig:
+def make_config(cases: tuple[BuildCase, ...], *, melee_build: str = "Macro") -> CustomLauncherConfig:
     by_slot = {case.logical_slot: case for case in cases}
     slots = []
     for slot_id in range(1, 15):
@@ -71,7 +71,7 @@ def make_config(cases: tuple[BuildCase, ...]) -> CustomLauncherConfig:
         controller = "human" if slot_id == 1 else "custom_ai" if case or (len(cases) == 1 and slot_id == 8) else "empty"
         race = case.race if case else "Random"
         fallback = {"Terran": "bio_tank", "Protoss": "stalker_immortal", "Zerg": "roach_hydra", "Random": "random_ground"}[race]
-        slots.append(SlotConfig(slot=slot_id, controller=controller, team=1 if slot_id <= 7 else 2, race=race, build=fallback, melee_build="Macro" if case else ""))
+        slots.append(SlotConfig(slot=slot_id, controller=controller, team=1 if slot_id <= 7 else 2, race=race, build=fallback, melee_build=melee_build if case else ""))
     config = CustomLauncherConfig(version=1, slots=tuple(slots), allow_support_air=False, protoss_faction="Standard", wild_zerg=False, unit_control=False, fullscreen=False)
     config.validate()
     return config
@@ -93,6 +93,7 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
     units = [unit for unit in observation.observation.raw_data.units if unit.owner == owner]
     counts = Counter(names.get(unit.unit_type, str(unit.unit_type)) for unit in units)
     workers = sum(counts[name] for name in WORKERS)
+    larva = counts["Larva"]
     buildings = sum(1 for unit in units if unit.unit_type in structures)
     gas_tags = {
         unit.tag
@@ -173,6 +174,7 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
         "army_supply": round(army_supply, 1),
         "supply_cap": round(supply_cap, 1),
         "workers": workers,
+        "larva": larva,
         "gas_workers": gas_workers,
         "gas_workers_nearby": gas_workers_nearby,
         "gas_buildings": gas_buildings,
@@ -193,19 +195,44 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
     }
 
 
-async def run(duration: int, cases: tuple[BuildCase, ...], archive_baseline_mod: bool = False, report_path: Path | None = None) -> int:
-    config = make_config(cases)
-    v3_config = V3BuildConfig(campaign_units=True, player_builds=tuple((case.logical_slot, case.key) for case in cases))
-    build_v3_map(PROJECT_ROOT, BASE_MAP, OUTPUT_MAP, config, v3_config, observer_mode=True, active_config_file=OUTPUT_MAP.with_suffix(".json"))
-    if archive_baseline_mod:
+async def run(
+    duration: int,
+    cases: tuple[BuildCase, ...],
+    archive_baseline_mod: bool = False,
+    report_path: Path | None = None,
+    *,
+    upstream_timing: bool = False,
+) -> int:
+    # Blizzard exposes only coarse AIBuild values through the API.  Timing is
+    # the upstream pool containing the Ling/Bane opening; the resulting report
+    # records the actual roster so callers must retain only BanelingNest runs.
+    config = make_config(cases, melee_build="Timing" if upstream_timing else "Macro")
+    if upstream_timing:
+        build_runtime_map(
+            PROJECT_ROOT,
+            BASE_MAP,
+            OUTPUT_MAP,
+            config,
+            melee_only=True,
+            campaign_units_pilot=True,
+            observer_mode=True,
+            active_config_file=OUTPUT_MAP.with_suffix(".json"),
+        )
+        print("AI_SOURCE=UPSTREAM_TIMING")
+    else:
+        v3_config = V3BuildConfig(campaign_units=True, player_builds=tuple((case.logical_slot, case.key) for case in cases))
+        build_v3_map(PROJECT_ROOT, BASE_MAP, OUTPUT_MAP, config, v3_config, observer_mode=True, active_config_file=OUTPUT_MAP.with_suffix(".json"))
+        print("AI_SOURCE=V3_CUSTOM")
+    if archive_baseline_mod and not upstream_timing:
         if not ARCHIVE_BASELINE_MOD.is_file():
             raise FileNotFoundError(f"03:47 기준 mod를 찾을 수 없습니다: {ARCHIVE_BASELINE_MOD}")
         shutil.copy2(ARCHIVE_BASELINE_MOD, PROJECT_ROOT / "runtime" / "mods" / "SC2TeamV3AI.SC2Mod")
         print("V3_MOD_SOURCE=ARCHIVE_0347")
-    else:
+    elif not upstream_timing:
         print("V3_MOD_SOURCE=FORMAL_REBUILD")
     executable = discover_sc2_executable()
-    install_v3_mod(PROJECT_ROOT, executable.parents[2])
+    if not upstream_timing:
+        install_v3_mod(PROJECT_ROOT, executable.parents[2])
     process = launch_sc2(executable, PORT, 0, width=1280, height=720, fullscreen=False)
     connection: Sc2Connection | None = None
     failures: list[str] = []
@@ -226,7 +253,7 @@ async def run(duration: int, cases: tuple[BuildCase, ...], archive_baseline_mod:
             owner: snapshot(first, owner, names, data, structures, 0)["bases"]
             for owner in range(1, len(cases) + 1)
         }
-        print(f"V3_GROUND_COMPILE=PASS players={len(CASES)} unit_types={len(data)}")
+        print(f"GROUND_COMPILE=PASS source={'UPSTREAM_TIMING' if upstream_timing else 'V3_CUSTOM'} players={len(cases)} unit_types={len(data)}")
         elapsed = 5
         for game_seconds in range(180, duration + 1, 180):
             await connection.step((game_seconds - elapsed) * 16)
@@ -248,9 +275,33 @@ async def run(duration: int, cases: tuple[BuildCase, ...], archive_baseline_mod:
                 production = {name: state["counts"][name] for name in PRODUCTION_BUILDINGS if state["counts"][name] > 0}
                 print(
                     f"  P{owner} {case.label}: pop={state['army_supply']:g}/{state['supply_cap']:g} "
-                    f"workers={state['workers']} army={state['army']} buildings={state['buildings']} "
+                    f"workers={state['workers']} larva={state['larva']} army={state['army']} "
+                    f"buildings={state['buildings']} gas={state['gas_buildings']} "
+                    f"gas_workers_nearby={state['gas_workers_nearby']} "
+                    f"upgrades={state['combat_upgrade_levels']['attack']}/{state['combat_upgrade_levels']['armor']} "
                     f"bases={state['bases']} macro_hatcheries={state['macro_hatcheries']} "
                     f"expansions={state['expansions']} production={production} roster={roster}"
+                )
+            entries = list(sample["players"].values())
+            count = len(entries)
+            if count > 1:
+                def mean(getter: Any) -> float:
+                    return sum(getter(entry) for entry in entries) / count
+                print(
+                    f"  AVG(n={count}): "
+                    f"army_supply={mean(lambda e: e['army_supply']):.1f} "
+                    f"supply_cap={mean(lambda e: e['supply_cap']):.1f} "
+                    f"workers={mean(lambda e: e['workers']):.1f} "
+                    f"larva={mean(lambda e: e['larva']):.1f} "
+                    f"army={mean(lambda e: e['army']):.1f} "
+                    f"buildings={mean(lambda e: e['buildings']):.1f} "
+                    f"gas={mean(lambda e: e['gas_buildings']):.1f} "
+                    f"gas_workers_nearby={mean(lambda e: e['gas_workers_nearby']):.1f} "
+                    f"upgrades={mean(lambda e: e['combat_upgrade_levels']['attack']):.2f}/"
+                    f"{mean(lambda e: e['combat_upgrade_levels']['armor']):.2f} "
+                    f"bases={mean(lambda e: e['bases']):.1f} "
+                    f"macro_hatcheries={mean(lambda e: e['macro_hatcheries']):.1f} "
+                    f"expansions={mean(lambda e: e['expansions']):.1f}"
                 )
             samples.append(sample)
     finally:
@@ -267,7 +318,12 @@ async def run(duration: int, cases: tuple[BuildCase, ...], archive_baseline_mod:
 
     if report_path is not None:
         report_path.parent.mkdir(parents=True, exist_ok=True)
-        report_path.write_text(json.dumps({"cases": [case.__dict__ for case in cases], "samples": samples}, ensure_ascii=False, indent=2), encoding="utf-8")
+        report_path.write_text(json.dumps({
+            "source": "upstream_timing" if upstream_timing else "v3_custom",
+            "requested_melee_build": "Timing" if upstream_timing else "Macro",
+            "cases": [case.__dict__ for case in cases],
+            "samples": samples,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"V3_GROUND_REPORT={report_path}")
 
     for owner, case in enumerate(cases, start=1):
@@ -312,16 +368,40 @@ def main() -> int:
         action="store_true",
         help="install the immutable 03:47 MPQ after map assembly",
     )
+    parser.add_argument(
+        "--upstream-timing",
+        action="store_true",
+        help="run Blizzard's unmodified Timing melee AI; retain a Zerg run only if it actually selects BanelingNest",
+    )
     parser.add_argument("--build", choices=[case.key for case in CASES], help="run one build alone as runtime P1")
+    parser.add_argument(
+        "--all-lingbane",
+        action="store_true",
+        help="fill a 6v6 (12 players) with the Zerg Ling/Bane build to average out run-to-run variance",
+    )
     parser.add_argument("--report", type=Path, help="write samples and production coordinates as JSON")
     args = parser.parse_args()
     if args.duration < 180 or args.duration % 180:
         parser.error("duration must be a multiple of 180 and at least 180 seconds")
+    if args.all_lingbane and args.build:
+        parser.error("--all-lingbane and --build are mutually exclusive")
     cases = CASES
-    if args.build:
+    if args.all_lingbane:
+        template = next(case for case in CASES if case.key == "zerg_ling_bane_ultra")
+        # Slot 1 is the human/observer slot (a Computer at runtime P1 in observer
+        # mode); slots 7 and 14 stay empty so this is a symmetric 6v6 mirror.
+        mirror_slots = (1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13)
+        cases = tuple(replace(template, logical_slot=slot) for slot in mirror_slots)
+    elif args.build:
         selected = next(case for case in CASES if case.key == args.build)
         cases = (replace(selected, logical_slot=1),)
-    return asyncio.run(run(args.duration, cases, args.archive_baseline_mod, args.report))
+    return asyncio.run(run(
+        args.duration,
+        cases,
+        args.archive_baseline_mod,
+        args.report,
+        upstream_timing=args.upstream_timing,
+    ))
 
 
 if __name__ == "__main__":

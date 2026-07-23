@@ -8,6 +8,21 @@ YOU MUST HAVE TO USE KOREAN!!!!!!!!!!!!!
 2. Use [`docs/README.md`](docs/README.md) to route to the relevant detailed document.
 3. Treat [`docs/latest_status.md`](docs/latest_status.md) as the Korean work log for the **current version only** (summary + recent sections). Older sections (§1–57, superseded versions and failed experiments) are archived per version under [`docs/history/`](docs/history/); section numbers are preserved, so "§n" references resolve there.
 
+## 작업 방식 (하네스)
+
+- **Claude = 헤드 에이전트(오케스트레이터).** 직접 코드를 편집하지 않는다. 역할은
+  ① 원인 진단·측정, ② 정밀한 작업 명세 작성, ③ 결과 검증(정적 + 엔진 프로브 측정),
+  ④ 사용자 보고. 게임 동작을 바꾸는 진단은 수정 전 먼저 보고하고 동의를 받는다.
+- **Codex = 작업자.** 실제 코드 수정·매니페스트 갱신·정적 검증은 Codex 플러그인에
+  위임한다. `codex:codex-rescue` 서브에이전트로 전달하며 **기본 작업자 모델은
+  `gpt-5.6`, effort `medium`** (`--model gpt-5.6 --effort medium`; write 기본).
+- **엔진 검증은 Claude가 직접 돌린다** (SC2 프로브는 길고 상태를 봐야 하므로).
+  Codex에는 코드 편집 + 정적 검증 + 모드 빌드 해시 확인까지만 맡기고, 18분 엔진
+  측정(예: 저그 12명 미러 `probe_v3_ground_builds.py --all-lingbane`)은 Claude가 수행한다.
+- Codex에 넘기는 명세에는 반드시 대상 파일, 지켜야 할 불변식(overlay 해시 갱신,
+  금지 호출, 사용자 맵/미추적 파일 불가침, 커밋 금지), 수용 기준(`V3_STRUCTURE=PASS`,
+  `V3_AI_MOD_BUILD=PASS`)을 포함한다.
+
 ## Current source of truth
 
 - Current application/map version: `1.25.0`
