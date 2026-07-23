@@ -1,8 +1,10 @@
 # V3 03:47 기준본: 업스트림 AI 호출 흐름
 
 이 문서는 `runtime/v3-opening-static-check/SC2TeamV3AI.SC2Mod`(2026-07-23 03:47)의
-manifest와 Galaxy 소스를 기준으로 작성한다. V3 정책은 직접 명령을 발행하지 않고,
-업스트림의 stock·town·wave 엔진을 유지한다.
+manifest와 Galaxy 소스를 기준으로 작성한다. V3는 기본적으로 Stock 목표를 제공하되,
+Stock만으로는 멜리 AI가 안정적으로 만들지 못하는 것(예: UltraliskCavern 건설,
+Ultralisk 모프)은 §71/§87 방식의 게이트된 `AIBuild`/`UnitIssueOrder`로 직접 처리한다.
+`AITrain`/`AIResearch`는 여전히 쓰지 않으며, 그 밖에는 업스트림의 stock·town·wave 엔진을 유지한다.
 
 ## 초기화와 메인 상태
 

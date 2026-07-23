@@ -29,5 +29,6 @@
 - `AISetStockUnitNext`는 앞 목표가 뒤 예산을 막을 수 있으므로 순서가 중요하다.
 - 첫 확장은 `AIExpand`로 등록하고 `AIIsExpandingOrHasExpanded`로 중복을 막는다.
 - 캠페인 유닛은 catalog 외에도 maker/producer ability 연결이 필요하다.
-- V3는 Stock 목표만 제공하며 `AIBuild`, `AITrain`, `AIResearch`, 생산 목적
-  `UnitIssueOrder`를 사용하지 않는다.
+- V3는 기본적으로 Stock 목표를 제공하되, Stock만으로는 멜리 AI가 안정적으로 만들지
+  못하는 것(예: UltraliskCavern 건설, Ultralisk 모프)은 §71/§87 방식의 게이트된
+  `AIBuild`/`UnitIssueOrder`로 직접 처리한다. `AITrain`/`AIResearch`는 여전히 쓰지 않는다.

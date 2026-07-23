@@ -12,6 +12,13 @@
 
 void V3ZergRoachHydraUltraStock (int player, int phase) {
     int macroHatcheryTarget;
+    unitgroup larvae;
+    unit larva;
+    order ultraliskMorphOrder;
+    int larvaIndex;
+    int idleLarvaCount;
+    int ultraliskMorphLimit;
+    int ultraliskMorphIssued;
 
     if (phase < 0 || phase > 2) {
         return;
@@ -108,6 +115,45 @@ void V3ZergRoachHydraUltraStock (int player, int phase) {
 
     if (phase == 1) {
         return;
+    }
+
+    // §87: Stock만으로는 울트라리스크를 안정적으로 만들지 못하므로, 완료된 굴이
+    // 있을 때 유휴 라바에 검증된 LarvaTrain 6번 모프를 직접 발주한다.
+    if (AITechCount(player, c_ZB_UltraliskCavern, c_techCountCompleteOnly) >= 1) {
+        larvae = UnitGroup("Larva", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+        idleLarvaCount = 0;
+        larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+        for (;; larvaIndex -= 1) {
+            larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+            if (larva == null) {
+                break;
+            }
+            if (UnitOrderCount(larva) == 0) {
+                idleLarvaCount += 1;
+            }
+        }
+        ultraliskMorphLimit = idleLarvaCount - 3;
+        if (ultraliskMorphLimit > 4) {
+            ultraliskMorphLimit = 4;
+        }
+        if (ultraliskMorphLimit > 0) {
+            ultraliskMorphOrder = Order(AbilityCommand("LarvaTrain", 6));
+            ultraliskMorphIssued = 0;
+            larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+            for (;; larvaIndex -= 1) {
+                larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+                if (larva == null || ultraliskMorphIssued >= ultraliskMorphLimit) {
+                    break;
+                }
+                if (UnitOrderCount(larva) != 0) {
+                    continue;
+                }
+                if (UnitOrderIsValid(larva, ultraliskMorphOrder)) {
+                    UnitIssueOrder(larva, ultraliskMorphOrder, c_orderQueueAddToEnd);
+                    ultraliskMorphIssued += 1;
+                }
+            }
+        }
     }
 
     // Ultralisk prerequisites, upgrades, and stock targets intentionally begin only in phase 2.

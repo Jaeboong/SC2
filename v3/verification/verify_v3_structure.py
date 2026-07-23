@@ -169,7 +169,7 @@ def main() -> int:
             ) and "V3WorkerTarget(player," not in line:
                 failures.append(f"worker target bypasses live town capacity: {filename}: {line.strip()}")
 
-    forbidden = ("AIBuild(", "AITrain(", "AIResearch(", "UnitIssueOrder(")
+    forbidden = ("AITrain(", "AIResearch(")
     for source in v3_root.glob("*.galaxy"):
         text = source.read_text(encoding="utf-8")
         for call in forbidden:
