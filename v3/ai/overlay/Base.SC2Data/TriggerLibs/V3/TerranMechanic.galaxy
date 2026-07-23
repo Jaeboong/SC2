@@ -52,6 +52,7 @@ void V3TerranMechanicStock (int player, int phase) {
     AISetStock( player, 1, c_TB_OrbitalCommand );
     AISetStock( player, V3WorkerTarget(player, 20), c_TU_SCV );
     AISetStock( player, 2, c_TB_Refinery );
+    AISetStockFarms( player, c_TB_SupplyDepot, c_stockNormalFarms );
     // Register the bootstrap Factory before its Tech Lab and any expensive
     // Armory request.  V3SetTerranTownProduction keeps it town-local.
     V3SetTerranTownProduction(player, 3, c_TB_Factory);

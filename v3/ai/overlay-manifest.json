@@ -50,8 +50,8 @@
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
-      "bytes": 7459,
-      "sha256": "b84bafb390d4d7bbf52c62e23d797bfedc6e4e0ffc74967fac1d0c40de103c48"
+      "bytes": 7528,
+      "sha256": "88f1d6b3cfc5e5007e6139a99ebf09d0742dc0bf7b908852fa883cb6a2396617"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",
