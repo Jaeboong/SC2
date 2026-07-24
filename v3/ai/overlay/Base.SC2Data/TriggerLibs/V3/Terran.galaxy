@@ -94,17 +94,19 @@ bool V3RunTerranBuild (int player, int phase) {
     }
     if (build == 101) {
         V3TerranBionicStock(player, phase);
-        AISetAttackStatus(player, c_TU_Marine, 8, 14, c_continuousMerge);
+        // Supply-normalized attack waves, escalating by phase (§wave tuning).
+        V3SetWaveTargets(player, c_TU_Marine, 10, V3WaveSupplyForPhase(phase), 6);
+        V3SetWaveTargets(player, c_TU_Marauder, 20, V3WaveSupplyForPhase(phase), 6);
+        V3SetWaveTargets(player, c_TU_SiegeTank, 30, V3WaveSupplyForPhase(phase), 6);
+        // Medic is support: it follows the army (low minAlly) but never initiates.
+        AISetAttackStatus(player, "SC2TeamMedic", 2, 999, c_continuousMerge);
     }
     else {
         V3TerranMechanicStock(player, phase);
-        AISetAttackStatus(player, "SC2TeamGoliath", 6, 10, c_continuousMerge);
-        // Register the Factory bulk units with the wave merger so the
-        // Cyclone/Tank/Thor army forms attack waves without waiting on the
-        // Armory-gated Goliath count. Matches the upstream mech pattern
-        // (SiegeTank/Thor at minAlly 2, minSelf 999).
-        AISetAttackStatus(player, c_TU_SiegeTank, 2, 999, c_continuousMerge);
-        AISetAttackStatus(player, c_TU_Thor, 2, 999, c_continuousMerge);
+        V3SetWaveTargets(player, "SC2TeamGoliath", 30, V3WaveSupplyForPhase(phase), 6);
+        V3SetWaveTargets(player, c_TU_Cyclone, 30, V3WaveSupplyForPhase(phase), 6);
+        V3SetWaveTargets(player, c_TU_SiegeTank, 30, V3WaveSupplyForPhase(phase), 6);
+        V3SetWaveTargets(player, c_TU_Thor, 60, V3WaveSupplyForPhase(phase), 6);
     }
     V3BuildProactiveSupply(player, c_TB_SupplyDepot);
     AIDefaultEconomy(

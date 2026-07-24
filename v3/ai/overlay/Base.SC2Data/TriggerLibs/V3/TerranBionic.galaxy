@@ -191,10 +191,7 @@ void V3TerranBionicStock (int player, int phase) {
         V3SetBionicCombatStage(player, 450, 120, 80);
     }
 
-    // Register every stock unit with the standard wave merger.  Medic follows the army as support.
-    AISetAttackStatus(player, c_TU_Marine, 2, 999, c_continuousMerge);
-    AISetAttackStatus(player, c_TU_Marauder, 2, 999, c_continuousMerge);
-    AISetAttackStatus(player, "SC2TeamMedic", 1, 999, c_continuousMerge);
-    AISetAttackStatus(player, c_TU_SiegeTank, 1, 999, c_continuousMerge);
-
+    // Attack-wave thresholds are set supply-normalized in the dispatcher
+    // (V3RunTerranBuild), which runs after this stock pass and owns the wave
+    // tuning for both bionic and mechanic.
 }

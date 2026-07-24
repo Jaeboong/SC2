@@ -175,6 +175,9 @@ bool V3RunProtossBuild (int player, int phase) {
     V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
     AIEnableStock(player);
     V3EnsureProtossTech(player);
-    AISetAttackStatus(player, c_PU_Zealot, 6, 10, c_continuousMerge);
+    // Supply-normalized attack waves, escalating by phase (§wave tuning).
+    V3SetWaveTargets(player, c_PU_Zealot, 20, V3WaveSupplyForPhase(phase), 6);
+    V3SetWaveTargets(player, c_PU_Stalker, 20, V3WaveSupplyForPhase(phase), 6);
+    V3SetWaveTargets(player, c_PU_Immortal, 40, V3WaveSupplyForPhase(phase), 6);
     return true;
 }

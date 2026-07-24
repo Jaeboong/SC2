@@ -38,13 +38,18 @@ bool V3ZergLingBaneUltraOpen (int player) {
     ZergHDEmergencyDetectionAntiAir(player);
     ZergHDDefaultExtraStock(player);
     V3SetZergMainMacroHatcheries(player, 1);
+    // 302는 나머지 3경로(저그 301·테란·플토)와 달리 네이티브 경제 드라이버가
+    // 빠져 있어 확장 타운에 가스(추출장)를 못 지었다.  301과 동일한 형태로
+    // 추가 — 일꾼/공급/확장 가스를 네이티브가 처리하고 아래 독립 트랙은 보조로
+    // 유지(301에서 검증된 공존).  V3.6 병력 트랙 무회귀는 프로브로 확인.
+    AIDefaultEconomy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor, c_ZU_Overlord, c_ZU_Drone, V3MiningWorkerCapacity(player), c_stockAlways);
     V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
     V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
 
     AIEnableStock(player);
 
     AIScoutingEnableWithPreReq(player, 12, c_ZU_Drone, 1, c_ZU_Zergling, c_techCountCompleteOnly);
-    AISetAttackStatus(player, c_ZU_Zergling, 4, 18, c_continuousMerge);
+    V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(0), 6);
 
     // The upstream opening normally begins immediately.  V3 deliberately
     // spends the first 300 minerals on a natural, so retain this upstream
@@ -243,6 +248,11 @@ bool V3ZergLingBaneUltraMid (int player) {
 
     ZergHDDefaultExtraStock(player);
     V3SetZergMainMacroHatcheries(player, 2);
+    // 302는 나머지 3경로(저그 301·테란·플토)와 달리 네이티브 경제 드라이버가
+    // 빠져 있어 확장 타운에 가스(추출장)를 못 지었다.  301과 동일한 형태로
+    // 추가 — 일꾼/공급/확장 가스를 네이티브가 처리하고 아래 독립 트랙은 보조로
+    // 유지(301에서 검증된 공존).  V3.6 병력 트랙 무회귀는 프로브로 확인.
+    AIDefaultEconomy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor, c_ZU_Overlord, c_ZU_Drone, V3MiningWorkerCapacity(player), c_stockAlways);
     V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
     V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
 
@@ -251,10 +261,10 @@ bool V3ZergLingBaneUltraMid (int player) {
     V3LingBaneMorphUltralisks(player);
     V3ZergResearchRaptor(player);
 
-    AISetAttackStatus(player, c_ZU_Zergling, 2, 30, c_continuousMerge);
+    V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(1), 6);
     if (AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly) >= 12) {
-        AISetAttackStatus(player, c_ZU_Baneling, 1, 4, c_continuousMerge);
-        AISetAttackStatus(player, c_ZU_Roach, 1, 4, c_continuousMerge);
+        V3SetWaveTargets(player, c_ZU_Baneling, 5, V3WaveSupplyForPhase(1), 6);
+        V3SetWaveTargets(player, c_ZU_Roach, 20, V3WaveSupplyForPhase(1), 6);
     }
 
     // Keep the upstream final mid-game milestones as completion gates.  The
@@ -312,6 +322,11 @@ bool V3ZergLingBaneUltraLate (int player) {
     ZergHDDefaultExtraStock(player);
     ZergHDEmergencyDetectionAntiAir(player);
     V3SetZergMainMacroHatcheries(player, 4);
+    // 302는 나머지 3경로(저그 301·테란·플토)와 달리 네이티브 경제 드라이버가
+    // 빠져 있어 확장 타운에 가스(추출장)를 못 지었다.  301과 동일한 형태로
+    // 추가 — 일꾼/공급/확장 가스를 네이티브가 처리하고 아래 독립 트랙은 보조로
+    // 유지(301에서 검증된 공존).  V3.6 병력 트랙 무회귀는 프로브로 확인.
+    AIDefaultEconomy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor, c_ZU_Overlord, c_ZU_Drone, V3MiningWorkerCapacity(player), c_stockAlways);
     V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
     V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
 
@@ -320,8 +335,10 @@ bool V3ZergLingBaneUltraLate (int player) {
     V3LingBaneMorphUltralisks(player);
     V3ZergResearchRaptor(player);
 
-    AISetAttackStatus(player, c_ZU_Roach, 2, 999, c_continuousMerge);
-    AISetAttackStatus(player, c_ZU_Hydralisk, 1, 999, c_continuousMerge);
+    V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(2), 6);
+    V3SetWaveTargets(player, c_ZU_Roach, 20, V3WaveSupplyForPhase(2), 6);
+    V3SetWaveTargets(player, c_ZU_Hydralisk, 20, V3WaveSupplyForPhase(2), 6);
+    V3SetWaveTargets(player, c_ZU_Ultralisk, 80, V3WaveSupplyForPhase(2), 6);
 
     if (AIGetTime() < 540) {
         if (AITechCount(player, c_ZU_Ultralisk, c_techCountInProgressOrBetter) < 6) {

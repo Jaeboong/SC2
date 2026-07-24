@@ -87,6 +87,41 @@ int V3WorkerTarget (int player, int requested) {
     return requested;
 }
 
+// Attack-wave readiness by development phase (0/1/2).  Returns the army SUPPLY a
+// slot should mass before launching an attack wave; V3SetWaveTargets converts it
+// to a per-unit count.  Escalating early->late means bigger committed waves as
+// the game develops -- and because the target is supply-normalized, a slot that
+// has not actually massed that army yet simply does not attack (so "phase" acts
+// as an ambition ceiling, not a clock-triggered suicide charge).
+int V3WaveSupplyForPhase (int phase) {
+    if (phase >= 2) {
+        return 20;
+    }
+    if (phase == 1) {
+        return 12;
+    }
+    return 6;
+}
+
+// Set a unit's attack-wave thresholds from SUPPLY targets, so the same army
+// "weight" triggers regardless of unit cost (20 Zerglings != 20 Ultralisks).
+// foodTenths is the unit's supply x10 (Zergling 5, Roach/Marauder/Zealot 20,
+// SiegeTank/Goliath/Cyclone 30, Immortal 40, Thor 60, Ultralisk 80, Marine 10).
+// minSelf = solo-attack army; minAlly = army needed to join an ally's ongoing
+// attack (kept small via a low allySupply so support commits quickly).
+void V3SetWaveTargets (int player, string unitType, int foodTenths, int waveSupply, int allySupply) {
+    int minSelf = (waveSupply * 10 + foodTenths / 2) / foodTenths;
+    int minAlly = (allySupply * 10 + foodTenths / 2) / foodTenths;
+
+    if (minSelf < 1) {
+        minSelf = 1;
+    }
+    if (minAlly < 1) {
+        minAlly = 1;
+    }
+    AISetAttackStatus(player, unitType, minAlly, minSelf, c_continuousMerge);
+}
+
 // §88 포트(V3 내부 커스텀): 보급 선제 건설. V3는 임베디드 AI라 이 AIBuild는
 // "AI가 자기 빌드 매니저에 내는 자기 주문"이다(V1식 외부 덮어쓰기 아님).
 // Terran SupplyDepot / Protoss Pylon 공용. 사용자 지시: 여유있게, 2~3개씩,

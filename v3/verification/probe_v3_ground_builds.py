@@ -253,8 +253,27 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
         for unit in units
         if names.get(unit.unit_type) in TOWN_HALLS and unit.build_progress >= 1
     )
+    # Combat / sally-out signals.  engaged_target_tag is the tag of the unit this
+    # unit's weapon is currently locked onto -- a direct "attacking right now"
+    # indicator (0 when idle).  away/fwd_dist measure how far the army has left
+    # its own town halls: sallying out to attack vs sitting at home.
+    home_points = [(town_x, town_y) for _, town_x, town_y, _ in towns]
+    army_positions = [(float(unit.pos.x), float(unit.pos.y)) for unit in army_units]
+    engaged = sum(1 for unit in army_units if int(getattr(unit, "engaged_target_tag", 0)) != 0)
+    away = 0
+    fwd_dist = 0.0
+    if army_positions and home_points:
+        def _min_home_dist(px: float, py: float) -> float:
+            return min(((px - hx) ** 2 + (py - hy) ** 2) ** 0.5 for hx, hy in home_points)
+        away = sum(1 for px, py in army_positions if _min_home_dist(px, py) > 30.0)
+        centroid_x = sum(px for px, _ in army_positions) / len(army_positions)
+        centroid_y = sum(py for _, py in army_positions) / len(army_positions)
+        fwd_dist = round(_min_home_dist(centroid_x, centroid_y), 1)
     return {
         "army_supply": round(army_supply, 1),
+        "engaged": engaged,
+        "away": away,
+        "fwd_dist": fwd_dist,
         "supply_cap": round(supply_cap, 1),
         "workers": workers,
         "larva": larva,
@@ -280,6 +299,34 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
         "power_sites": power_sites,
         "production_sites": production_sites,
     }
+
+
+def combat_signals(observation: Any, owner: int, names: dict[int, str], structures: set[int]) -> tuple[int, int, int]:
+    """Lean per-tick combat read (no mineral scan) for high-frequency polling.
+
+    Returns (engaged, away, army_count): units currently attacking a target,
+    units more than 30 from every own town hall (sallied out), and total army.
+    """
+    army: list[tuple[float, float, int]] = []
+    homes: list[tuple[float, float]] = []
+    for unit in observation.observation.raw_data.units:
+        if unit.owner != owner:
+            continue
+        name = names.get(unit.unit_type)
+        if unit.unit_type in structures:
+            if name in TOWN_HALLS and unit.build_progress >= 1:
+                homes.append((float(unit.pos.x), float(unit.pos.y)))
+            continue
+        if name in WORKERS | SUPPORT:
+            continue
+        army.append((float(unit.pos.x), float(unit.pos.y), int(getattr(unit, "engaged_target_tag", 0))))
+    engaged = sum(1 for _, _, tag in army if tag != 0)
+    away = 0
+    if army and homes:
+        for px, py, _ in army:
+            if min(((px - hx) ** 2 + (py - hy) ** 2) ** 0.5 for hx, hy in homes) > 30.0:
+                away += 1
+    return engaged, away, len(army)
 
 
 async def run(
@@ -365,12 +412,30 @@ async def run(
             for owner in range(1, len(cases) + 1)
         }
         print(f"GROUND_COMPILE=PASS source={'UPSTREAM_TIMING' if upstream_timing else 'V3_CUSTOM'} players={len(cases)} unit_types={len(data)}")
+        # High-frequency (30s) combat accumulators, independent of the 180s
+        # structural snapshots.  combat_ticks/sally_ticks measure how OFTEN a
+        # slot is fighting / sallied out across the whole run, not just at the
+        # six coarse samples.
+        combat_ticks = {owner: 0 for owner in range(1, len(cases) + 1)}
+        sally_ticks = {owner: 0 for owner in range(1, len(cases) + 1)}
+        peak_engaged = {owner: 0 for owner in range(1, len(cases) + 1)}
+        sum_engaged = {owner: 0 for owner in range(1, len(cases) + 1)}
+        poll_count = 0
         elapsed = 5
         for game_seconds in range(30, duration + 1, 30):
             await connection.step((game_seconds - elapsed) * 16)
             elapsed = game_seconds
             observation = await connection.observation(disable_fog=True)
             scan_research_orders(observation, len(cases), ability_meta, research_seen)
+            poll_count += 1
+            for combat_owner in range(1, len(cases) + 1):
+                tick_engaged, tick_away, _ = combat_signals(observation, combat_owner, names, structures)
+                if tick_engaged > 0:
+                    combat_ticks[combat_owner] += 1
+                if tick_away >= 4:
+                    sally_ticks[combat_owner] += 1
+                peak_engaged[combat_owner] = max(peak_engaged[combat_owner], tick_engaged)
+                sum_engaged[combat_owner] += tick_engaged
             if game_seconds % 180:
                 continue
             print(f"SAMPLE minute={game_seconds // 60}")
@@ -395,6 +460,7 @@ async def run(
                     f"min_sat={state['mineral_assigned']}/{state['mineral_ideal']} "
                     f"gas_workers_nearby={state['gas_workers_nearby']} "
                     f"upgrades={state['combat_upgrade_levels']['attack']}/{state['combat_upgrade_levels']['armor']} "
+                    f"engaged={state['engaged']} away={state['away']} fwd={state['fwd_dist']:g} "
                     f"bases={state['bases']} macro_hatcheries={state['macro_hatcheries']} "
                     f"expansions={state['expansions']} production={production} roster={roster}"
                 )
@@ -417,11 +483,32 @@ async def run(
                     f"gas_workers_nearby={mean(lambda e: e['gas_workers_nearby']):.1f} "
                     f"upgrades={mean(lambda e: e['combat_upgrade_levels']['attack']):.2f}/"
                     f"{mean(lambda e: e['combat_upgrade_levels']['armor']):.2f} "
+                    f"engaged={mean(lambda e: e['engaged']):.1f} "
+                    f"away={mean(lambda e: e['away']):.1f} "
+                    f"fwd={mean(lambda e: e['fwd_dist']):.1f} "
                     f"bases={mean(lambda e: e['bases']):.1f} "
                     f"macro_hatcheries={mean(lambda e: e['macro_hatcheries']):.1f} "
                     f"expansions={mean(lambda e: e['expansions']):.1f}"
                 )
             samples.append(sample)
+        if poll_count > 0:
+            print(f"COMBAT_FREQ polls={poll_count} interval=30s")
+            for owner, case in enumerate(cases, start=1):
+                combat_ratio = combat_ticks[owner] / poll_count
+                sally_ratio = sally_ticks[owner] / poll_count
+                avg_engaged = sum_engaged[owner] / poll_count
+                print(
+                    f"  P{owner} {case.label}: combat_tick_ratio={combat_ratio:.0%} "
+                    f"sally_ratio={sally_ratio:.0%} peak_engaged={peak_engaged[owner]} "
+                    f"avg_engaged={avg_engaged:.1f}"
+                )
+            n = len(cases)
+            print(
+                f"  COMBAT_AVG: combat_tick_ratio={sum(combat_ticks.values()) / (poll_count * n):.0%} "
+                f"sally_ratio={sum(sally_ticks.values()) / (poll_count * n):.0%} "
+                f"peak_engaged={sum(peak_engaged.values()) / n:.1f} "
+                f"avg_engaged={sum(sum_engaged.values()) / (poll_count * n):.1f}"
+            )
         for owner in range(1, len(cases) + 1):
             records = [
                 {"ability_id": ability_id, **entry}

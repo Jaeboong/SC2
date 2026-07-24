@@ -109,7 +109,9 @@ bool V3RunZergBuild (int player, int phase) {
         phase = 2;
     }
     V3ZergRoachHydraUltraStock(player, phase);
-    AISetAttackStatus(player, c_ZU_Roach, 8, 14, c_continuousMerge);
+    // Supply-normalized attack waves, escalating by phase (§wave tuning).
+    V3SetWaveTargets(player, c_ZU_Roach, 20, V3WaveSupplyForPhase(phase), 6);
+    V3SetWaveTargets(player, c_ZU_Hydralisk, 20, V3WaveSupplyForPhase(phase), 6);
     AIDefaultEconomy(
         player,
         c_ZB_Hatchery_Alias,
