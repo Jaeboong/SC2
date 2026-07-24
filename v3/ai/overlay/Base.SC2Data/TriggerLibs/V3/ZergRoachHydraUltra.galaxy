@@ -88,6 +88,46 @@ void V3EnsureUltraliskCavernDrone (int player) {
     gv_v3CavernDroneDeadline[player] = AIGetTime() + 45.0;
 }
 
+// 바퀴 일부를 궤멸충(Ravager)으로 직접 모프한다.  업스트림은 AISetStock으로 하지만
+// 이 빌드(울트라 병행)에선 그 방식이 0~4마리만 나와(실측 24분 12슬롯 미러), 사용자
+// 지시로 맹독충과 동일한 직접 모프를 쓴다.  RoachWarren 완성 + 바퀴 12기+ 일 때 유휴
+// 바퀴만 틱당 3기 모프해 바퀴/궤멸충 혼합·바퀴 풀을 유지한다(전량 전환·교전 중 바퀴
+// 징발 방지).  MorphToRavager는 CAbilMorph, Execute=0(MorphToBaneling·UpgradeToHive와
+// 동일 구조; 맹독충 모프로 이미 검증됨).  궤멸충은 RoachWarren 필요.
+void V3RoachMorphRavagers (int player) {
+    unitgroup roaches;
+    unit roach;
+    order ravagerOrder;
+    int index;
+    int roachCount;
+    int issued;
+
+    if (AITechCount(player, c_ZB_RoachWarren, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    roachCount = AITechCount(player, c_ZU_Roach, c_techCountCompleteOnly);
+    if (roachCount < 12) {
+        return;
+    }
+    ravagerOrder = Order(AbilityCommand("MorphToRavager", 0));
+    roaches = UnitGroup("Roach", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    issued = 0;
+    index = UnitGroupCount(roaches, c_unitCountAlive);
+    for (;; index -= 1) {
+        roach = UnitGroupUnitFromEnd(roaches, index);
+        if (roach == c_nullUnit || issued >= 3) {
+            break;
+        }
+        if (UnitOrderCount(roach) != 0) {
+            continue;
+        }
+        if (UnitOrderIsValid(roach, ravagerOrder)) {
+            UnitIssueOrder(roach, ravagerOrder, c_orderQueueAddToEnd);
+            issued += 1;
+        }
+    }
+}
+
 void V3ZergRoachHydraUltraStock (int player, int phase) {
     int macroHatcheryTarget;
     unitgroup larvae;
@@ -193,6 +233,10 @@ void V3ZergRoachHydraUltraStock (int player, int phase) {
 
     // 케이븐은 Stock·AIBuild 모두 무시되므로 실패 시에만 드론 직접건설로 폴백(phase>=1).
     V3EnsureUltraliskCavernDrone(player);
+    // 궤멸충: 업스트림 AISetStock은 이 빌드(울트라 병행)에선 0~4만 나옴(실측) —
+    // 사용자 지시로 맹독충처럼 직접 모프로 물량을 낸다.  V3SetWaveTargets로 공격 참여.
+    V3RoachMorphRavagers(player);
+    V3SetWaveTargets(player, c_ZU_Ravager, 30, V3WaveSupplyForPhase(phase), 6);
 
     if (phase == 1) {
         return;

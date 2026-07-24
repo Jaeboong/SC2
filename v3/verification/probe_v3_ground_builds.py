@@ -56,7 +56,7 @@ CASES = (
     BuildCase(2, "Terran", "terran_mechanic", "테란 메카닉", ("SC2TeamGoliath", "Cyclone", "SiegeTank", "Thor")),
     BuildCase(3, "Protoss", "protoss_gateway", "프로토스 관문", ("Zealot", "Archon", "HighTemplar", "Sentry")),
     BuildCase(8, "Protoss", "protoss_gateway_robo", "프로토스 관문+로보", ("Zealot", "Stalker", "Sentry", "Immortal", "Colossus")),
-    BuildCase(9, "Zerg", "zerg_roach_hydra_ultra", "저그 바퀴·히드라", ("Roach", "Hydralisk", "Ultralisk")),
+    BuildCase(9, "Zerg", "zerg_roach_hydra_ultra", "저그 바퀴·히드라", ("Roach", "Ravager", "Hydralisk", "Ultralisk")),
     BuildCase(10, "Zerg", "zerg_ling_bane_ultra", "저그 저글링·맹독충", ("Zergling", "Baneling", "Ultralisk")),
 )
 
