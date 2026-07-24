@@ -8,6 +8,25 @@
 //  phase 1: mid game, 120 army supply (exact ratio)
 //  phase 2: late game, 360 army supply (exact ratio)
 //--------------------------------------------------------------------------------------------------
+
+// Orbital Command is a Command Center morph.  Requesting more Orbitals than the
+// player already has Command Centers makes the melee build manager construct
+// extra Command Centers at the main to morph them (the user-observed "4 town
+// halls stacked at home").  Gate the request on the current Command-Center-family
+// count, matching the upstream TerranVyHd pattern (orbital target raised only
+// once CommandCenter_Alias reaches that count).  Expansion stays the sole source
+// of new town halls, and it only ever places them at resource sites via
+// V3EnsureMiningExpansion -> AISetStockExpand/AIExpand -- exactly like Protoss.
+void V3SetTerranOrbitalTarget (int player, int scheduled) {
+    int halls = AITechCount(player, c_TB_CommandCenter_Alias, c_techCountInProgressOrBetter);
+    if (scheduled > halls) {
+        scheduled = halls;
+    }
+    if (scheduled >= 1) {
+        AISetStock(player, scheduled, c_TB_OrbitalCommand);
+    }
+}
+
 void V3TerranMechanicStock (int player, int phase) {
     int openingArmy;
 
@@ -49,7 +68,7 @@ void V3TerranMechanicStock (int player, int phase) {
     AISetStock( player, V3WorkerTarget(player, 16), c_TU_SCV );
     AISetStock( player, 1, c_TB_Refinery );
     AISetStock( player, V3WorkerTarget(player, 18), c_TU_SCV );
-    AISetStock( player, 1, c_TB_OrbitalCommand );
+    V3SetTerranOrbitalTarget( player, 1 );
     AISetStock( player, V3WorkerTarget(player, 20), c_TU_SCV );
     AISetStock( player, 2, c_TB_Refinery );
     AISetStockFarms( player, c_TB_SupplyDepot, c_stockNormalFarms );
@@ -73,7 +92,7 @@ void V3TerranMechanicStock (int player, int phase) {
     AISetStock( player, 1, c_TB_Armory );
 
     // Continue the two-base economy before committing to the expensive Thor tier.
-    AISetStock( player, 2, c_TB_OrbitalCommand );
+    V3SetTerranOrbitalTarget( player, 2 );
     AISetStock( player, V3WorkerTarget(player, 28), c_TU_SCV );
     AISetStock( player, 3, c_TB_Refinery );
 
@@ -106,7 +125,7 @@ void V3TerranMechanicStock (int player, int phase) {
     }
 
     // Mid-game economy: three saturated bases feeding seven Factories.
-    AISetStock( player, 3, c_TB_OrbitalCommand );
+    V3SetTerranOrbitalTarget( player, 3 );
     AISetStock( player, V3WorkerTarget(player, 48), c_TU_SCV );
     AISetStock( player, 6, c_TB_Refinery );
     AISetStock( player, 4, c_TB_FactoryTechLab );
@@ -136,7 +155,7 @@ void V3TerranMechanicStock (int player, int phase) {
     }
 
     // Late-game first macro step: four bases and enough production for 240 army supply.
-    AISetStock( player, 4, c_TB_OrbitalCommand );
+    V3SetTerranOrbitalTarget( player, 4 );
     AISetStock( player, V3WorkerTarget(player, 72), c_TU_SCV );
     AISetStock( player, 8, c_TB_Refinery );
     AISetStock( player, 7, c_TB_FactoryTechLab );
@@ -146,14 +165,14 @@ void V3TerranMechanicStock (int player, int phase) {
     AISetStockUnitNext( player, 6, c_TU_Thor, c_stockAlways );
 
     // Keep adding resource pairs before the final production and army targets.
-    AISetStock( player, 5, c_TB_OrbitalCommand );
+    V3SetTerranOrbitalTarget( player, 5 );
     AISetStock( player, V3WorkerTarget(player, 84), c_TU_SCV );
     AISetStock( player, 10, c_TB_Refinery );
     AISetStock( player, 9, c_TB_FactoryTechLab );
     AISetStock( player, 1, c_TR_VehicleWeapons3 );
     AISetStock( player, 1, c_TR_MechPlating3 );
 
-    AISetStock( player, 6, c_TB_OrbitalCommand );
+    V3SetTerranOrbitalTarget( player, 6 );
     AISetStock( player, V3WorkerTarget(player, 96), c_TU_SCV );
     AISetStock( player, 12, c_TB_Refinery );
     AISetStock( player, 12, c_TB_FactoryTechLab );

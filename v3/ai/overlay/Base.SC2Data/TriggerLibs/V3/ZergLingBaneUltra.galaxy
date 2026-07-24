@@ -106,6 +106,49 @@ void V3LingBaneMorphUltralisks (int player) {
     }
 }
 
+void V3ZergResearchRaptor (int player) {
+    unitgroup pools;
+    unit pool;
+    order researchOrder;
+
+    // 산란못이 있어야 아무 리서치도 발주 가능.
+    if (AITechCount(player, c_ZB_SpawningPool, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    pools = UnitGroup("SpawningPool", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    pool = UnitGroupUnitFromEnd(pools, UnitGroupCount(pools, c_unitCountAlive));
+    if (pool == null) {
+        return;
+    }
+
+    // (1) 아드레날린: Hive 완성 후에만 연구 가능(멜리 규칙). 스톡이 못 잡아서 직접 발주.
+    //     비용 200/200. 이미 큐/완료면 스킵. link_index 0 로 추정(메타볼릭=1 실측 → 아드레날린=0)
+    //     — B 단계 라이브 덤프로 재확인해서 틀리면 바로잡을 것.
+    if (AITechCount(player, c_ZR_ZerglingHaste, c_techCountQueuedOrBetter) < 1 &&
+        AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) >= 1 &&
+        AIHasRes(player, 200, 200)) {
+        researchOrder = Order(AbilityCommand("SpawningPoolResearch", 0));
+        if (UnitOrderIsValid(pool, researchOrder)) {
+            UnitIssueOrder(pool, researchOrder, c_orderQueueAddToEnd);
+        }
+        return;
+    }
+
+    // (2) 랩터: 사용자 지시 — 아드레날린 "완료" 후. 이미 큐/완료면 스킵. Lair 또는 Hive 필요.
+    //     비용 100/100. link_index 9 로 추정(roster InfoArray Research10, 규약 N-1)
+    //     — 마찬가지로 라이브 덤프로 재확인.
+    if (AITechCount(player, c_ZR_ZerglingHaste, c_techCountCompleteOnly) >= 1 &&
+        AITechCount(player, "SC2TeamRaptorEvolution", c_techCountQueuedOrBetter) < 1 &&
+        (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) >= 1 ||
+         AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) >= 1) &&
+        AIHasRes(player, 100, 100)) {
+        researchOrder = Order(AbilityCommand("SpawningPoolResearch", 9));
+        if (UnitOrderIsValid(pool, researchOrder)) {
+            UnitIssueOrder(pool, researchOrder, c_orderQueueAddToEnd);
+        }
+    }
+}
+
 void V3EnsureLingBaneUltraTech (int player) {
     unitgroup candidates;
     unit lair;
@@ -206,6 +249,7 @@ bool V3ZergLingBaneUltraMid (int player) {
     AIEnableStock(player);
     V3EnsureLingBaneUltraTech(player);
     V3LingBaneMorphUltralisks(player);
+    V3ZergResearchRaptor(player);
 
     AISetAttackStatus(player, c_ZU_Zergling, 2, 30, c_continuousMerge);
     if (AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly) >= 12) {
@@ -274,6 +318,7 @@ bool V3ZergLingBaneUltraLate (int player) {
     AIEnableStock(player);
     V3EnsureLingBaneUltraTech(player);
     V3LingBaneMorphUltralisks(player);
+    V3ZergResearchRaptor(player);
 
     AISetAttackStatus(player, c_ZU_Roach, 2, 999, c_continuousMerge);
     AISetAttackStatus(player, c_ZU_Hydralisk, 1, 999, c_continuousMerge);

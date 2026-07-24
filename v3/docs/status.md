@@ -1,6 +1,6 @@
 # V3 상태
 
-갱신: 2026-07-23
+갱신: 2026-07-24 (V3.15)
 
 V3 지상군 빌드 6개가 해시 고정 upstream+overlay SC2Mod로 구현되어 런처 선택과
 연결됐다. Blizzard 원본 설치 파일은 수정하지 않는다.
@@ -378,3 +378,37 @@ c_AB_ArchonWarp,1))` 동시 발령 + `AISetUnitScriptControlled(false)`)를 미�
   **6개 정지 슬롯 0.** → §91.9 "Pylon AIBuild 정지"가 **V3에선 재현 안 됨** — V3의
   `AIBuild`는 임베디드 AI 자기 빌드매니저 주문이라 V1(외부 레이어) 정지가 안 남. 직접
   발주 포팅 불필요. **§83 영구 정지도 없음**(모든 슬롯 병력 끝에 성장).
+
+## V3.15 주둔 정리 + 테크 구조물 AIBuild 전환 (2026-07-24)
+
+**(1) 전군 회군 제거 (사용자 지시).** HomeDefense에서 "궤멸 피해 시 맵 전체 병력을
+집으로 불러들이는" 회군 로직(`V3HomeDefenseRecallGroup` + assault 추적 전역/상수/
+`OwnStructureCount` 헬퍼)을 통째로 제거. **주둔(병력 25%, 최소 4기)과 국소 방어
+(도시 근처 위협에 defenders 후퇴전투/공격)는 유지.** "다들 집콕/아무도 공격 안 감"의
+실제 해소 여부는 라이브 육안 검증 몫(주둔+국소방어가 여전히 일부를 잡아둠).
+
+**(2) 302 테크 사슬을 AIBuild로 (측정 확정).** 저글링/맹독/울트라(302)가 다수 위치에서
+레어에서 멈추는 문제. 18분 12슬롯 미러로 규명: 경제 정상인데 **8/12가 InfestationPit=0**
+(사슬 첫 구조물). 스톡 우선순위 재정렬 → 무효, 우리 손으로 드론 잡아 배치하는 직접주문
+(`AIGetBuildingPlacement`+`ZergBuild`+드론 script-control 보호) → **무효(4/12)**. **melee
+AI 자체 `AIBuild`로 InfestationPit/UltraliskCavern 발주 → InfestationPit 8/12·Hive 8/12·
+울트라 5/12·첫 V3_GROUND_BUILDS=PASS.** Lair→Hive는 직접 `UpgradeToHive` morph 유지.
+→ 교훈: **테크 "구조물" 강제는 AIBuild(멜리 AI 배치+워커), morph는 UnitIssueOrder.**
+남은 것: **극단적 저글링 홍수 4슬롯**(드론~28·저글링 100+·InfestPit 0)은 AIBuild로도
+안 됨 — 테크 이전의 상류 "저글링만 뽑는" 행동, §68 병력캡 금지라 경제 넛지로 접근 필요.
+
+**(3) 프로토스 Forge/Twilight/Templar도 AIBuild.** 같은 패턴을 Gateway/Robo 공유
+디스패처에 `V3EnsureProtossTech`로 추가(Forge·Twilight는 CyberneticsCore 완성 후=§91
+순서, Templar는 TwilightCouncil 완성 후 게이트). 프로토스는 저그와 달리 원래 소수만
+막힘: 18분 미러 baseline Forge 11/12·Templar 10/12 → **AIBuild 후 Forge 12/12·Templar
+11/12**, 사용자 보고 "제련소 안 짓는 플토" 해소. (P1은 경제 뒤처지는 단일 슬롯, Templar
+미도달 잔존.)
+
+**(4) 오버레이 galaxy 컴파일 함정 2개 규명(§89 재현).** (2)의 드론-직접주문 작업 중
+`PointWithOffsetPolar`(map galaxy엔 있으나 **AI mod엔 미정의**)와 C 스타일 배열 선언
+`fixed gv_x[16];`(Galaxy는 `fixed[16] gv_x;`만)이 mod 컴파일을 깨 **플레이어가 스폰조차
+안 됨**. 구조검증·mod빌드는 galaxy 컴파일을 안 해서 못 잡음 → `--upstream-timing` 컨트롤
+(V3 mod 미설치)로 격리 확정. 자세히는 build-integration.md "함정" 절.
+
+**커밋:** `0155b23`(회군 제거+초기 직접테크+컴파일 수정) → `f2c4738`(302 AIBuild) →
+`79fff4e`(프로토스 AIBuild). 브랜치 `agent/v3-custom-ai-expansion-fix`.

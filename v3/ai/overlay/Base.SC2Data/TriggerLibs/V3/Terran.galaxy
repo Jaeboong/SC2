@@ -68,7 +68,6 @@ void V3SetTerranTownProduction (int player, int total, string aliasType) {
 }
 
 include "TriggerLibs/V3/ExpansionGas"
-include "TriggerLibs/V3/HomeDefense"
 include "TriggerLibs/V3/TerranBionic"
 include "TriggerLibs/V3/TerranMechanic"
 
@@ -100,9 +99,14 @@ bool V3RunTerranBuild (int player, int phase) {
     else {
         V3TerranMechanicStock(player, phase);
         AISetAttackStatus(player, "SC2TeamGoliath", 6, 10, c_continuousMerge);
+        // Register the Factory bulk units with the wave merger so the
+        // Cyclone/Tank/Thor army forms attack waves without waiting on the
+        // Armory-gated Goliath count. Matches the upstream mech pattern
+        // (SiegeTank/Thor at minAlly 2, minSelf 999).
+        AISetAttackStatus(player, c_TU_SiegeTank, 2, 999, c_continuousMerge);
+        AISetAttackStatus(player, c_TU_Thor, 2, 999, c_continuousMerge);
     }
     V3BuildProactiveSupply(player, c_TB_SupplyDepot);
-    V3HomeDefenseSteer(player);
     AIDefaultEconomy(
         player,
         c_TB_CommandCenter_Alias,

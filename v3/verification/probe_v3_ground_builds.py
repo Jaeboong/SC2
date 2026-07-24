@@ -19,6 +19,7 @@ for extra in (PROJECT_ROOT, PROJECT_ROOT / "v3"):
         sys.path.insert(0, str(extra))
 
 from s2clientprotocol import data_pb2 as data_pb  # noqa: E402
+from s2clientprotocol import sc2api_pb2 as sc_pb  # noqa: E402
 
 from sc2team.custom_config import CustomLauncherConfig, SlotConfig  # noqa: E402
 from sc2team.custom_runtime import build_runtime_map, player_setups  # noqa: E402
@@ -78,8 +79,6 @@ def make_config(cases: tuple[BuildCase, ...], *, melee_build: str = "Macro") -> 
 
 
 async def unit_data(connection: Sc2Connection) -> tuple[dict[int, str], dict[int, Any], set[int]]:
-    from s2clientprotocol import sc2api_pb2 as sc_pb
-
     request = sc_pb.Request()
     request.data.CopyFrom(sc_pb.RequestData(unit_type_id=True))
     response = (await connection.request(request)).data
@@ -87,6 +86,67 @@ async def unit_data(connection: Sc2Connection) -> tuple[dict[int, str], dict[int
     data = {unit.unit_id: unit for unit in response.units}
     structures = {unit.unit_id for unit in response.units if data_pb.Structure in unit.attributes}
     return names, data, structures
+
+
+async def ability_metadata(connection: Sc2Connection) -> dict[int, dict[str, str | int]]:
+    """Return order ability labels/indexes for research-order attribution."""
+
+    request = sc_pb.Request()
+    request.data.CopyFrom(sc_pb.RequestData(ability_id=True))
+    try:
+        abilities = (await connection.request(request)).data.abilities
+        return {
+            int(ability.ability_id): {
+                "link_name": str(ability.link_name or ""),
+                "link_index": int(ability.link_index or 0),
+                "friendly_name": str(ability.friendly_name or ""),
+                "button_name": str(ability.button_name or ""),
+            }
+            for ability in abilities
+        }
+    except Exception:
+        return {}
+
+
+def scan_research_orders(
+    observation: Any,
+    player_count: int,
+    ability_meta: dict[int, dict[str, str | int]],
+    research_seen: dict[int, dict[int, dict[str, str | int]]],
+) -> None:
+    """Record all visible AI research orders with one raw-unit pass."""
+
+    for unit in observation.observation.raw_data.units:
+        owner = int(unit.owner)
+        if not 1 <= owner <= player_count or not unit.orders:
+            continue
+        for order in unit.orders:
+            ability_id = int(order.ability_id)
+            metadata = ability_meta.get(ability_id)
+            if metadata is not None:
+                link_name = str(metadata["link_name"])
+                friendly_name = str(metadata["friendly_name"])
+                research_label = f"{link_name} {friendly_name}".lower()
+                if research_label and "research" not in research_label:
+                    continue
+                name = friendly_name or link_name or str(ability_id)
+                link_index = int(metadata["link_index"])
+            else:
+                # An unavailable/unknown ability record is ambiguous: retain it
+                # rather than losing a custom research order.
+                name = str(ability_id)
+                link_name = ""
+                link_index = 0
+            entry = research_seen[owner].setdefault(
+                ability_id,
+                {
+                    "name": name,
+                    "link_name": link_name,
+                    "link_index": link_index,
+                    "count_frames": 0,
+                },
+            )
+            entry["count_frames"] = int(entry["count_frames"]) + 1
 
 
 def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int, Any], structures: set[int], baseline_bases: int) -> dict[str, Any]:
@@ -267,11 +327,35 @@ async def run(
     peak_roster: dict[int, Counter[str]] = {owner: Counter() for owner in range(1, len(cases) + 1)}
     peak_expansions: dict[int, int] = {owner: 0 for owner in range(1, len(cases) + 1)}
     samples: list[dict[str, Any]] = []
+    research_seen: dict[int, dict[int, dict[str, str | int]]] = {
+        owner: {} for owner in range(1, len(cases) + 1)
+    }
     try:
         connection = await Sc2Connection.open(PORT)
         await connection.create_game_with_setups(OUTPUT_MAP.name, OUTPUT_MAP.read_bytes(), player_setups(config, observer=True), realtime=False)
         await connection.join_as_observer()
         names, data, structures = await unit_data(connection)
+        ability_meta = await ability_metadata(connection)
+        ability_dump = sorted(
+            (
+                str(meta["link_name"]),
+                int(meta["link_index"]),
+                ability_id,
+                str(meta["friendly_name"]),
+                str(meta["button_name"]),
+            )
+            for ability_id, meta in ability_meta.items()
+            if "research" in str(meta["link_name"]).lower()
+            or "raptor" in str(meta["friendly_name"]).lower()
+            or "raptor" in str(meta["button_name"]).lower()
+            or "adrenal" in str(meta["friendly_name"]).lower()
+            or "adrenal" in str(meta["button_name"]).lower()
+        )
+        for link_name, link_index, ability_id, friendly_name, button_name in ability_dump:
+            print(
+                f"ABILITY_DUMP link={link_name}#{link_index} id={ability_id} "
+                f"friendly='{friendly_name}' button='{button_name}'"
+            )
         await connection.step(5 * 16)
         first = await connection.observation(disable_fog=True)
         owner_counts = Counter(int(unit.owner) for unit in first.observation.raw_data.units)
@@ -282,10 +366,13 @@ async def run(
         }
         print(f"GROUND_COMPILE=PASS source={'UPSTREAM_TIMING' if upstream_timing else 'V3_CUSTOM'} players={len(cases)} unit_types={len(data)}")
         elapsed = 5
-        for game_seconds in range(180, duration + 1, 180):
+        for game_seconds in range(30, duration + 1, 30):
             await connection.step((game_seconds - elapsed) * 16)
             elapsed = game_seconds
             observation = await connection.observation(disable_fog=True)
+            scan_research_orders(observation, len(cases), ability_meta, research_seen)
+            if game_seconds % 180:
+                continue
             print(f"SAMPLE minute={game_seconds // 60}")
             sample = {"second": game_seconds, "players": {}}
             for owner, case in enumerate(cases, start=1):
@@ -335,6 +422,35 @@ async def run(
                     f"expansions={mean(lambda e: e['expansions']):.1f}"
                 )
             samples.append(sample)
+        for owner in range(1, len(cases) + 1):
+            records = [
+                {"ability_id": ability_id, **entry}
+                for ability_id, entry in sorted(research_seen[owner].items())
+            ]
+            print(f"RESEARCH_SEEN P{owner}={records}")
+        adrenal_owners = [
+            owner
+            for owner, abilities in research_seen.items()
+            if any(
+                "adrenal" in f"{entry['name']} {entry['link_name']}".lower()
+                for entry in abilities.values()
+            )
+        ]
+        raptor_owners = [
+            owner
+            for owner, abilities in research_seen.items()
+            if any(
+                "raptor" in f"{entry['name']} {entry['link_name']}".lower()
+                or "raptor" in str(ability_meta.get(ability_id, {}).get("button_name", "")).lower()
+                or (
+                    entry["link_name"] == "SpawningPoolResearch"
+                    and int(entry["link_index"]) in (9, 10)
+                )
+                for ability_id, entry in abilities.items()
+            )
+        ]
+        print(f"ADRENAL_RESEARCH_SEEN={adrenal_owners}")
+        print(f"RAPTOR_RESEARCH_SEEN={raptor_owners}")
     finally:
         if connection is not None:
             try:
@@ -354,6 +470,10 @@ async def run(
             "requested_melee_build": "Timing" if upstream_timing else "Macro",
             "cases": [case.__dict__ for case in cases],
             "samples": samples,
+            "research_seen": {
+                str(owner): {str(ability_id): entry for ability_id, entry in abilities.items()}
+                for owner, abilities in research_seen.items()
+            },
         }, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"V3_GROUND_REPORT={report_path}")
 

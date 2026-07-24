@@ -152,6 +152,17 @@ def main() -> int:
             if required not in text:
                 failures.append(f"race runner has no expansion economy policy {required}: {filename}")
 
+    # Custom home-defense / ally-support layer was fully withdrawn (user directive):
+    # local defense and ally support are returned to Blizzard's native melee AI
+    # waves.  HomeDefense.galaxy is deleted and no race runner includes or calls it.
+    home_defense = v3_root / "HomeDefense.galaxy"
+    if home_defense.is_file():
+        failures.append("home-defense policy was withdrawn but HomeDefense.galaxy still exists")
+    for filename in ("Terran.galaxy", "Protoss.galaxy", "Zerg.galaxy"):
+        text = (v3_root / filename).read_text(encoding="utf-8")
+        if 'HomeDefense' in text or "V3HomeDefenseSteer" in text:
+            failures.append(f"race runner still references withdrawn home-defense policy: {filename}")
+
     worker_types = ("c_TU_SCV", "c_PU_Probe", "c_ZU_Drone")
     for filename in policy_helpers:
         text = (v3_root / filename).read_text(encoding="utf-8")

@@ -107,7 +107,6 @@ void V3SetProtossTownProduction (int player, int total, string aliasType) {
 }
 
 include "TriggerLibs/V3/ExpansionGas"
-include "TriggerLibs/V3/HomeDefense"
 include "TriggerLibs/V3/ProtossGateway"
 include "TriggerLibs/V3/ProtossGatewayRobo"
 
@@ -163,7 +162,6 @@ bool V3RunProtossBuild (int player, int phase) {
         V3ProtossGatewayRoboStock(player, phase);
     }
     V3BuildProactiveSupply(player, c_PB_Pylon);
-    V3HomeDefenseSteer(player);
     AIDefaultEconomy(
         player,
         c_PB_Nexus,
