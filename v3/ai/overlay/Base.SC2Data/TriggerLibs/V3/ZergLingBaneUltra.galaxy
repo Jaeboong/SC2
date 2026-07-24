@@ -111,6 +111,121 @@ void V3LingBaneMorphUltralisks (int player) {
     }
 }
 
+// 라바가 30개+ 쌓여도 멜리 Stock 엔진이 틱당 소수만 소비하는 문제(§85~89에서
+// P15에 대해 실측된 것과 동일)를 플레이어 링/베인 빌드에서도 끊는다.  울트라
+// 전용이던 직접 라바 모프를 링/바퀴/히드라로 일반화하고, 저글링→맹독충 모프까지
+// 추가한다.  Stock 트랙은 그대로 두고(공존 — §V3.6 검증 패턴) 유휴 라바를 즉시
+// 병력으로 전환하는 보조 배수로다.  인덱스는 벤더 LarvaTrain InfoArray(TrainN→N-1)
+// 실측: 저글링 1, 히드라 3, 바퀴 9(울트라 6은 위 별도 함수).  맹독충은 라바가
+// 아니라 저글링 CAbilMorph "MorphToBaneling"(Execute=0, UpgradeToHive와 동일 구조).
+void V3LingBaneMorphArmy (int player) {
+    unitgroup larvae;
+    unit larva;
+    unitgroup lings;
+    unit ling;
+    order lingOrder;
+    order roachOrder;
+    order hydraOrder;
+    order banelingOrder;
+    int index;
+    int idleLarvaCount;
+    int morphBudget;
+    int morphIssued;
+    int rotation;
+    int lingCount;
+    int banelingIssued;
+    bool hasRoach;
+    bool hasHydra;
+    bool hasBaneling;
+
+    lingOrder = Order(AbilityCommand("LarvaTrain", 1));
+    roachOrder = Order(AbilityCommand("LarvaTrain", 9));
+    hydraOrder = Order(AbilityCommand("LarvaTrain", 3));
+    hasRoach = AITechCount(player, c_ZB_RoachWarren, c_techCountCompleteOnly) >= 1;
+    hasHydra = AITechCount(player, c_ZB_HydraliskDen, c_techCountCompleteOnly) >= 1;
+    hasBaneling = AITechCount(player, c_ZB_BanelingNest, c_techCountCompleteOnly) >= 1;
+
+    // (1) 유휴 라바 → 링/바퀴/히드라 라운드로빈.  드론/오버로드용 3마리는 항상
+    //     남긴다(§92).  자금/공급 부족은 UnitOrderIsValid가 자동 차단한다.
+    larvae = UnitGroup("Larva", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    idleLarvaCount = 0;
+    index = UnitGroupCount(larvae, c_unitCountAlive);
+    for (;; index -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, index);
+        if (larva == null) {
+            break;
+        }
+        if (UnitOrderCount(larva) == 0) {
+            idleLarvaCount += 1;
+        }
+    }
+    morphBudget = idleLarvaCount - 3;
+    morphIssued = 0;
+    rotation = 0;
+    if (morphBudget > 0) {
+        index = UnitGroupCount(larvae, c_unitCountAlive);
+        for (;; index -= 1) {
+            larva = UnitGroupUnitFromEnd(larvae, index);
+            if (larva == null || morphIssued >= morphBudget) {
+                break;
+            }
+            if (UnitOrderCount(larva) != 0) {
+                continue;
+            }
+            // 선호 타입(로테이션 링/바퀴/히드라)을 먼저, 자금 부족 시 링으로 폴백.
+            if (rotation == 1 && hasRoach && UnitOrderIsValid(larva, roachOrder)) {
+                UnitIssueOrder(larva, roachOrder, c_orderQueueAddToEnd);
+            }
+            else if (rotation == 2 && hasHydra && UnitOrderIsValid(larva, hydraOrder)) {
+                UnitIssueOrder(larva, hydraOrder, c_orderQueueAddToEnd);
+            }
+            else if (UnitOrderIsValid(larva, lingOrder)) {
+                UnitIssueOrder(larva, lingOrder, c_orderQueueAddToEnd);
+            }
+            else if (hasRoach && UnitOrderIsValid(larva, roachOrder)) {
+                UnitIssueOrder(larva, roachOrder, c_orderQueueAddToEnd);
+            }
+            else if (hasHydra && UnitOrderIsValid(larva, hydraOrder)) {
+                UnitIssueOrder(larva, hydraOrder, c_orderQueueAddToEnd);
+            }
+            else {
+                continue;
+            }
+            morphIssued += 1;
+            rotation += 1;
+            if (rotation >= 3) {
+                rotation = 0;
+            }
+        }
+    }
+
+    // (2) 저글링 → 맹독충.  전량 전환 방지: 저글링이 12기 이상일 때 유휴 저글링만
+    //     틱당 최대 3기 모프해 링/베인 혼합을 유지한다(교전 중 저글링은 건드리지
+    //     않도록 UnitOrderCount == 0 만 대상).
+    if (hasBaneling) {
+        lingCount = AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly);
+        if (lingCount >= 12) {
+            banelingOrder = Order(AbilityCommand("MorphToBaneling", 0));
+            lings = UnitGroup("Zergling", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+            banelingIssued = 0;
+            index = UnitGroupCount(lings, c_unitCountAlive);
+            for (;; index -= 1) {
+                ling = UnitGroupUnitFromEnd(lings, index);
+                if (ling == null || banelingIssued >= 3) {
+                    break;
+                }
+                if (UnitOrderCount(ling) != 0) {
+                    continue;
+                }
+                if (UnitOrderIsValid(ling, banelingOrder)) {
+                    UnitIssueOrder(ling, banelingOrder, c_orderQueueAddToEnd);
+                    banelingIssued += 1;
+                }
+            }
+        }
+    }
+}
+
 void V3ZergResearchRaptor (int player) {
     unitgroup pools;
     unit pool;
@@ -258,7 +373,9 @@ bool V3ZergLingBaneUltraMid (int player) {
 
     AIEnableStock(player);
     V3EnsureLingBaneUltraTech(player);
+    V3EnsureUltraliskCavernDrone(player);
     V3LingBaneMorphUltralisks(player);
+    V3LingBaneMorphArmy(player);
     V3ZergResearchRaptor(player);
 
     V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(1), 6);
@@ -332,7 +449,9 @@ bool V3ZergLingBaneUltraLate (int player) {
 
     AIEnableStock(player);
     V3EnsureLingBaneUltraTech(player);
+    V3EnsureUltraliskCavernDrone(player);
     V3LingBaneMorphUltralisks(player);
+    V3LingBaneMorphArmy(player);
     V3ZergResearchRaptor(player);
 
     V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(2), 6);

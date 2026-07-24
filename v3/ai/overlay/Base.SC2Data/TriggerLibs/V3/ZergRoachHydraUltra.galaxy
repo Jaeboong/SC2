@@ -10,6 +10,84 @@
 //  army-supply target above. No air combat unit is stocked by this policy.
 //==================================================================================================
 
+fixed[16] gv_v3CavernGraceUntil;
+fixed[16] gv_v3CavernDroneDeadline;
+
+// UltraliskCavern만 멜리 AI가 Stock·AIBuild 둘 다 무시하는 게 측정됐다(18분 12슬롯
+// ling/bane 미러: Hive 도달 10/12, 케이븐/울트라 0/12).  구조물이라 모프 대상이 아니라서
+// "실패 시에만" 개입하는 폴백을 둔다: Hive가 완성됐는데도 유예(90s — 사용자 관측 '보통
+// 하이브 후 2분 내 생김')가 지나도록 케이븐이 착공(InProgressOrBetter)조차 0이면, 그때만
+// 유휴가 아닌 드론 하나에 직접 ZergBuild 7(=UltraliskCavern; 벤더 Build8 실측, N-1=7)을
+// 발주한다.  멜리 AI(또는 기존 AIBuild)가 스스로 지으면 케이븐 count>0이 되어 이 블록엔
+// 아예 들어오지 않는다.  주문/배치는 야생저그 하태리 재건과 동일 형식
+// (AIGetBuildingPlacement + OrderTargetingPoint) — 오버레이 네이티브로 검증된 경로다.
+void V3EnsureUltraliskCavernDrone (int player) {
+    point townPoint;
+    point buildPoint;
+    order buildOrder;
+    unitgroup drones;
+    unit drone;
+    unit chosen;
+    int index;
+
+    // Hive 없으면 대상 아님(유예 초기화).
+    if (AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) < 1) {
+        gv_v3CavernGraceUntil[player] = 0.0;
+        return;
+    }
+    // 이미 착공/완성 → 정상 경로가 해냈다. 개입하지 않는다.
+    if (AITechCount(player, c_ZB_UltraliskCavern, c_techCountInProgressOrBetter) >= 1) {
+        return;
+    }
+    // 실패 판정용 유예 시작(Hive 완성 + 케이븐 0을 처음 본 시점 + 90s).
+    if (gv_v3CavernGraceUntil[player] == 0.0) {
+        gv_v3CavernGraceUntil[player] = AIGetTime() + 90.0;
+    }
+    if (AIGetTime() < gv_v3CavernGraceUntil[player]) {
+        return;
+    }
+    // 드론이 건설지로 걸어가는 동안 매 틱 재발주하지 않도록 스로틀.
+    if (AIGetTime() < gv_v3CavernDroneDeadline[player]) {
+        return;
+    }
+    if (!AIHasRes(player, 150, 200)) {
+        return;
+    }
+
+    townPoint = AIGetTownLocation(player, AIGetMainTown(player));
+    buildPoint = AIGetBuildingPlacement(
+        player,
+        townPoint,
+        c_ZB_UltraliskCavern,
+        c_makeCenter | c_ignoreDanger
+    );
+    if (buildPoint == null || DistanceBetweenPoints(buildPoint, townPoint) > 18.0) {
+        return;
+    }
+    buildOrder = OrderTargetingPoint(AbilityCommand("ZergBuild", 7), buildPoint);
+
+    // 유휴 드론은 저그에서 드물다.  주문 유효성만 보고 채굴 드론 하나를 뽑아
+    // 건설로 돌린다(드론은 건설 착수 시 구조물로 소모됨 = 정상 비용).
+    drones = UnitGroup("Drone", player, RegionCircle(townPoint, 30.0), UnitFilter(0, 0, 0, 0), 0);
+    chosen = c_nullUnit;
+    index = UnitGroupCount(drones, c_unitCountAlive);
+    for (;; index -= 1) {
+        drone = UnitGroupUnitFromEnd(drones, index);
+        if (drone == c_nullUnit) {
+            break;
+        }
+        if (UnitOrderIsValid(drone, buildOrder)) {
+            chosen = drone;
+            break;
+        }
+    }
+    if (chosen == c_nullUnit) {
+        return;
+    }
+    UnitIssueOrder(chosen, buildOrder, c_orderQueueReplace);
+    gv_v3CavernDroneDeadline[player] = AIGetTime() + 45.0;
+}
+
 void V3ZergRoachHydraUltraStock (int player, int phase) {
     int macroHatcheryTarget;
     unitgroup larvae;
@@ -112,6 +190,9 @@ void V3ZergRoachHydraUltraStock (int player, int phase) {
     AISetStockUnitNext(player, 1, c_ZB_UltraliskCavern, c_stockAlways);
     AISetStock(player, 1, c_ZR_UltraliskArmor);
     AISetStockUnitNext(player, 30, c_ZU_Ultralisk, c_stockAlways);
+
+    // 케이븐은 Stock·AIBuild 모두 무시되므로 실패 시에만 드론 직접건설로 폴백(phase>=1).
+    V3EnsureUltraliskCavernDrone(player);
 
     if (phase == 1) {
         return;
