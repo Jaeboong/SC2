@@ -290,6 +290,11 @@ def snapshot(observation: Any, owner: int, names: dict[int, str], data: dict[int
         "bases": bases,
         "town_halls": town_halls,
         "macro_hatcheries": macro_hatcheries,
+        # Town halls that are neither a mining base nor a Zerg macro hatchery:
+        # for Terran/Protoss this is exactly the "Command Center built on empty
+        # ground near the main" over-build the town-hall cap targets. Should
+        # trend to ~0 after the ExpansionGas maximumTowns ceiling.
+        "stray_halls": max(0, town_halls - bases - macro_hatcheries),
         "expansions": max(0, bases - baseline_bases),
         "counts": counts,
         "towns": [
@@ -461,7 +466,8 @@ async def run(
                     f"gas_workers_nearby={state['gas_workers_nearby']} "
                     f"upgrades={state['combat_upgrade_levels']['attack']}/{state['combat_upgrade_levels']['armor']} "
                     f"engaged={state['engaged']} away={state['away']} fwd={state['fwd_dist']:g} "
-                    f"bases={state['bases']} macro_hatcheries={state['macro_hatcheries']} "
+                    f"bases={state['bases']} town_halls={state['town_halls']} "
+                    f"stray_halls={state['stray_halls']} macro_hatcheries={state['macro_hatcheries']} "
                     f"expansions={state['expansions']} production={production} roster={roster}"
                 )
             entries = list(sample["players"].values())
@@ -487,6 +493,7 @@ async def run(
                     f"away={mean(lambda e: e['away']):.1f} "
                     f"fwd={mean(lambda e: e['fwd_dist']):.1f} "
                     f"bases={mean(lambda e: e['bases']):.1f} "
+                    f"stray_halls={mean(lambda e: e['stray_halls']):.1f} "
                     f"macro_hatcheries={mean(lambda e: e['macro_hatcheries']):.1f} "
                     f"expansions={mean(lambda e: e['expansions']):.1f}"
                 )
@@ -627,6 +634,11 @@ def main() -> int:
         action="store_true",
         help="fill a 6v6 (12 players) with the Protoss Gateway build to average out run-to-run variance",
     )
+    parser.add_argument(
+        "--all-mechanic",
+        action="store_true",
+        help="fill a 6v6 (12 players) with the Terran Mechanic build -- maximum expansion-site contention for measuring the town-hall over-build cap",
+    )
     parser.add_argument("--report", type=Path, help="write samples and production coordinates as JSON")
     parser.add_argument("--mirror-count", type=int, default=12, help="even number of mirror slots (2..12); split evenly across the two teams")
     args = parser.parse_args()
@@ -638,6 +650,7 @@ def main() -> int:
             (args.all_lingbane, "zerg_ling_bane_ultra"),
             (args.all_roach_hydra, "zerg_roach_hydra_ultra"),
             (args.all_gateway, "protoss_gateway"),
+            (args.all_mechanic, "terran_mechanic"),
         )
         if flag
     ]
