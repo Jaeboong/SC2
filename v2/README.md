@@ -75,7 +75,7 @@ V1은 유닛 제어·빌드 강제·생산 규칙·구매·연구를 전부 우�
 | 문서 | 내용 |
 | --- | --- |
 | [`docs/status.md`](docs/status.md) | **현재 상태·실측 수치·미해결 문제** |
-| [`../HANDOFF_V2.md`](../HANDOFF_V2.md) | 이어받을 사람을 위한 핸드오프 |
+| [`../docs/HANDOFF.md`](../docs/HANDOFF.md) | 프로젝트 전체 핸드오프 (V2 전용 `HANDOFF_V2.md`는 삭제됨) |
 | [`docs/builds.md`](docs/builds.md) | 밀레 AI 기본 빌드 6종 + 종족별 세부 빌드 |
 | [`docs/harness.md`](docs/harness.md) | 검증 하네스 T0~T4 구조와 규칙 |
 

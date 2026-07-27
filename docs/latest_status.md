@@ -1,4 +1,8 @@
-# SC2 Custom AI 최신 상태 (v1.25.0)
+# SC2 Custom AI 최신 상태 (v1.25.0 — V1 작업 로그)
+
+> **이건 V1 런타임 맵 시스템의 작업 로그다(§58–§108).** V1 AI 계층은 현재 플레이에
+> 쓰이지 않는다. 현재 시스템의 로그는 → [`../v3/docs/status.md`](../v3/docs/status.md)
+> V1 규율 요약은 → [`history/v1-ai-rules.md`](history/v1-ai-rules.md)
 
 최종 갱신: 2026-07-21 (Asia/Seoul)
 
@@ -3650,3 +3654,10 @@ humanRuntimeId, strategyBridge, bridgeProbe)`로 옮겼다. `runtime.cjs`는 호
 5. 성능 갈래: 관측 경로 A/B를 릴리스 런처 자체로 재실행(§102.8의 미해결
    최대 카드), `_dispatch_supports` 2차식 제거 — 단 유닛 제어 off가 기본이
    된 지금은 파이썬 제어기 자체가 안 돌므로 우선순위 재평가 필요.
+
+## §106–§108 → V3 로그로 이동
+
+§106(P15 캠페인형 야생 저그), §107(라바·테크·웨이브 수정), §108(공격 트리거 통일 +
+생산 6티어 개편)은 V1 MapScript가 아니라 **V3 오버레이 작업**이다. 섹션 번호를 그대로 두고
+[`../v3/docs/status.md`](../v3/docs/status.md)로 옮겼다 — 코드 주석과 다른 문서의 "§106"
+같은 참조는 그쪽에서 해결된다.

@@ -1,4 +1,8 @@
-# Modifying the runtime map
+# Modifying the runtime map (V1 — 일부만 유효)
+
+> **AI 계층 부분은 비활성이다.** V3는 `melee_only=True`로 이 빌더의 **맵 계층만** 쓴다.
+> 현재 유효한 맵 계층 규율 → [`../rules/map-layer.md`](../rules/map-layer.md)
+> V1 AI 계층 규율 → [`../history/v1-ai-rules.md`](../history/v1-ai-rules.md)
 
 ## Scope
 
