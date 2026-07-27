@@ -54,6 +54,15 @@ npm install --prefix .\tools
 
 ## 맵 빌드
 
+> **`maps/` 에는 현재 플레이용 베이스 맵 하나만 둔다.** 원본·중간 산출물·후보 맵은
+> 작업 트리에서 제거했다. 아래 명령을 다시 돌리려면 먼저 git 히스토리에서 꺼낸다:
+>
+> ```powershell
+> git checkout cbd61c0 -- maps/source/europe-melee-2-original.SC2Map
+> ```
+>
+> PowerShell 의 `>` 리다이렉트는 바이너리를 깨뜨리므로 `git show` 대신 `git checkout` 을 쓴다.
+
 확보한 정확한 원본으로 다음과 같이 다시 빌드할 수 있다.
 
 ```powershell
