@@ -17,7 +17,19 @@ const TEAM_LAYOUTS = new Map([
   [4, [3, 3, 3, 1, 1, 1, 1, 4, 4, 4, 2, 2, 2, 4]],
 ]);
 
-function parseMapInfoPlayers(buffer) {
+// SC2 의 플레이어 슬롯 상한(16)보다 넉넉히 잡은 개연성 한계. 이보다 크면
+// 그런 맵이 있는 게 아니라 파싱이 어긋난 것이다.
+const MAX_PLAUSIBLE_MAPINFO_SLOTS = 64;
+
+// 원시 순차 파싱. 슬롯 수를 검증하지 않는다 — 임의 맵의 수용 인원을 재는
+// map_capabilities.cjs 가 15~16 이 아닌 맵도 읽어야 하기 때문이다. 빌드
+// 경로가 쓰는 15~16 검사는 parseMapInfoPlayers 가 계속 들고 있다.
+//
+// 이 파서는 필드 순서를 고정 가정한다. 선택적 필드(예: 로드스크린 이미지
+// 경로)가 있는 맵에서는 정렬이 어긋나 슬롯 수가 터무니없이 나온다 —
+// Torches LE 실측: 오프셋 88 에서 u16 길이를 29505 로 읽는다. 그래서 아래
+// 개연성 검사가 "지원하지 않는 레이아웃"의 실질적 판별기 역할을 한다.
+function readMapInfoPlayers(buffer) {
   let offset = 0;
   const readU8 = () => buffer.readUInt8(offset++);
   const readU16 = () => {
@@ -63,8 +75,11 @@ function parseMapInfoPlayers(buffer) {
   skip(8); skip(9); skip(4); skip(8);
 
   const playerCount = readU32();
-  if (playerCount < 15 || playerCount > 16) {
-    fail(`Unexpected MapInfo player count: ${playerCount}`);
+  if (playerCount > MAX_PLAUSIBLE_MAPINFO_SLOTS) {
+    fail(
+      `Implausible MapInfo player count: ${playerCount} ` +
+        "(지원하지 않는 MapInfo 레이아웃일 가능성이 높다)"
+    );
   }
   const players = [];
   for (let index = 0; index < playerCount; index += 1) {
@@ -76,6 +91,16 @@ function parseMapInfoPlayers(buffer) {
     const startPoint = readU32();
     readU32(); readCString();
     players.push({ id, control, controlOffset, startPoint, startPointOffset });
+  }
+  return players;
+}
+
+// 빌드 경로용. 지금 빌더는 논리 P1~P14 + 중립/적대 두 슬롯을 전제하므로
+// 슬롯 수가 15~16 이 아닌 맵은 여기서 막는다.
+function parseMapInfoPlayers(buffer) {
+  const players = readMapInfoPlayers(buffer);
+  if (players.length < 15 || players.length > 16) {
+    fail(`Unexpected MapInfo player count: ${players.length}`);
   }
   return players;
 }
@@ -169,6 +194,7 @@ function patchPlayers(mapInfo, activeSlots, wildStartPoint = null) {
 // §69: prereqStructure(요구 구조물 게이트)를 함수에 넘긴다. 없으면 빈 문자열.
 
 module.exports = {
+  readMapInfoPlayers,
   parseMapInfoPlayers,
   validateConfig,
   patchPlayers,
