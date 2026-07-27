@@ -17,6 +17,9 @@ from sc2team.process import discover_sc2_executable, launch_sc2, stop_process
 from sc2team.protocol import Sc2Connection
 
 
+ATTACK_ABILITY_ID = 23
+
+
 BASE_MAP_FILE = (
     PROJECT_ROOT
     / "maps"
@@ -58,7 +61,7 @@ def config() -> CustomLauncherConfig:
     return result
 
 
-async def main(hold_seconds: float) -> None:
+async def main(hold_seconds: float, attack: bool) -> None:
     probe = config()
     build_runtime_map(
         PROJECT_ROOT,
@@ -128,8 +131,71 @@ async def main(hold_seconds: float) -> None:
                 f"CAMPAIGN_VISUAL=FAIL created {len(created)}/{len(VISUAL_UNITS)} units"
             )
         print("CAMPAIGN_VISUAL_READY=" + ",".join(VISUAL_UNITS), flush=True)
+
+        target_tag: int | None = None
+        if attack:
+            # Attack animation cannot be verified numerically: verify_campaign_combat
+            # saturates (every attacker kills the 125-life Marauder inside its step
+            # budget, so damage=125 whether the weapon reaches at range 1.5 or has
+            # to walk into contact at 0.1). Give the row one shared enemy and a
+            # standing attack order so the swing itself can be watched.
+            #
+            # The target is a Nexus, not a combat unit: it never fights back, so
+            # the subjects survive the whole hold (an enemy Ultralisk one-shots
+            # the 60-life Medic). Its life is topped up every tick below so it
+            # never dies either and the animation loop runs indefinitely.
+            await connection.debug_create_units(
+                ids["Nexus"], 2, center_x, center_y - 12, 1
+            )
+            await connection.step(2)
+            engaged = await connection.observation(disable_fog=True)
+            target = next(
+                (
+                    unit
+                    for unit in engaged.observation.raw_data.units
+                    if unit.owner == 2 and unit.unit_type == ids["Nexus"]
+                ),
+                None,
+            )
+            if target is None:
+                raise RuntimeError("CAMPAIGN_VISUAL=FAIL enemy target was not created")
+            target_tag = target.tag
+            subjects = [
+                unit
+                for unit in engaged.observation.raw_data.units
+                if unit.owner == 1 and unit.unit_type in {ids[n] for n in VISUAL_UNITS}
+            ]
+            ordered = 0
+            for subject in subjects:
+                result = await connection.raw_unit_command(
+                    [subject.tag], ATTACK_ABILITY_ID, target_unit_tag=target_tag
+                )
+                if result == (1,):
+                    ordered += 1
+                else:
+                    print(
+                        f"CAMPAIGN_VISUAL_ATTACK_REJECTED={subject.unit_type} {result}",
+                        flush=True,
+                    )
+            print(f"CAMPAIGN_VISUAL_ATTACK_ORDERED={ordered}", flush=True)
+
         print(f"CAMPAIGN_VISUAL_HOLD_SECONDS={hold_seconds:g}", flush=True)
-        await asyncio.sleep(hold_seconds)
+        # The game is in step mode, so a plain sleep freezes the simulation and no
+        # animation ever plays. Advance it in small chunks paced to wall-clock so
+        # the hold runs at normal (1x) speed for a human watching the window.
+        # 22.4 game loops per second is SC2's "Faster" rate, which is what the
+        # client renders at.
+        loops_per_second = 22.4
+        chunk = 4
+        chunk_seconds = chunk / loops_per_second
+        elapsed = 0.0
+        while elapsed < hold_seconds:
+            await connection.step(chunk)
+            if target_tag is not None:
+                await connection.debug_set_unit_life(target_tag, 1000.0)
+                await connection.debug_set_unit_shields(target_tag, 1000.0)
+            await asyncio.sleep(chunk_seconds)
+            elapsed += chunk_seconds
     finally:
         if connection is not None:
             await connection.quit()
@@ -147,5 +213,12 @@ if __name__ == "__main__":
         default=300.0,
         help="How long to keep the visual probe open (default: 300).",
     )
+    parser.add_argument(
+        "--attack",
+        action="store_true",
+        help="Spawn a durable enemy per subject and issue a standing attack order "
+             "so the attack animation can be watched (verify_campaign_combat "
+             "saturates and cannot show it).",
+    )
     args = parser.parse_args()
-    asyncio.run(main(args.hold_seconds))
+    asyncio.run(main(args.hold_seconds, args.attack))

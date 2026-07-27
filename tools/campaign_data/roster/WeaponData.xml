@@ -4,9 +4,19 @@
         <Icon value="Assets\Textures\btn-upgrade-zerg-meleeattacks-level0.dds"/>
         <Options index="Melee" value="1"/>
         <TargetFilters value="Ground,Visible;Missile,Stasis,Dead,Hidden,Invulnerable"/>
-        <Range value="0.1"/>
+        <!-- Range/DamagePoint/AcquirePrioritization are Blizzard's own
+             InfestedAbomination weapon values (liberty campaign WeaponData).
+             They were 0.1 / 0.2 / unset, and the user reported the attack
+             animation never plays: 0.1 on a 0.75-radius unit means the two
+             models must overlap before the weapon is in range, so the unit
+             keeps re-approaching and the Attack bracket never sustains, and a
+             DamagePoint earlier than the model's real swing point cuts the
+             bracket short. Period stays 1.2 — that is the swarm-layer
+             override Blizzard itself applies on top of liberty's 0.8608. -->
+        <AcquirePrioritization value="ByAngle"/>
+        <Range value="1.5"/>
         <Period value="1.2"/>
-        <DamagePoint value="0.2"/>
+        <DamagePoint value="0.3332"/>
         <Effect value="SC2TeamAberrationDamage"/>
     </CWeaponLegacy>
     <!-- §63: 무기 Icon이 없으면 정보 패널 무기 칸이 비고 업그레이드 레벨 표기도

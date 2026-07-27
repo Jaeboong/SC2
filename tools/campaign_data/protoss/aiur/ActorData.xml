@@ -7,6 +7,24 @@
         <On Terms="Behavior.VoidZealotWhirlwind.Off" Send="HostSiteOpsSet ::Host"/>
         <On Terms="Behavior.VoidZealotWhirlwind.Off" Send="AnimClear Attack"/>
         <UnitIcon value="Assets\Textures\btn-unit-protoss-zealot-aiur.dds"/>
+        <!-- §115: 본체만 갈아끼우면 소환 이펙트·초상화·와이어프레임이 기본 광전사
+             것으로 남는다.  ZealotAiur 원본 액터와 같은 링크로 채운다(죽음 모델은
+             원본도 표준 ZealotDeath 를 그대로 쓴다). -->
+        <BuildModel value="SC2TeamZealotAiurWarpInModel"/>
+        <PortraitModel value="SC2TeamZealotAiurPortraitModel"/>
+        <PlacementModel value="SC2TeamZealotAiurPlacementModel"/>
+        <HeroIcon value="Assets\Textures\btn-unit-protoss-zealot-aiur.dds"/>
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-aiur.dds"/>
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-aiur.dds"/>
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-aiur-shield01.dds"/>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-aiur-shield02.dds"/>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-aiur-shield03.dds"/>
+        </WireframeShield>
     </CActorUnit>
     <CActorSound id="Dragoon_Land" parent="SoundOneShot"/>
     <CActorUnit id="Stalker" parent="GenericUnitBase" unitName="Stalker">

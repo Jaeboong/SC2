@@ -884,6 +884,60 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
         !modelData.includes(`id="${sentinelModel}"`)) {
       fail(`Wrong Protoss faction model wiring for ${protossFaction}`);
     }
+    // §115: 캠페인 애셋은 원본 크기가 멜리 유닛과 달라, 블리자드도 자기 CModel 에서
+    // ScaleMax/Min 으로 줄여 쓴다.  그 값이 빠지면 유닛이 크게 렌더되고 기본 크기에
+    // 맞춰 만든 불멸자 보호막 껍데기(ImmortalShield.m3)가 몸에서 어긋난다.
+    // 값은 void.sc2campaign ModelData.xml 원본과 같아야 한다.
+    for (const [modelId, scale] of Object.entries({
+      SC2TeamZealotAiurModel: "0.900000",
+      SC2TeamZealotNerazimModel: "0.900000",
+      SC2TeamStalkerPurifierModel: "0.690000",
+      SC2TeamImmortalNerazimModel: "0.750000",
+      SC2TeamImmortalTaldarimModel: "0.750000",
+      SC2TeamColossusTaldarimModel: "0.750000",
+    })) {
+      const start = modelData.indexOf(`<CModel id="${modelId}"`);
+      if (start < 0) continue;
+      const record = modelData.slice(start, modelData.indexOf("</CModel>", start));
+      const wanted = `<ScaleMax value="${scale},${scale},${scale}" />`;
+      if (!record.includes(wanted)) {
+        fail(`Protoss faction model lost its upstream scale: ${modelId} expected ${scale}`);
+      }
+    }
+    // §115: 본체 모델만 교체하면 죽음·소환·초상화가 기본 프로토스 것으로 남는다.
+    // 부족별로 최소한 이 링크들이 붙어 있어야 한다.
+    const factionVisualLinks = {
+      Aiur: ["SC2TeamZealotAiurWarpInModel", "SC2TeamZealotAiurPortraitModel"],
+      Nerazim: [
+        "SC2TeamZealotNerazimDeathModel",
+        "SC2TeamZealotNerazimPortraitModel",
+        "SC2TeamImmortalNerazimDeathModel",
+        "SC2TeamImmortalNerazimWarpInModel",
+        "SC2TeamImmortalNerazimPortraitModel",
+      ],
+      Purifier: [
+        "SC2TeamZealotPurifierWarpInModel",
+        "SC2TeamZealotPurifierPortraitModel",
+        "SC2TeamStalkerPurifierDeathModel",
+        "SC2TeamStalkerPurifierPortraitModel",
+      ],
+      Taldarim: [
+        "SC2TeamZealotTaldarimDeathModel",
+        "SC2TeamStalkerTaldarimDeathModel",
+        "SC2TeamImmortalTaldarimDeathModel",
+        "SC2TeamImmortalTaldarimWarpInModel",
+        "SC2TeamColossusTaldarimDeathModel",
+        "SC2TeamColossusTaldarimWarpInModel",
+      ],
+    }[protossFaction] ?? [];
+    for (const link of factionVisualLinks) {
+      if (!modelData.includes(`<CModel id="${link}"`)) {
+        fail(`Protoss faction visual model missing: ${link}`);
+      }
+      if (!actorData.includes(link)) {
+        fail(`Protoss faction visual link not wired into an actor: ${link}`);
+      }
+    }
     if (protossFaction === "Aiur") {
       const abilData = archive.readFileAsString(
         "Base.SC2Data\\GameData\\AbilData.xml",
@@ -1756,52 +1810,42 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
     }
     if (wildZergActive) {
       for (const marker of [
-        "sc2team_InitializeV3WildDelay();",
-        "AISetUserInt(15, 145, 0);",
+        "sc2team_InitializeV3WildBootstrap();",
+        "AIMeleeStart(15);",
+        "AIInitCampaignTowns(15);",
+        "AIInitCampaignHarvest(15);",
+        "AIHarvestRate(15, 1);",
         "AISetUserInt(15, 145, 1);",
-        "AISetUserInt(15, 142, 301);",
+        "AISetUserInt(15, 142, 315);",
         "AISetSpecificState(15, 1, 1);",
         "AISetSpecificState(15, 2, 1);",
         "AISetSpecificState(15, 3, 1);",
-        "AIGetTime() < 420.0",
-        "AISetUnitScriptControlled(currentUnit, true);",
-        "AISetUnitScriptControlled(currentUnit, false);",
-        "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 2.0, c_timeGame);",
-        "TriggerEnable(gt_sc2team_V3WildRelease, false);",
+        "AISetUserInt(15, 139, 540);",
+        "PlayerModifyPropertyInt(15, c_playerPropMinerals, c_playerPropOperAdd, 50000);",
+        "PlayerModifyPropertyInt(15, c_playerPropVespene, c_playerPropOperAdd, 50000);",
       ]) {
-        if (!script.includes(marker)) fail(`V3 P15 delayed-AI marker is missing: ${marker}`);
+        if (!script.includes(marker)) fail(`V3 P15 one-shot bootstrap marker is missing: ${marker}`);
       }
       for (const forbidden of [
         "sc2team_InitializeHostileWildIdle();",
         "sc2team_InitializeV3WildTruce();",
+        "sc2team_InitializeV3WildDelay();",
+        "sc2team_V3WildRelease_Func",
+        "AISetUnitScriptControlled(",
+        "TriggerAddEventTimePeriodic(gt_sc2team_",
       ]) {
         if (script.includes(forbidden)) {
-          fail(`V3 P15 delayed AI changes player relations or runs the old controller: ${forbidden}`);
+          fail(`V3 P15 bootstrap contains recurring or legacy control: ${forbidden}`);
         }
       }
       if (script.includes("AISetSpecificState(15, 1, -1)")) {
-        fail("V3 P15 delayed AI must not use the invalid Disabled main state");
+        fail("V3 P15 bootstrap must not use the invalid Disabled main state");
       }
-      const delayFunction = /void sc2team_InitializeV3WildDelay \(\) \{([^}]*)\}/s.exec(script);
-      const releaseFunction = /bool sc2team_V3WildRelease_Func \([^)]*\) \{([\s\S]*?)\n\}/.exec(script);
-      const controlFunction = /void sc2team_V3SetWildCombatControl \([^)]*\) \{([\s\S]*?)\n\}/.exec(script);
-      for (const [name, body] of [
-        ["initialize", delayFunction && delayFunction[1]],
-        ["release", releaseFunction && releaseFunction[1]],
-        ["combat-control", controlFunction && controlFunction[1]],
-      ]) {
-        if (!body) fail(`V3 P15 delayed-AI ${name} function is missing`);
-        if (/SetAlliance|PlayerSetController|UnitSetOwner/.test(body)) {
-          fail(`V3 P15 delayed-AI ${name} function changes players, alliances, or ownership`);
-        }
-      }
-      const withoutAllowedWildTimers = script
-        .replace(
-          "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 2.0, c_timeGame);",
-          ""
-        );
-      if (withoutAllowedWildTimers.includes("TriggerAddEventTimePeriodic(gt_sc2team_")) {
-        fail("melee_only map contains an unexpected custom periodic trigger");
+      const bootstrapFunction = /void sc2team_InitializeV3WildBootstrap \(\) \{([^}]*)\}/s.exec(script);
+      const bootstrapBody = bootstrapFunction && bootstrapFunction[1];
+      if (!bootstrapBody) fail("V3 P15 one-shot bootstrap function is missing");
+      if (/SetAlliance|PlayerSetController|UnitSetOwner/.test(bootstrapBody)) {
+        fail("V3 P15 one-shot bootstrap changes players, alliances, or ownership");
       }
     }
     else {
@@ -1809,6 +1853,7 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
         "sc2team_InitializeHostileWildIdle();",
         "sc2team_InitializeV3WildTruce();",
         "sc2team_InitializeV3WildDelay();",
+        "sc2team_InitializeV3WildBootstrap();",
         "TriggerAddEventTimePeriodic(gt_sc2team_",
       ]) {
         if (script.includes(forbidden)) {

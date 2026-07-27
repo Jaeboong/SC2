@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Catalog>
   <CUpgrade id="HotSTorrasque">
+    <!-- 인덱스 0 은 블리자드 원본에서 Ultralisk 가 쓰는 자리이고 Operation="Set"
+         은 덮어쓰기라서, 이 줄이 울트라리스크의 테크 게이트를 푸는 것처럼 보인다.
+         실제로는 아니다 — [0] 과 [1] 두 상태로 각각 프로브를 돌려 라바에 직접
+         훈련 명령을 던져 비교했고 결과가 완전히 동일했다:
+
+           케이븐 없음 -> 울트라 거부(2,) 토라스크 거부(2,) 변종 거부(2,)
+           케이븐 있음 -> 셋 다 허용(1,)
+
+         TechTreeUnlockedUnitArray 는 테크트리 UI 와 AI 요구조건 해석용 정보이고,
+         실제 게이트는 LarvaTrain 버튼의 Requirements="HaveUltraliskCavern" 다.
+         그건 이 줄이 건드리지 않는다. 그러니 [1] 로 옮기지 마라 — 이득이 없고
+         토라스크 테크트리 표시만 흔든다.
+
+         "케이븐 없이 울트라가 나온다"의 진짜 원인은 여기가 아니라
+         roster/UnitData.xml 의 변종 AbilArray 였다(잠복 상속 -> 울트라로 변신). -->
     <EffectArray Operation="Set" Reference="Unit,UltraliskCavern,TechTreeUnlockedUnitArray[0]" Value="HotSTorrasque" />
   </CUpgrade>
 </Catalog>

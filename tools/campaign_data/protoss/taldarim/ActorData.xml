@@ -1,16 +1,69 @@
 <?xml version='1.0' encoding='utf-8'?>
 <Catalog>
+    <!-- §115: 탈다림 교체 유닛의 죽음·소환·초상화·와이어프레임을 채운다.  광전사·추적자는
+         원본에도 전용 액터가 없고 스킨 교체표(SkinData TaldarimSkin)가 죽음 모델과
+         초상화만 갈아끼우므로 같은 범위로 맞춘다 — 소환 이펙트는 표준이 맞다.
+         불멸자·거신은 ImmortalTaldarim / ColossusTaldarim 원본 액터와 같은 링크다. -->
     <CActorUnit id="Zealot">
         <Model value="SC2TeamZealotTaldarimModel" />
+        <DeathArray index="Normal" ModelLink="SC2TeamZealotTaldarimDeathModel" SoundLink="Zealot_DeathFX" />
+        <PortraitModel value="SC2TeamZealotTaldarimPortraitModel" />
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Protoss-Zealot-Taldarim.dds" />
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Protoss-Zealot-Taldarim.dds" />
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Protoss-Zealot-Taldarim-Shield01.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Zealot-Taldarim-Shield02.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Zealot-Taldarim-Shield03.dds" />
+        </WireframeShield>
     </CActorUnit>
     <CActorUnit id="Stalker">
         <Model value="SC2TeamStalkerTaldarimModel" />
+        <DeathArray index="Normal" ModelLink="SC2TeamStalkerTaldarimDeathModel" SoundLink="" />
+        <PortraitModel value="SC2TeamStalkerTaldarimPortraitModel" />
+        <UnitIcon value="Assets\Textures\btn-unit-protoss-alarak-taldarim-stalker.dds" />
     </CActorUnit>
     <CActorUnit id="Immortal">
         <Model value="SC2TeamImmortalTaldarimModel" />
+        <DeathArray index="Normal" ModelLink="SC2TeamImmortalTaldarimDeathModel" SoundLink="" />
+        <BuildModel value="SC2TeamImmortalTaldarimWarpInModel" />
+        <PortraitModel value="SC2TeamImmortalTaldarimPortraitModel" />
+        <PlacementModel value="SC2TeamImmortalTaldarimPlacementModel" />
+        <UnitIcon value="Assets\Textures\BTN-Unit-Protoss-Immortal-Taldarim.dds" />
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-immortal-taldarim.dds" />
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-immortal-taldarim.dds" />
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Protoss-Immortal-Taldarim-Shield01.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Immortal-Taldarim-Shield02.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Immortal-Taldarim-Shield03.dds" />
+        </WireframeShield>
     </CActorUnit>
     <CActorUnit id="Colossus">
         <Model value="SC2TeamColossusTaldarimModel" />
+        <DeathArray index="Normal" ModelLink="SC2TeamColossusTaldarimDeathModel" SoundLink="" />
+        <BuildModel value="SC2TeamColossusTaldarimWarpInModel" />
+        <PortraitModel value="SC2TeamColossusTaldarimPortraitModel" />
+        <PlacementModel value="SC2TeamColossusTaldarimPlacementModel" />
+        <UnitIcon value="Assets\Textures\btn-unit-protoss-colossus-taldarim.dds" />
+        <HeroIcon value="Assets\Textures\btn-unit-protoss-colossus-taldarim.dds" />
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-colossus-taldarim.dds" />
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-colossus-taldarim.dds" />
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\wireframe-protoss-colossus-taldarim-shield01.dds" />
+            <Image value="Assets\Textures\wireframe-protoss-colossus-taldarim-shield02.dds" />
+            <Image value="Assets\Textures\wireframe-protoss-colossus-taldarim-shield03.dds" />
+        </WireframeShield>
     </CActorUnit>
     <CActorRange id="ObserverTargetLockRange" parent="RangeAbil" abil="ObserverTargetLock" />
     <CActorModel id="TargetLockAttachment" parent="ModelAnimationStyleContinuous">
