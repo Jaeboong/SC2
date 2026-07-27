@@ -1,8 +1,9 @@
 //==================================================================================================
 // V3 Protoss gateway army policy
 //
-// Army targets are expressed in supply, not raw unit count:
-//   Zealot 35%, Archon 30%, High Templar 20%, Sentry 15%.
+// Army targets rise through six interleaved priority tiers.  The deliberately
+// unreachable Full targets let the 800-supply ceiling, rather than this list,
+// stop production while keeping Zealots numerically ahead of Sentries.
 // The standard melee IDs deliberately allow the map's faction replacement and
 // default-Protoss fallback data to select the concrete faction variants.
 //==================================================================================================
@@ -51,22 +52,68 @@ void V3ProtossMergeArchons (int player) {
     }
 }
 
+void V3ProtossGatewayMinimum (int player) {
+    AISetStockUnitNext(player, 2, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewayBase (int player) {
+    AISetStockUnitNext(player, 4, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewaySmall (int player) {
+    AISetStockUnitNext(player, 8, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 4, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewayMedium (int player) {
+    AISetStockUnitNext(player, 12, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_PU_HighTemplar, c_stockAlways);
+}
+
+void V3ProtossGatewayLarge (int player) {
+    AISetStockUnitNext(player, 24, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 10, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 4, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_PU_HighTemplar, c_stockAlways);
+}
+
+void V3ProtossGatewayFull (int player) {
+    AISetStockUnitNext(player, 12, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 40, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 14, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 16, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 20, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 70, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 22, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 26, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 110, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 40, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 50, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 164, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 50, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 60, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 70, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 240, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 70, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 94, c_PU_HighTemplar, c_stockAlways);
+}
+
 void V3ProtossGatewayStock (int player, int phase) {
     int gatewayTarget;
     int openingArmy;
 
-    // Blizzard's openings do not advance to the expensive tech block merely
-    // on elapsed time: they keep the basic Gateway spine active until its
-    // first combat checkpoint is present.  Preserve that rule here.  It is
-    // especially important after V3's first-Nexus expansion, which spends
-    // the opening mineral bank before the first Gateway finishes.
     openingArmy =
         AITechCount(player, c_PU_Zealot, c_techCountInProgressOrBetter) +
         AITechCount(player, c_PU_Sentry, c_techCountInProgressOrBetter);
     if (phase > 0 && openingArmy < 10) {
         phase = 0;
     }
-
     if (phase <= 0) {
         gatewayTarget = 4;
     }
@@ -78,11 +125,15 @@ void V3ProtossGatewayStock (int player, int phase) {
     }
 
     AIClearStock(player);
+    AISetTechLimitLevels(player);
 
-    // Keep Probe production active while the first 400 minerals are banked.
-    // No Gateway target is exposed until the natural has been committed.
-    AISetStock( player, 1, c_PB_Nexus );
-    AISetStockPeons( player, V3WorkerTarget(player, 32), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
+    // Recovery minimums precede every discretionary army or technology rung.
+    AISetStock(player, 1, c_PB_Nexus);
+    AISetStock(player, V3WorkerTarget(player, 1), c_PU_Probe);
+    AISetStock(player, 1, c_PB_Pylon);
+    AISetStockPeons(player, V3WorkerTarget(player, 12), c_PU_Probe, c_stockMinPeons, c_stockAlways);
+    AISetStockFarms(player, c_PB_Pylon, c_stockNormalFarms);
+
     if (AIGetUserInt(player, 144) == 0) {
         if (AITechCount(player, c_PB_Nexus, c_techCountQueuedOrBetter) >= 2) {
             AISetUserInt(player, 144, 1);
@@ -93,100 +144,43 @@ void V3ProtossGatewayStock (int player, int phase) {
                 AIHasRes(player, 400, 0)) {
                 AIExpand(player, AIGetTownLocation(player, c_townMain), c_PB_Nexus);
             }
+            AIDefaultEconomy(player, c_PB_Nexus, c_PB_Assimilator, c_PB_Pylon, c_PU_Probe, 70, c_stockAlways);
+            V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
+            V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
             return;
         }
     }
 
-    // Town-local Gateway stock is both bootstrap and recurring production.
-    AISetStock( player, 1, c_PB_Pylon );
-    AISetStock( player, V3WorkerTarget(player, 16), c_PU_Probe );
-    AISetStock( player, V3WorkerTarget(player, 18), c_PU_Probe );
-    AISetStock( player, 1, c_PB_Assimilator );
-    AISetStock( player, 1, c_PB_CyberneticsCore );
-    AISetStock( player, 2, c_PB_Pylon );
-    AISetStockFarms( player, c_PB_Pylon, c_stockNormalFarms );
-    if (V3EnsureProtossExpansionPower(player)) {
-        V3SetProtossTownProduction(player, gatewayTarget, c_PB_Gateway);
-    }
+    V3ProtossGatewayMinimum(player);
+    AISetStockPeons(player, V3WorkerTarget(player, 24), c_PU_Probe, c_stockMinPeons, c_stockAlways);
+    V3ProtossGatewayBase(player);
+    AIDefaultEconomy(player, c_PB_Nexus, c_PB_Assimilator, c_PB_Pylon, c_PU_Probe, 70, c_stockAlways);
+    V3ProtossGatewaySmall(player);
 
-    if (phase <= 0) {
-        // Opening spine follows Blizzard's Gateway ordering: basic powered
-        // production and Warp Gate research precede the Templar path.  The
-        // first combat checkpoint also keeps the timed phase transition from
-        // consuming the production bank before the Gateway army exists.
-        AISetStock( player, V3WorkerTarget(player, 20), c_PU_Probe );
-        AISetStock( player, 1, c_PU_Zealot );
-        AISetStock( player, V3WorkerTarget(player, 21), c_PU_Probe );
-        AISetStock( player, 2, c_PU_Zealot );
-        AISetStock( player, V3WorkerTarget(player, 23), c_PU_Probe );
-        AISetStock( player, 2, c_PB_Assimilator );
-        AISetStock( player, 1, c_PR_WarpGateResearch );
-        AISetStock( player, 4, c_PU_Zealot );
-        AISetStock( player, 2, c_PU_Sentry );
-        AISetStock( player, V3WorkerTarget(player, 26), c_PU_Probe );
-        AISetStock( player, 6, c_PU_Zealot );
-        AISetStock( player, 4, c_PU_Sentry );
-        AISetStockPeons( player, V3WorkerTarget(player, 32), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
-    }
-    else if (phase == 1) {
-        // Mid game: three-base saturation, six gases, eight Gateways, and an
-        // exactly 120-supply army at the same 35/30/20/15 split.
-        AISetStockPeons( player, V3WorkerTarget(player, 24), c_PU_Probe, c_stockMinPeons, c_stockAlways );
-        // Expansion Assimilators are registered per Established town by
-        // V3SetExpansionGasPolicy.  A global six-gas checkpoint would hide
-        // town-local requests on maps that have fewer completed bases.
-        AISetStockUnitNext( player, 1, c_PB_TwilightCouncil, c_stockAlways );
-        AISetStockUnitNext( player, 1, c_PB_TemplarArchives, c_stockAlways );
-        AISetStockUnitNext( player, 2, c_PB_Forge, c_stockAlways );
-        AISetStock( player, 1, c_PU_Zealot );
-        AISetStock( player, 1, c_PU_Sentry );
-        AISetStock( player, 1, c_PR_WarpGateResearch );
-        AISetStock( player, 1, c_PR_HighTemplarPsiStorm );
-        AISetStock( player, 1, c_PR_ZealotCharge );
-        AISetStock( player, 1, c_PR_GroundWeapons1 );
-        AISetStock( player, 1, c_PR_GroundArmor1 );
-        AISetStock( player, 1, c_PR_Shields1 );
-        AISetStock( player, 1, c_PR_GroundWeapons2 );
-        AISetStock( player, 1, c_PR_GroundArmor2 );
-        AISetStockPeons( player, V3WorkerTarget(player, 60), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
+    AISetStockUnitNext(player, 1, c_PB_Gateway, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_CyberneticsCore, c_stockAlways);
+    // 2026-07-27 회귀 수정.  사용자 실측: 2v2(빈 확장이 많은 배치)에서 극초반에
+    // 4확장까지 갔는데 그 뒤로 관문이 1개에서 늘지 않았고, 확장 여유가 적은
+    // 4v4 에서는 정상이었다.  원인은 관문 목표가 (a) 파워 게이트에 걸린 타운
+    // 등록과 (b) Large 군대 티어 **뒤**의 단일 룽에만 걸려 있었던 것이다.
+    // 업스트림처럼 전역 목표를 군대 티어 사이에 계단식으로 깐다.
+    V3ProtossProductionRung(player, 2, gatewayTarget, c_PB_Gateway);
+    AISetStockUnitNext(player, 1, c_PB_TwilightCouncil, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_TemplarArchives, c_stockAlways);
+    V3EnsureProtossExpansionPower(player);
+    V3SetProtossTownProduction(player, gatewayTarget, c_PB_Gateway);
 
-        AISetStockUnitNext( player, 21, c_PU_Zealot, c_stockAlways );
-        AISetStockUnitNext( player, 9, c_PU_Archon, c_stockAlways );
-        AISetStockUnitNext( player, 12, c_PU_HighTemplar, c_stockAlways );
-        AISetStockUnitNext( player, 9, c_PU_Sentry, c_stockAlways );
-    }
-    else {
-        // Late game: six bases, twelve gases, sixteen Gateways, all
-        // ground/shield upgrades, and an exactly 360-supply army at the
-        // requested split.
-        AISetStockPeons( player, V3WorkerTarget(player, 24), c_PU_Probe, c_stockMinPeons, c_stockAlways );
-        // Do not queue a global twelve-gas prerequisite here.  The local
-        // expansion policy grows only with real, established geysers.
-        AISetStockUnitNext( player, 1, c_PB_TwilightCouncil, c_stockAlways );
-        AISetStockUnitNext( player, 1, c_PB_TemplarArchives, c_stockAlways );
-        AISetStockUnitNext( player, 3, c_PB_Forge, c_stockAlways );
-        AISetStock( player, 1, c_PR_WarpGateResearch );
-        AISetStock( player, 1, c_PR_HighTemplarPsiStorm );
-        AISetStock( player, 1, c_PR_ZealotCharge );
-        AISetStock( player, 1, c_PR_GroundWeapons1 );
-        AISetStock( player, 1, c_PR_GroundArmor1 );
-        AISetStock( player, 1, c_PR_Shields1 );
-        AISetStock( player, 1, c_PR_GroundWeapons2 );
-        AISetStock( player, 1, c_PR_GroundArmor2 );
-        AISetStock( player, 1, c_PR_Shields2 );
-        AISetStock( player, 1, c_PR_GroundWeapons3 );
-        AISetStock( player, 1, c_PR_GroundArmor3 );
-        AISetStock( player, 1, c_PR_Shields3 );
-        AISetStockPeons( player, V3WorkerTarget(player, 96), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
+    V3ProtossGatewayMedium(player);
+    V3ProtossProductionRung(player, 4, gatewayTarget, c_PB_Gateway);
+    V3ProtossUpgradeStock(player, 201);
+    V3ProtossGatewayLarge(player);
+    V3ProtossProductionRung(player, 8, gatewayTarget, c_PB_Gateway);
 
-        // Seed the Templar branch before the large late Gateway target so
-        // the native ordered stock cannot spend the whole phase on Zealots.
-        AISetStock( player, 1, c_PU_HighTemplar );
-        AISetStockUnitNext( player, 164, c_PU_Zealot, c_stockAlways );
-        AISetStockUnitNext( player, 70, c_PU_Archon, c_stockAlways );
-        AISetStockUnitNext( player, 94, c_PU_HighTemplar, c_stockAlways );
-        AISetStockUnitNext( player, 70, c_PU_Sentry, c_stockAlways );
-    }
+    // V3 has no separate Protoss defense stock call; preserve that policy.
+    AISetStockUnitNext(player, gatewayTarget, c_PB_Gateway, c_stockIdle);
+    V3ProtossGatewayFull(player);
 
+    V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
+    V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
     V3ProtossMergeArchons(player);
 }

@@ -44,7 +44,9 @@ def v3_players(
     consecutively. In a normal game the human is a Participant, so only
     ``custom_ai`` entries are V3 targets. In observer mode the launcher turns
     that same human slot into a Computer; it therefore becomes a valid V3
-    target at runtime P1. P15 is intentionally absent in both cases.
+    target at runtime P1. P15 is intentionally absent from this ordinary-player
+    list. When wild Zerg is enabled it is represented by the plan's separate
+    ``wild_zerg`` flag and may be the only Computer AI in a Participant game.
     """
 
     config.validate()
@@ -71,7 +73,7 @@ def make_v3_plan(
     config.validate()
     v3_config.validate()
     players = v3_players(config, observer_mode=observer_mode)
-    if not players:
+    if not players and not config.wild_zerg:
         raise ValueError("V3를 부팅할 Computer 슬롯이 없습니다.")
     selected = dict(v3_config.player_builds)
     player_by_slot = {int(player["slot"]): player for player in players}
@@ -91,6 +93,7 @@ def make_v3_plan(
         "ai_mode": v3_config.ai_mode,
         "bootstrap_mode": v3_config.bootstrap_mode,
         "campaign_units": v3_config.campaign_units,
+        "wild_zerg": config.wild_zerg,
         "players": players,
         "mod_dependency": AI_MOD_DEPENDENCY,
     }

@@ -1,12 +1,75 @@
 //==================================================================================================
 // V3 Protoss gateway + robotics army policy
 //
-// Army targets are measured in army supply, not unit count:
-//   Zealot 25%, Stalker/Dragoon slot 30%, Sentry 10%, Immortal 20%, Colossus 15%.
+// Army targets rise through six interleaved priority tiers.  Full targets are
+// deliberately unreachable below the 800-supply ceiling, so no unit target
+// becomes a practical production cap.
 //
 // c_PU_Stalker is intentional.  The Aiur data replaces that stable slot with the Dragoon, while
 // factions without a replacement keep the standard Stalker.  No air combat unit is stocked.
 //==================================================================================================
+
+void V3ProtossGatewayRoboMinimum (int player) {
+    AISetStockUnitNext(player, 1, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewayRoboBase (int player) {
+    AISetStockUnitNext(player, 3, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 4, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewayRoboSmall (int player) {
+    AISetStockUnitNext(player, 6, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 8, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewayRoboMedium (int player) {
+    AISetStockUnitNext(player, 12, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 14, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 4, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 3, c_PU_Immortal, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PU_Colossus, c_stockAlways);
+}
+
+void V3ProtossGatewayRoboLarge (int player) {
+    AISetStockUnitNext(player, 20, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 24, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 7, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_PU_Immortal, c_stockAlways);
+    AISetStockUnitNext(player, 3, c_PU_Colossus, c_stockAlways);
+}
+
+void V3ProtossGatewayRoboFull (int player) {
+    AISetStockUnitNext(player, 12, c_PU_Immortal, c_stockAlways);
+    AISetStockUnitNext(player, 40, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 48, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 14, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_PU_Colossus, c_stockAlways);
+    AISetStockUnitNext(player, 22, c_PU_Immortal, c_stockAlways);
+    AISetStockUnitNext(player, 70, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 84, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 24, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 10, c_PU_Colossus, c_stockAlways);
+    AISetStockUnitNext(player, 36, c_PU_Immortal, c_stockAlways);
+    AISetStockUnitNext(player, 110, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 132, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 38, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 18, c_PU_Colossus, c_stockAlways);
+    AISetStockUnitNext(player, 52, c_PU_Immortal, c_stockAlways);
+    AISetStockUnitNext(player, 164, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 196, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 54, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 26, c_PU_Colossus, c_stockAlways);
+    AISetStockUnitNext(player, 72, c_PU_Immortal, c_stockAlways);
+    AISetStockUnitNext(player, 240, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 288, c_PU_Stalker, c_stockAlways);
+    AISetStockUnitNext(player, 80, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 36, c_PU_Colossus, c_stockAlways);
+}
 
 void V3ProtossGatewayRoboStock (int player, int phase) {
     int gatewayTarget;
@@ -26,11 +89,14 @@ void V3ProtossGatewayRoboStock (int player, int phase) {
     }
 
     AIClearStock(player);
+    AISetTechLimitLevels(player);
 
-    // Keep Probe production active while the first 400 minerals are banked.
-    // The natural starts immediately once those minerals exist.
-    AISetStock( player, 1, c_PB_Nexus );
-    AISetStockPeons( player, V3WorkerTarget(player, 32), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
+    AISetStock(player, 1, c_PB_Nexus);
+    AISetStock(player, V3WorkerTarget(player, 1), c_PU_Probe);
+    AISetStock(player, 1, c_PB_Pylon);
+    AISetStockPeons(player, V3WorkerTarget(player, 12), c_PU_Probe, c_stockMinPeons, c_stockAlways);
+    AISetStockFarms(player, c_PB_Pylon, c_stockNormalFarms);
+
     if (AIGetUserInt(player, 144) == 0) {
         if (AITechCount(player, c_PB_Nexus, c_techCountQueuedOrBetter) >= 2) {
             AISetUserInt(player, 144, 1);
@@ -41,104 +107,45 @@ void V3ProtossGatewayRoboStock (int player, int phase) {
                 AIHasRes(player, 400, 0)) {
                 AIExpand(player, AIGetTownLocation(player, c_townMain), c_PB_Nexus);
             }
+            AIDefaultEconomy(player, c_PB_Nexus, c_PB_Assimilator, c_PB_Pylon, c_PU_Probe, 70, c_stockAlways);
+            V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
+            V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
             return;
         }
     }
 
-    // Pull the shared Gateway/Robotics spine forward immediately after the
-    // natural starts instead of waiting for two more Probes before Gateway.
-    AISetStock( player, 1, c_PB_Pylon );
-    AISetStock( player, V3WorkerTarget(player, 16), c_PU_Probe );
-    AISetStock( player, V3WorkerTarget(player, 18), c_PU_Probe );
-    AISetStock( player, 1, c_PB_Assimilator );
-    AISetStock( player, 1, c_PB_CyberneticsCore );
-    AISetStock( player, 2, c_PB_Pylon );
-    AISetStockFarms( player, c_PB_Pylon, c_stockNormalFarms );
-    if (V3EnsureProtossExpansionPower(player)) {
-        V3SetProtossTownProduction(player, gatewayTarget, c_PB_Gateway);
-        V3SetProtossTownProduction(player, roboTarget, c_PB_RoboticsFacility);
-    }
+    V3ProtossGatewayRoboMinimum(player);
+    AISetStockPeons(player, V3WorkerTarget(player, 24), c_PU_Probe, c_stockMinPeons, c_stockAlways);
+    V3ProtossGatewayRoboBase(player);
+    AIDefaultEconomy(player, c_PB_Nexus, c_PB_Assimilator, c_PB_Pylon, c_PU_Probe, 70, c_stockAlways);
+    V3ProtossGatewayRoboSmall(player);
 
-    // Keep the opening strictly ordered with normal Stock entries.  UnitNext
-    // with c_stockAlways is reserved for scaling after every producer exists;
-    // using it here let unavailable army targets reserve the opening budget.
-    AISetStock( player, 2, c_PU_Zealot );
-    AISetStock( player, 2, c_PU_Stalker );
-    AISetStock( player, 1, c_PU_Sentry );
+    AISetStockUnitNext(player, 1, c_PB_Gateway, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_CyberneticsCore, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_RoboticsFacility, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_RoboticsBay, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_TwilightCouncil, c_stockAlways);
+    // 201 과 같은 계단식 전역 생산 목표.  사용자 실측에서 "관문 1개·로보 1개"로
+    // 고정된 슬롯이 이 빌드였다(2026-07-27, 2v2 4확장).  근거는 ProtossGateway.
+    V3ProtossProductionRung(player, 2, gatewayTarget, c_PB_Gateway);
+    V3ProtossProductionRung(player, 2, roboTarget, c_PB_RoboticsFacility);
+    V3EnsureProtossExpansionPower(player);
+    V3SetProtossTownProduction(player, gatewayTarget, c_PB_Gateway);
+    V3SetProtossTownProduction(player, roboTarget, c_PB_RoboticsFacility);
 
-    // Two-base economy and the complete production path for all five requested units.
-    AISetStock( player, V3WorkerTarget(player, 24), c_PU_Probe );
-    AISetStock( player, 2, c_PB_Assimilator );
-    AISetStock( player, 1, c_PU_Immortal );
-    AISetStock( player, V3WorkerTarget(player, 28), c_PU_Probe );
-    AISetStock( player, 1, c_PB_RoboticsBay );
-    AISetStock( player, 1, c_PB_TwilightCouncil );
-    AISetStock( player, 1, c_PB_Forge );
-    AISetStock( player, 1, c_PU_Colossus );
-    AISetStock( player, V3WorkerTarget(player, 32), c_PU_Probe );
-    AISetStock( player, 4, c_PB_Assimilator );
+    V3ProtossGatewayRoboMedium(player);
+    V3ProtossProductionRung(player, 4, gatewayTarget, c_PB_Gateway);
+    V3ProtossProductionRung(player, 3, roboTarget, c_PB_RoboticsFacility);
+    V3ProtossUpgradeStock(player, 202);
+    V3ProtossGatewayRoboLarge(player);
+    V3ProtossProductionRung(player, 8, gatewayTarget, c_PB_Gateway);
+    V3ProtossProductionRung(player, 5, roboTarget, c_PB_RoboticsFacility);
 
-    // Opening target: 10/12/4/8/6 supply = exactly 25/30/10/20/15 percent.
-    AISetStock( player, 5, c_PU_Zealot );
-    AISetStock( player, 6, c_PU_Stalker );
-    AISetStock( player, 2, c_PU_Sentry );
-    AISetStock( player, 2, c_PU_Immortal );
-    AISetStock( player, 1, c_PU_Colossus );
-    AISetStock( player, 1, c_PR_WarpGateResearch );
-    AISetStock( player, 1, c_PR_ZealotCharge );
-    AISetStock( player, 1, c_PR_ColossusRange );
-    AISetStock( player, 1, c_PR_GroundWeapons1 );
-    AISetStock( player, 1, c_PR_GroundArmor1 );
+    // V3 has no separate Protoss defense stock call; preserve that policy.
+    AISetStockUnitNext(player, gatewayTarget, c_PB_Gateway, c_stockIdle);
+    AISetStockUnitNext(player, roboTarget, c_PB_RoboticsFacility, c_stockIdle);
+    V3ProtossGatewayRoboFull(player);
 
-    if (phase <= 0) {
-        return;
-    }
-
-    // Mid game: three bases, six gases, eight Gateways and four Robotics Facilities.
-    AISetStockPeons( player, V3WorkerTarget(player, 24), c_PU_Probe, c_stockMinPeons, c_stockAlways );
-    // V3SetExpansionGasPolicy owns established-town Assimilators.  Avoid a
-    // global target that can become impossible before more towns exist.
-    AISetStockUnitNext( player, 2, c_PB_Forge, c_stockAlways );
-    AISetStockPeons( player, V3WorkerTarget(player, 60), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
-
-    // Mid target: 30/36/12/24/18 supply = exactly 120 army supply at the requested ratio.
-    AISetStockUnitNext( player, 15, c_PU_Zealot, c_stockAlways );
-    AISetStockUnitNext( player, 18, c_PU_Stalker, c_stockAlways );
-    AISetStockUnitNext( player, 6, c_PU_Sentry, c_stockAlways );
-    AISetStockUnitNext( player, 6, c_PU_Immortal, c_stockAlways );
-    AISetStockUnitNext( player, 3, c_PU_Colossus, c_stockAlways );
-    AISetStock( player, 1, c_PR_GroundWeapons2 );
-    AISetStock( player, 1, c_PR_GroundArmor2 );
-    AISetStock( player, 1, c_PR_Shields1 );
-    AISetStock( player, 1, c_PR_Shields2 );
-
-    if (phase == 1) {
-        return;
-    }
-
-    // Late game grows through four and five bases before committing to the six-base final stock.
-    AISetStockPeons( player, V3WorkerTarget(player, 72), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
-
-    // A proportional 240-supply waypoint prevents one huge final production jump.
-    AISetStockUnitNext( player, 30, c_PU_Zealot, c_stockAlways );
-    AISetStockUnitNext( player, 36, c_PU_Stalker, c_stockAlways );
-    AISetStockUnitNext( player, 12, c_PU_Sentry, c_stockAlways );
-    AISetStockUnitNext( player, 12, c_PU_Immortal, c_stockAlways );
-    AISetStockUnitNext( player, 6, c_PU_Colossus, c_stockAlways );
-
-    AISetStockPeons( player, V3WorkerTarget(player, 84), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
-    AISetStockUnitNext( player, 3, c_PB_Forge, c_stockAlways );
-    AISetStock( player, 1, c_PR_GroundWeapons3 );
-    AISetStock( player, 1, c_PR_GroundArmor3 );
-    AISetStock( player, 1, c_PR_Shields3 );
-
-    AISetStockPeons( player, V3WorkerTarget(player, 96), c_PU_Probe, c_stockMaxPeons, c_stockAlways );
-
-    // Late target: 90/108/36/72/54 supply = exactly 360 at 25/30/10/20/15 percent.
-    AISetStockUnitNext( player, 117, c_PU_Zealot, c_stockAlways );
-    AISetStockUnitNext( player, 140, c_PU_Stalker, c_stockAlways );
-    AISetStockUnitNext( player, 47, c_PU_Sentry, c_stockAlways );
-    AISetStockUnitNext( player, 47, c_PU_Immortal, c_stockAlways );
-    AISetStockUnitNext( player, 23, c_PU_Colossus, c_stockAlways );
-
+    V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
+    V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
 }

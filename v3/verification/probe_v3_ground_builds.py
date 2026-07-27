@@ -61,7 +61,12 @@ CASES = (
 )
 
 
-def make_config(cases: tuple[BuildCase, ...], *, melee_build: str = "Macro") -> CustomLauncherConfig:
+def make_config(
+    cases: tuple[BuildCase, ...],
+    *,
+    melee_build: str = "Macro",
+    wild_zerg: bool = False,
+) -> CustomLauncherConfig:
     by_slot = {case.logical_slot: case for case in cases}
     slots = []
     for slot_id in range(1, 15):
@@ -73,7 +78,7 @@ def make_config(cases: tuple[BuildCase, ...], *, melee_build: str = "Macro") -> 
         race = case.race if case else "Random"
         fallback = {"Terran": "bio_tank", "Protoss": "stalker_immortal", "Zerg": "roach_hydra", "Random": "random_ground"}[race]
         slots.append(SlotConfig(slot=slot_id, controller=controller, team=1 if slot_id <= 7 else 2, race=race, build=fallback, melee_build=melee_build if case else ""))
-    config = CustomLauncherConfig(version=1, slots=tuple(slots), allow_support_air=False, protoss_faction="Standard", wild_zerg=False, unit_control=False, fullscreen=False)
+    config = CustomLauncherConfig(version=1, slots=tuple(slots), allow_support_air=False, protoss_faction="Standard", wild_zerg=wild_zerg, unit_control=False, fullscreen=False)
     config.validate()
     return config
 
@@ -341,11 +346,18 @@ async def run(
     report_path: Path | None = None,
     *,
     upstream_timing: bool = False,
+    wild_zerg: bool = False,
 ) -> int:
     # Blizzard exposes only coarse AIBuild values through the API.  Timing is
     # the upstream pool containing the Ling/Bane opening; the resulting report
     # records the actual roster so callers must retain only BanelingNest runs.
-    config = make_config(cases, melee_build="Timing" if upstream_timing else "Macro")
+    config = make_config(
+        cases,
+        melee_build="Timing" if upstream_timing else "Macro",
+        wild_zerg=wild_zerg,
+    )
+    if wild_zerg:
+        print("WILD_ZERG=ON")
     if upstream_timing:
         build_runtime_map(
             PROJECT_ROOT,
@@ -639,6 +651,12 @@ def main() -> int:
         action="store_true",
         help="fill a 6v6 (12 players) with the Terran Mechanic build -- maximum expansion-site contention for measuring the town-hall over-build cap",
     )
+    parser.add_argument(
+        "--wild-zerg",
+        action="store_true",
+        help="promote P15 like the live launcher does; the default False plus campaign_units=True "
+             "is a combination the launcher never runs, so campaign-unit leaks stay invisible",
+    )
     parser.add_argument("--report", type=Path, help="write samples and production coordinates as JSON")
     parser.add_argument("--mirror-count", type=int, default=12, help="even number of mirror slots (2..12); split evenly across the two teams")
     args = parser.parse_args()
@@ -679,6 +697,7 @@ def main() -> int:
         args.archive_baseline_mod,
         args.report,
         upstream_timing=args.upstream_timing,
+        wild_zerg=args.wild_zerg,
     ))
 
 

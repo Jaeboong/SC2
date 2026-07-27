@@ -93,6 +93,8 @@ def main() -> int:
     layout_source = LAYOUT.read_text(encoding="utf-8") if LAYOUT.is_file() else ""
     if "player == 15 && AIGetUserInt(player, 145) == 0" not in layout_source:
         failures.append("Zerg root is missing the P15 pre-420 AI entry guard")
+    if "V3WildAssignLocalGarrison(player, u)" not in layout_source:
+        failures.append("Zerg root is missing the P15 local-garrison new-unit hook")
 
     # The six policies must use the race-local wrappers that in turn call the
     # native town stock API.  A bare AISetStockExpand is intentionally not
@@ -117,6 +119,48 @@ def main() -> int:
         "ZergLingBaneUltra.galaxy": "V3SetZergMainMacroHatcheries",
     }
     v3_root = OVERLAY_ROOT / "Base.SC2Data" / "TriggerLibs" / "V3"
+    wild_zerg_text = (v3_root / "Zerg.galaxy").read_text(encoding="utf-8")
+    for required in (
+        "const int c_v3WildZergBuild = 315",
+        "const int c_v3WildAttackRelease = 540",
+        "V3RunWildZergCampaign",
+        "V3SetWildTownPolicy",
+        "V3WildAssignLocalGarrison",
+        "V3WildAdoptPreplacedGarrisons",
+        "c_waveStateGuardHome",
+        "AIWaveTargetGatherD(player, town)",
+        "resourceTowns * 8",
+        "PlayerGetPropertyInt(15, c_playerPropSuppliesUsed) < 400",
+        "PlayerGetPropertyInt(player, c_playerPropSuppliesMade) < 448",
+        # §109: 알파 매크로 해처리는 2(= 본진 총 3개)가 정답이다. 사용자 결정.
+        # P15는 120초에 이미 total_supply 428로 400 천장에 걸려 병력 생산이 멈추므로,
+        # 해처리를 5개로 늘려도 늘어나는 것은 일꾼·오버로드뿐 병력이 아니다.
+        "V3SetZergMainMacroHatcheries(player, 2)",
+        "spineTarget = 6",
+        "AISetStockEx(player, town, 2, c_ZU_Hydralisk",
+        "V3WildMorphUltralisks",
+        "morphLimit = idleLarvae - 3",
+        "UnitIssueOrder(larva, morphOrder, c_orderQueueAddToEnd)",
+        "AISetSpecificState(player, e_attackState, e_attackState_Wait)",
+        "AISetAttackState(player, e_attackState_Attack)",
+    ):
+        if required not in wild_zerg_text:
+            failures.append(f"P15 embedded campaign policy missing: {required}")
+    for forbidden in (
+        "armyTarget",
+        "desiredRoaches",
+        "desiredHydras",
+        "sc2team_HostileWild",
+        "TriggerAddEventTimePeriodic",
+    ):
+        if forbidden in wild_zerg_text:
+            failures.append(f"P15 embedded campaign policy contains forbidden legacy control: {forbidden}")
+    wild_runner = wild_zerg_text.split("bool V3RunWildZergCampaign", 1)[-1]
+    worker_stock = wild_runner.find("AISetStockPeons(player, workerTarget")
+    army_gate = wild_runner.find("if (trainArmy) {")
+    if worker_stock < 0 or army_gate < 0 or worker_stock > army_gate:
+        failures.append("P15 worker stock must precede and remain outside the army gate")
+
     for filename, helper in policy_helpers.items():
         if helper not in (v3_root / filename).read_text(encoding="utf-8"):
             failures.append(f"policy has no town-local production path: {filename}")

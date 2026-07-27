@@ -1,93 +1,193 @@
 //--------------------------------------------------------------------------------------------------
-//  V3 Terran Bionic
+//  V3 Terran Bionic (build 101)
 //
-//  Ground-only stock policy.  Army targets are measured in combat supply:
-//
-//    phase 0: 19 Marine + 5 Marauder + 1 Medic + 3 Siege Tank = 40 supply
-//             (47.50 / 25.00 / 5.00 / 22.50 percent)
-//    phase 1: 54 Marine + 15 Marauder + 3 Medic + 10 Siege Tank = 120 supply
-//             (45.00 / 25.00 / 5.00 / 25.00 percent)
-//    phase 2: 162 Marine + 45 Marauder + 9 Medic + 30 Siege Tank = 360 supply
-//             (45.00 / 25.00 / 5.00 / 25.00 percent)
-//
-//  SC2TeamMedic costs two supply.  Its targets are deliberately never more than five percent of
-//  the army-supply target.  This file only declares stock; it never issues a production or unit
-//  order directly.
+//  Six ordered army tiers are interleaved with economy, production, and upgrades.  The
+//  Full tier deliberately exceeds the 800-supply ceiling, but advances in mixed checkpoints so
+//  Marines can never reserve the whole stock budget ahead of Siege Tanks.
 //--------------------------------------------------------------------------------------------------
-void V3SetBionicCombatStage (int player, int marine, int marauder, int tank) {
-    // Preserve Blizzard's ordered-stock semantics while making each reachable
-    // checkpoint a mixed ground force.  A single 54-Marine entry would block
-    // every later producer until all 54 complete.
-    AISetStockUnitNext(player, marauder, c_TU_Marauder, c_stockAlways);
-    AISetStockUnitNext(player, marine, c_TU_Marine, c_stockAlways);
-    AISetStockUnitNext(player, tank, c_TU_SiegeTank, c_stockAlways);
+
+void V3BionicMedicStock (int player) {
+    int nonMedicSupply;
+    int medicTarget;
+
+    nonMedicSupply =
+        AITechCount(player, c_TU_Marine, c_techCountInProgressOrBetter) +
+        (2 * AITechCount(player, c_TU_Marauder, c_techCountInProgressOrBetter)) +
+        (3 * AITechCount(player, c_TU_SiegeTank_Alias, c_techCountInProgressOrBetter));
+    // Two-supply Medics remain below five percent of total combat supply.
+    medicTarget = nonMedicSupply / 38;
+    if (medicTarget > 0) {
+        AISetStockUnitNext(player, medicTarget, "SC2TeamMedic", c_stockAlways);
+    }
+}
+
+void V3BionicArmyMinimum (int player) {
+    AISetStockUnitNext(player, 4, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_TU_Marauder, c_stockAlways);
+}
+
+void V3BionicArmyBase (int player) {
+    AISetStockUnitNext(player, 1, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 8, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_TU_Marauder, c_stockAlways);
+}
+
+void V3BionicArmySmall (int player) {
+    AISetStockUnitNext(player, 2, c_TB_Barracks, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_BarracksTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 12, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 3, c_TU_Marauder, c_stockAlways);
+    V3BionicMedicStock(player);
+}
+
+void V3BionicArmyMedium (int player) {
+    AISetStockUnitNext(player, 3, c_TB_Barracks, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TB_BarracksTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_BarracksReactor, c_stockIdle);
+    AISetStockUnitNext(player, 3, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 4, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 20, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_TU_Marauder, c_stockAlways);
+    V3BionicMedicStock(player);
+}
+
+void V3BionicArmyLarge (int player) {
+    AISetStockUnitNext(player, 5, c_TB_Barracks, c_stockIdle);
+    AISetStockUnitNext(player, 3, c_TB_BarracksTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TB_BarracksReactor, c_stockIdle);
+    AISetStockUnitNext(player, 4, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 3, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 7, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 10, c_TU_Marauder, c_stockAlways);
+    V3BionicMedicStock(player);
+}
+
+void V3BionicArmyFull (int player) {
+    // Every checkpoint raises all three core producers before the next scale jump.
+    AISetStockUnitNext(player, 8, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 40, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 12, c_TU_Marauder, c_stockAlways);
+    AISetStockUnitNext(player, 14, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 72, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 20, c_TU_Marauder, c_stockAlways);
+    AISetStockUnitNext(player, 22, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 108, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 30, c_TU_Marauder, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 162, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 45, c_TU_Marauder, c_stockAlways);
+    AISetStockUnitNext(player, 48, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 240, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 67, c_TU_Marauder, c_stockAlways);
+    AISetStockUnitNext(player, 72, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 360, c_TU_Marine, c_stockAlways);
+    AISetStockUnitNext(player, 100, c_TU_Marauder, c_stockAlways);
+    V3BionicMedicStock(player);
+}
+
+void V3BionicUpgrades (int player) {
+    int bioCount;
+    int tankCount;
+    int barracksTechLabs;
+    int engineeringBayCount = 0;
+    int armoryCount = 0;
+
+    if (AIHighCurrentlyUnderHeavyAttack(player)) {
+        return;
+    }
+
+    bioCount =
+        AITechCount(player, c_TU_Marine, c_techCountInProgressOrBetter) +
+        AITechCount(player, c_TU_Marauder, c_techCountInProgressOrBetter);
+    tankCount = AITechCount(player, c_TU_SiegeTank_Alias, c_techCountInProgressOrBetter);
+    barracksTechLabs = AITechCount(player, c_TB_BarracksTechLab, c_techCountInProgressOrBetter);
+
+    if (bioCount >= 10) {
+        AINewTechStock(player);
+        AITechStockAdd(c_TR_InfantryWeapons1);
+        AITechStockAdd(c_TR_InfantryWeapons2);
+        AITechStockAdd(c_TR_InfantryWeapons3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        engineeringBayCount = engineeringBayCount + 1;
+
+        AINewTechStock(player);
+        AITechStockAdd(c_TR_InfantryArmor1);
+        AITechStockAdd(c_TR_InfantryArmor2);
+        AITechStockAdd(c_TR_InfantryArmor3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        engineeringBayCount = engineeringBayCount + 1;
+    }
+    if (tankCount >= 4) {
+        AINewTechStock(player);
+        AITechStockAdd(c_TR_VehicleWeapons1);
+        AITechStockAdd(c_TR_VehicleWeapons2);
+        AITechStockAdd(c_TR_VehicleWeapons3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        armoryCount = armoryCount + 1;
+
+        AINewTechStock(player);
+        AITechStockAdd(c_TR_MechPlating1);
+        AITechStockAdd(c_TR_MechPlating2);
+        AITechStockAdd(c_TR_MechPlating3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        armoryCount = armoryCount + 1;
+    }
+    if (engineeringBayCount > 0) {
+        AISetStockUnitNext(player, engineeringBayCount, c_TB_EngineeringBay, c_stockAlways);
+    }
+    if (armoryCount > 0) {
+        AISetStockUnitNext(player, armoryCount, c_TB_Armory, c_stockAlways);
+    }
+
+    if (barracksTechLabs >= 1 &&
+        AITechCount(player, c_TU_Marine, c_techCountInProgressOrBetter) >= 8) {
+        AISetStock(player, 1, c_TR_MarineStimPack);
+        AISetStock(player, 1, c_TR_MarineShield);
+    }
+    if (barracksTechLabs >= 1 &&
+        AITechCount(player, c_TU_Marauder, c_techCountInProgressOrBetter) >= 4) {
+        AISetStock(player, 1, c_TR_MarauderSlow);
+    }
 }
 
 void V3TerranBionicStock (int player, int phase) {
     int workerCap;
-    int refineryTarget;
     int barracksTarget;
-    int barracksTechLabTarget;
-    int barracksReactorTarget;
     int factoryTarget;
-    int factoryTechLabTarget;
-    int marineTarget;
-    int marauderTarget;
-    int medicTarget;
-    int tankTarget;
-    int nonMedicSupply;
-    int medicAllowedTarget;
 
-    // Treat invalid low phases as the opening and retain the late-game policy after phase 2.
     if (phase <= 0) {
         workerCap = 45;
-        refineryTarget = 3;
         barracksTarget = 3;
-        barracksTechLabTarget = 2;
-        barracksReactorTarget = 1;
         factoryTarget = 2;
-        factoryTechLabTarget = 1;
-
-        marineTarget = 19;
-        marauderTarget = 5;
-        medicTarget = 1;
-        tankTarget = 3;
     }
     else if (phase == 1) {
         workerCap = 60;
-        refineryTarget = 5;
         barracksTarget = 6;
-        barracksTechLabTarget = 4;
-        barracksReactorTarget = 2;
         factoryTarget = 4;
-        factoryTechLabTarget = 3;
-
-        marineTarget = 54;
-        marauderTarget = 15;
-        medicTarget = 3;
-        tankTarget = 10;
     }
     else {
         workerCap = 85;
-        refineryTarget = 11;
         barracksTarget = 14;
-        barracksTechLabTarget = 8;
-        barracksReactorTarget = 6;
         factoryTarget = 8;
-        factoryTechLabTarget = 6;
-
-        marineTarget = 162;
-        marauderTarget = 45;
-        medicTarget = 9;
-        tankTarget = 30;
     }
 
     AIClearStock(player);
+    AISetTechLimitLevels(player);
 
-    // Keep SCV production active while the opening banks the first 400
-    // minerals. The natural starts immediately once those minerals exist.
+    // Recovery minimums.
     AISetStock(player, 1, c_TB_CommandCenter_Alias);
-    AISetStockPeons(player, V3WorkerTarget(player, workerCap), c_TU_SCV, c_stockMaxPeons, c_stockAlways);
+    AISetStock(player, V3WorkerTarget(player, 1), c_TU_SCV);
+    AISetStockFarms(player, c_TB_SupplyDepot, c_stockNeededFarms);
+    AISetStock(player, V3WorkerTarget(player, 12), c_TU_SCV);
+
+    // Preserve the original one-time natural bootstrap and its production-bank latch.
     if (AIGetUserInt(player, 144) == 0) {
         if (AITechCount(player, c_TB_CommandCenter_Alias, c_techCountQueuedOrBetter) >= 2) {
             AISetUserInt(player, 144, 1);
@@ -98,100 +198,37 @@ void V3TerranBionicStock (int player, int phase) {
                 AIHasRes(player, 400, 0)) {
                 AIExpand(player, AIGetTownLocation(player, c_townMain), c_TB_CommandCenter);
             }
+            V3TerranDefaultEconomy(player);
             return;
         }
     }
 
-    // Town-local production is the bootstrap and repeat target: no global
-    // Barracks/Factory entry can duplicate it in this stock pass.
-    AISetStockFarms(player, c_TB_SupplyDepot, c_stockNeededFarms);
-
-    // Economy and gas. Expansion cadence is handled centrally from established town state.
-    AISetStockPeons(player, V3WorkerTarget(player, workerCap), c_TU_SCV, c_stockMinPeons, c_stockAlways);
-    AISetStockUnitNext(player, refineryTarget, c_TB_Refinery, c_stockAlways);
     AISetStockFarms(player, c_TB_SupplyDepot, c_stockNormalFarms);
+    V3BionicArmyMinimum(player);
+    AISetStockPeons(player, V3WorkerTarget(player, workerCap), c_TU_SCV, c_stockMinPeons, c_stockAlways);
+    V3BionicArmyBase(player);
+    V3TerranDefaultEconomy(player);
 
-    // Ground production and its prerequisites.  No air-production structure is requested.
+    V3BionicArmySmall(player);
+
+    // Town distribution remains the primary placement policy; idle stock is interleaved in tiers.
     V3SetTerranTownProduction(player, barracksTarget, c_TB_Barracks);
-    AISetStockUnitNext(player, barracksTechLabTarget, c_TB_BarracksTechLab, c_stockIdle);
-    AISetStockUnitNext(player, barracksReactorTarget, c_TB_BarracksReactor, c_stockIdle);
     V3SetTerranTownProduction(player, factoryTarget, c_TB_Factory);
-    AISetStockUnitNext(player, factoryTechLabTarget, c_TB_FactoryTechLab, c_stockIdle);
-    AISetStockUnitNext(player, 1, c_TB_EngineeringBay, c_stockAlways);
-    AISetStockUnitNext(player, 1, c_TB_Armory, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_TB_Barracks, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_BarracksTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_BarracksReactor, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_FactoryTechLab, c_stockIdle);
 
-    // Core bio and tank upgrades.  Higher phases preserve prerequisite order through Stock.
-    AISetStock(player, 1, c_TR_MarineStimPack);
-    AISetStock(player, 1, c_TR_MarineShield);
-    AISetStock(player, 1, c_TR_MarauderSlow);
-    AISetStock(player, 1, c_TR_InfantryWeapons1);
-    AISetStock(player, 1, c_TR_InfantryArmor1);
-    AISetStock(player, 1, c_TR_VehicleWeapons1);
-    AISetStock(player, 1, c_TR_MechPlating1);
+    V3BionicArmyMedium(player);
+    V3BionicUpgrades(player);
+    V3BionicArmyLarge(player);
 
-    if (phase >= 1) {
-        AISetStock(player, 1, c_TR_InfantryWeapons2);
-        AISetStock(player, 1, c_TR_InfantryArmor2);
-        AISetStock(player, 1, c_TR_VehicleWeapons2);
-        AISetStock(player, 1, c_TR_MechPlating2);
-    }
-    if (phase >= 2) {
-        AISetStockUnitNext(player, 2, c_TB_EngineeringBay, c_stockAlways);
-        AISetStockUnitNext(player, 2, c_TB_Armory, c_stockAlways);
-        AISetStock(player, 1, c_TR_InfantryWeapons3);
-        AISetStock(player, 1, c_TR_InfantryArmor3);
-        AISetStock(player, 1, c_TR_VehicleWeapons3);
-        AISetStock(player, 1, c_TR_MechPlating3);
-    }
+    AISetStockUnitNext(player, barracksTarget, c_TB_Barracks, c_stockIdle);
+    AISetStockUnitNext(player, (barracksTarget + 1) / 2, c_TB_BarracksTechLab, c_stockIdle);
+    AISetStockUnitNext(player, barracksTarget / 3, c_TB_BarracksReactor, c_stockIdle);
+    AISetStockUnitNext(player, factoryTarget, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, (factoryTarget + 1) / 2, c_TB_FactoryTechLab, c_stockIdle);
 
-    // The medic target remains capped from the live non-Medic force.  Combat
-    // targets use mixed cumulative checkpoints below instead of one serial
-    // all-Marine gate.
-    nonMedicSupply =
-        AITechCount(player, c_TU_Marine, c_techCountInProgressOrBetter) +
-        (2 * AITechCount(player, c_TU_Marauder, c_techCountInProgressOrBetter)) +
-        (3 * AITechCount(player, c_TU_SiegeTank_Alias, c_techCountInProgressOrBetter));
-    medicAllowedTarget = nonMedicSupply / 38;
-    if (medicAllowedTarget < medicTarget) {
-        medicTarget = medicAllowedTarget;
-    }
-    if (medicTarget > 0) {
-        AISetStock(player, medicTarget, "SC2TeamMedic");
-    }
-
-    V3SetBionicCombatStage(player, 3, 1, 1);
-    if (marineTarget >= 7) {
-        V3SetBionicCombatStage(player, 7, 2, 1);
-    }
-    if (marineTarget >= 12) {
-        V3SetBionicCombatStage(player, 12, 3, 2);
-    }
-    if (marineTarget >= 19) {
-        V3SetBionicCombatStage(player, 19, 5, 3);
-    }
-    if (marineTarget >= 27) {
-        V3SetBionicCombatStage(player, 27, 7, 5);
-    }
-    if (marineTarget >= 38) {
-        V3SetBionicCombatStage(player, 38, 10, 7);
-    }
-    if (marineTarget >= 54) {
-        V3SetBionicCombatStage(player, 54, 15, 10);
-    }
-    if (marineTarget >= 81) {
-        V3SetBionicCombatStage(player, 81, 22, 15);
-    }
-    if (marineTarget >= 108) {
-        V3SetBionicCombatStage(player, 108, 30, 20);
-    }
-    if (marineTarget >= 135) {
-        V3SetBionicCombatStage(player, 135, 37, 25);
-    }
-    if (marineTarget >= 162) {
-        V3SetBionicCombatStage(player, 450, 120, 80);
-    }
-
-    // Attack-wave thresholds are set supply-normalized in the dispatcher
-    // (V3RunTerranBuild), which runs after this stock pass and owns the wave
-    // tuning for both bionic and mechanic.
+    V3BionicArmyFull(player);
 }

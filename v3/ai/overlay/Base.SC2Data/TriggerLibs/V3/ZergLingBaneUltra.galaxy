@@ -4,60 +4,312 @@
 // The three upstream phase functions stay intact, but economy, supply, and
 // army use independent stock tracks.  In particular, never put an unreachable
 // army total ahead of Drone, Overlord, or tech milestones in the serial list.
+// ZergBasicDefenseStock may still request six emergency Roaches while the main is under attack.
 //==================================================================================================
 
 fixed[16] gv_v3LingBaneUltraTechDeadline;
 
-bool V3ZergLingBaneUltraOpen (int player) {
+fixed[16] gv_v3LingBaneArmyBatchDue;
+
+// 업스트림 병력 생산 모델.  설계 근거 전문은 301(ZergRoachHydraUltra.galaxy)의
+// V3RoachHydraArmyBatch 주석에 있다.  요약:
+//   AIAddToStockArmy   -> UserInt/UserString 슬롯 1..32 에 누적 (매 틱 AIClearStock 에
+//                         지워지지 않음; 우리가 쓰는 142~148 과 충돌 없음)
+//   AISetStockArmyScale-> 그 슬롯을 읽어 사다리의 호출 위치에 AISetStock 으로 반영
+// 업스트림과 달리 주기마다 AIClearStockArmy 를 하지 않는다 — 초기화하면 병력이 한
+// 배치 크기에서 정체해 "커스텀 AI 슬롯 병력 상한 없음" 규칙과 충돌하기 때문이다.
+//
+// 조합 비율은 아래 6티어 사다리에서 그대로 가져왔다(저글링 우위, 맹독충 약 2/3,
+// phase>=1 부터 히드라·울트라 합류).
+void V3LingBaneArmyBatch (int player, int phase) {
+    // 업스트림은 MeleeLowAI.galaxy:24 에서 이 전역 스케일을 세팅하는데, 그 경로는
+    // 난이도별 빌드 안이라 V3 가 조기 반환으로 우회한다.  세팅이 없으면
+    // AIAddToStockArmy("Scale & Override logic") 의 증분이 0 으로 접혀 병력이
+    // 전혀 안 나온다(6분 스모크 실측: 로치·히드라·궤멸충 전부 0).  매번 불러도
+    // 안전하다 — 네이티브 주석에 "doesn t change current army" 로 명시돼 있다.
+    AISetStockArmyDefaultScale(player, c_ldArmyStockScale);
+
+    if (AIGetTime() < gv_v3LingBaneArmyBatchDue[player]) {
+        return;
+    }
+    gv_v3LingBaneArmyBatchDue[player] = AIGetTime() + 60.0;
+
+    if (phase == 0) {
+        AIAddToStockArmy(player, c_ZU_Zergling, 4);
+        AIAddToStockArmy(player, c_ZU_Baneling, 2);
+        AIAddToStockArmy(player, c_ZU_Queen, 1);
+        return;
+    }
+    if (phase == 1) {
+        AIAddToStockArmy(player, c_ZU_Zergling, 5);
+        AIAddToStockArmy(player, c_ZU_Baneling, 3);
+        AIAddToStockArmy(player, c_ZU_Hydralisk, 2);
+        AIAddToStockArmy(player, c_ZU_Ultralisk, 1);
+        AIAddToStockArmy(player, c_ZU_Queen, 1);
+        return;
+    }
+    AIAddToStockArmy(player, c_ZU_Zergling, 6);
+    AIAddToStockArmy(player, c_ZU_Baneling, 4);
+    AIAddToStockArmy(player, c_ZU_Hydralisk, 3);
+    AIAddToStockArmy(player, c_ZU_Ultralisk, 1);
+    AIAddToStockArmy(player, c_ZU_Queen, 1);
+}
+
+// 아래 6티어 사다리는 **호출하지 않는다** — 위 배치 모델로 대체됐다.  복구 경로로
+// 남긴다(조합 비율 근거).  지우려면 먼저 커밋할 것.
+void V3LingBaneUltraArmyTier (int player, int phase, int tier) {
+    if (tier == e_armyTypeMinimum) {
+        AISetStockUnitNext(player, 4, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 1, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeBase) {
+        if (phase >= 1) {
+            AISetStockUnitNext(player, 4, c_ZU_Hydralisk, c_stockAlways);
+        }
+        AISetStockUnitNext(player, 4, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 8, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 2, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeSmall) {
+        if (phase >= 1) {
+            AISetStockUnitNext(player, 8, c_ZU_Hydralisk, c_stockAlways);
+        }
+        AISetStockUnitNext(player, 8, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 14, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 3, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeMedium) {
+        if (phase >= 1) {
+            AISetStockUnitNext(player, 2, c_ZU_Ultralisk, c_stockAlways);
+            AISetStockUnitNext(player, 14, c_ZU_Hydralisk, c_stockAlways);
+        }
+        AISetStockUnitNext(player, 16, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 20, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 4, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeLarge) {
+        if (phase >= 1) {
+            AISetStockUnitNext(player, 6, c_ZU_Ultralisk, c_stockAlways);
+            AISetStockUnitNext(player, 24, c_ZU_Hydralisk, c_stockAlways);
+        }
+        AISetStockUnitNext(player, 30, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 30, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 5, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeFull) {
+        if (phase == 0) {
+            AISetStockUnitNext(player, 60, c_ZU_Baneling, c_stockAlways);
+            AISetStockUnitNext(player, 90, c_ZU_Zergling, c_stockAlways);
+            AISetStockUnitNext(player, 100, c_ZU_Baneling, c_stockAlways);
+            AISetStockUnitNext(player, 140, c_ZU_Zergling, c_stockAlways);
+            return;
+        }
+
+        // Keep every unbounded step expensive-to-cheap so its small high-tech
+        // milestones complete before the cheap Ling volume absorbs the remainder.
+        AISetStockUnitNext(player, 14, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 40, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 60, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 90, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 6, c_ZU_Queen, c_stockAlways);
+        AISetStockUnitNext(player, 20, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 70, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 100, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 140, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 30, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 110, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 160, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 220, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 45, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 170, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 240, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 340, c_ZU_Zergling, c_stockAlways);
+        AISetStockUnitNext(player, 60, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 260, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 330, c_ZU_Baneling, c_stockAlways);
+        AISetStockUnitNext(player, 470, c_ZU_Zergling, c_stockAlways);
+    }
+}
+
+void V3LingBaneUltraUpgrades (int player) {
+    int evoCount = 1;
+
+    if (AIHighCurrentlyUnderHeavyAttack(player)) {
+        return;
+    }
+
+    if (AITechCount(player, c_ZU_Zergling, c_techCountInProgressOrBetter) >= 12 ||
+        AITechCount(player, c_ZU_Ultralisk, c_techCountInProgressOrBetter) >= 3) {
+        AINewTechStock(player);
+        AITechStockAdd(c_ZR_MeleeAttacks1);
+        AITechStockAdd(c_ZR_MeleeAttacks2);
+        AITechStockAdd(c_ZR_MeleeAttacks3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        evoCount += 1;
+    }
+    if (AITechCount(player, c_ZU_Hydralisk, c_techCountInProgressOrBetter) >= 10) {
+        AINewTechStock(player);
+        AITechStockAdd(c_ZR_MissileAttacks1);
+        AITechStockAdd(c_ZR_MissileAttacks2);
+        AITechStockAdd(c_ZR_MissileAttacks3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        evoCount += 1;
+    }
+
+    AINewTechStock(player);
+    AITechStockAdd(c_ZR_GroundCarapace1);
+    AITechStockAdd(c_ZR_GroundCarapace2);
+    AITechStockAdd(c_ZR_GroundCarapace3);
+    AISetStockTechNextUnCap(player, 1000, 1000);
+    AISetStockUnitNext(player, evoCount, c_ZB_EvolutionChamber, c_stockAlways);
+
+    if (AITechCount(player, c_ZU_Zergling, c_techCountInProgressOrBetter) >= 12) {
+        AISetStock(player, 1, c_ZR_ZerglingSpeed);
+        if (AITechCount(player, c_ZB_Hive, c_techCountInProgressOrBetter) >= 1) {
+            AISetStock(player, 1, c_ZR_ZerglingHaste);
+        }
+    }
+    if (AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter) >= 8) {
+        AISetStock(player, 1, c_ZR_BanelingSpeed);
+    }
+    if (AITechCount(player, c_ZU_Hydralisk, c_techCountInProgressOrBetter) >= 8) {
+        AISetStock(player, 1, c_ZR_HydraliskRange);
+        AISetStock(player, 1, c_ZR_HydraliskSpeed);
+    }
+    if (AITechCount(player, c_ZU_Ultralisk, c_techCountInProgressOrBetter) >= 4) {
+        AISetStock(player, 1, c_ZR_UltraliskArmor);
+    }
+}
+
+void V3LingBaneUltraStock (int player, int phase) {
+    int workerTarget;
+
+    if (phase == 0) {
+        workerTarget = 32;
+    }
+    else if (phase == 1) {
+        workerTarget = 60;
+    }
+    else {
+        workerTarget = 96;
+    }
+
     AIClearStock(player);
+    AISetTechLimitLevels(player);
 
-    // Continuous economy and supply tracks.
-    AISetStockPeons( player, V3WorkerTarget(player, 32), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-    AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
+    AISetStock(player, 1, c_ZB_Hatchery_Alias);
+    AISetStock(player, V3WorkerTarget(player, 1), c_ZU_Drone);
+    AISetStockFarms(player, c_ZU_Overlord, c_stockNeededFarms);
+    AISetStock(player, V3WorkerTarget(player, 12), c_ZU_Drone);
+    AISetStockFarms(player, c_ZU_Overlord_Alias, c_stockNormalFarms);
 
-    // Serial stock is reserved for prerequisites and upgrades.
-    AISetStock( player, 1, c_ZB_Hatchery_Alias );
-    AISetStock( player, 1, c_ZB_SpawningPool );
-    AISetStock( player, 1, c_ZB_Extractor );
-    AISetStock( player, 1, c_ZB_BanelingNest );
-    AISetStock( player, 1, c_ZB_EvolutionChamber );
-    AISetStock( player, 1, c_ZR_ZerglingSpeed );
-    AISetStock( player, 1, c_ZR_MeleeAttacks1 );
-    AISetStock( player, 1, c_ZR_GroundCarapace1 );
+    V3LingBaneUltraArmyTier(player, phase, e_armyTypeMinimum);
+    AISetStockPeons(player, V3WorkerTarget(player, 16), c_ZU_Drone, c_stockMinPeons, c_stockAlways);
+    AISetStock(player, 1, c_ZB_SpawningPool);
+    AISetStock(player, 1, c_ZB_Extractor);
+    AISetStock(player, 1, c_ZB_BanelingNest);
+    if (phase >= 1) {
+        AISetStock(player, 2, c_ZB_Extractor);
+        AISetStock(player, 1, c_ZB_Lair_Alias);
+    }
+    // 히드라 굴은 1단계에 갇힌 슬롯도 스톡해야 한다(2단계 관문이 히드라를 요구).
+    // 레어 완성을 조건으로 삼아 오프닝 순서는 건드리지 않는다.  같은 빌드의
+    // 저그 바퀴·히드라(301)가 쓰는 별칭 상수로 맞춘다.
+    if (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) >= 1) {
+        AISetStock(player, 1, c_ZB_HydraliskDen_Alias);
+    }
+    // 진화장 1호는 여기, 다른 테크 구조물과 같은 줄에 둔다(301 과 동일 형태).
+    // V3LingBaneUltraUpgrades 안의 AISetStockUnitNext 로만 요청하면 Medium 뒤에
+    // 묻혀서, 그 위 사다리가 먼저 채워질 때까지 차례가 오지 않는다.  301 에서
+    // 같은 문제를 15분 12슬롯으로 실측했다(공격업 0.17 / 방어업 0.08 = 사실상 0업).
+    // 2·3호는 Upgrades() 의 evoCount 가 계속 담당한다.
+    AISetStock(player, 1, c_ZB_EvolutionChamber);
+    V3LingBaneUltraArmyTier(player, phase, e_armyTypeBase);
 
-    // Parallel, unbounded Ling/Bane production tracks.
-    AISetStockUnitNext( player, 18, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 8, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 30, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 16, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 200, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 140, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 2, c_ZU_Queen, c_stockAlways );
+    AIDefaultEconomy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor, c_ZU_Overlord,
+        c_ZU_Drone, V3MiningWorkerCapacity(player), c_stockAlways);
+    AISetStockPeons(player, V3WorkerTarget(player, workerTarget), c_ZU_Drone,
+        c_stockMaxPeons, c_stockAlways);
+    V3SetMiningWorkerStock(player, c_ZU_Drone);
+
+    // 업그레이드는 Small 티어 **앞**이다.  301 에서 세 위치를 15분 12슬롯 미러로
+    // 각각 실측했고(공격업 / 방어업 / 병력보급):
+    //   Medium 뒤   0.25 / 0.00 / 90.2
+    //   Small~Medium 0.42 / 0.08 / 91.3
+    //   Small 앞     1.17 / 0.33 / 80.1   <- 채택
+    // 흡수량이 사다리 앞쪽에 몰려 있어 Small 위로 올라가야만 연구가 자금을 받는다.
+    // 302 는 이 이동을 안 한 채 남아 있었다 — 사용자 라이브 13분 관측 "저그가
+    // 테크·공방업을 일절 안 함" 의 원인 중 하나다.
+    V3LingBaneUltraUpgrades(player);
+    V3LingBaneUltraArmyTier(player, phase, e_armyTypeSmall);
+
+    if (phase >= 1) {
+        AISetStock(player, 1, c_ZB_InfestationPit);
+        AISetStock(player, 1, c_ZB_Hive);
+        AISetStock(player, 1, c_ZB_UltraliskCavern);
+    }
+
+    AISetStockPeons(player, V3WorkerTarget(player, workerTarget), c_ZU_Drone,
+        c_stockMinPeons, c_stockAlways);
+    // === 업스트림 배치 모델(AIAddToStockArmy) 시도 -> 실패, 되돌림 (2026-07-26) ===
+    // 상세는 301(ZergRoachHydraUltra.galaxy)의 같은 위치 주석 참조.  요약: 배치를
+    // 슬롯에 얹어도 AISetStock 으로 materialize 되지 않아 병력이 전혀 안 나왔다
+    // (6분 스모크 2회: 302 저글링 2~4·맹독충 0, 일꾼은 15 -> 33 으로 증가).
+    V3LingBaneUltraArmyTier(player, phase, e_armyTypeMedium);
+    V3LingBaneUltraArmyTier(player, phase, e_armyTypeLarge);
 
     ZergBasicDefenseStock(player);
     ZergHDEmergencyDetectionAntiAir(player);
     ZergHDDefaultExtraStock(player);
-    V3SetZergMainMacroHatcheries(player, 1);
-    // 302는 나머지 3경로(저그 301·테란·플토)와 달리 네이티브 경제 드라이버가
-    // 빠져 있어 확장 타운에 가스(추출장)를 못 지었다.  301과 동일한 형태로
-    // 추가 — 일꾼/공급/확장 가스를 네이티브가 처리하고 아래 독립 트랙은 보조로
-    // 유지(301에서 검증된 공존).  V3.6 병력 트랙 무회귀는 프로브로 확인.
-    AIDefaultEconomy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor, c_ZU_Overlord, c_ZU_Drone, V3MiningWorkerCapacity(player), c_stockAlways);
+    if (phase == 0) {
+        V3SetZergMainMacroHatcheries(player, 1);
+        AISetStockUnitNext(player, 2, c_ZB_Hatchery_Alias, c_stockIdle);
+    }
+    else if (phase == 1) {
+        V3SetZergMainMacroHatcheries(player, 2);
+        AISetStockUnitNext(player, 3, c_ZB_Hatchery_Alias, c_stockIdle);
+    }
+    else {
+        V3SetZergMainMacroHatcheries(player, 4);
+        AISetStockUnitNext(player, 5, c_ZB_Hatchery_Alias, c_stockIdle);
+    }
+    V3LingBaneUltraArmyTier(player, phase, e_armyTypeFull);
+
     V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
     V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
-
     AIEnableStock(player);
+}
+
+bool V3ZergLingBaneUltraOpen (int player) {
+    V3LingBaneUltraStock(player, 0);
+    V3ZergRejoinMorphStragglers(player);
 
     AIScoutingEnableWithPreReq(player, 12, c_ZU_Drone, 1, c_ZU_Zergling, c_techCountCompleteOnly);
-    V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(0), 6);
+    // 업스트림 ZergOpenTimingLingBaneVyHd 와 동일한 개시선.  저글링만 개시자이고
+    // 맹독충은 999 호위 -- 웨이브가 뜨면 전원 합류하되 스스로 먼저 나가지 않는다.
+    AISetAttackStatus(player, c_ZU_Zergling, 4, 18, c_continuousMerge);
+    if (AITechCount(player, c_ZB_BanelingNest, c_techCountCompleteOnly) >= 1) {
+        AISetAttackStatus(player, c_ZU_Baneling, 1, 999, c_continuousMerge);
+    }
 
     // The upstream opening normally begins immediately.  V3 deliberately
     // spends the first 300 minerals on a natural, so retain this upstream
     // stock list until its own final Drone and Baneling milestones exist
     // rather than switching at the original absolute 360-second deadline.
-    if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) < 24 ||
-        AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter) < 4) {
-        return false;
+    // 마일스톤은 "빠르면 빠르게" 통로로 남기고 360초를 안전망으로 둔다.  맹독충은
+    // 자폭 소모품이라 4기 동시 생존이 성립하지 않는 슬롯이 절반이었고(18분 12슬롯
+    // 3판 실측), 그 슬롯은 테크 스톡이 전부 phase>=1 뒤에 있어 영구 고착됐다.
+    // 360초는 이 스톡 목록의 업스트림 원본이 쓰던 절대 데드라인 값이다.
+    if (AIGetTime() < 360.0) {
+        if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) < 24 ||
+            AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter) < 4) {
+            return false;
+        }
     }
 
     return true;
@@ -111,41 +363,82 @@ void V3LingBaneMorphUltralisks (int player) {
     }
 }
 
+// 저글링 -> 맹독충.  **라바를 쓰지 않으므로 Stock 전환 대상이 아니다** — 301이
+// 궤멸충 모프(바퀴 -> 궤멸충)를 남긴 것과 같은 이유다.  맹독충은 이미 존재하는
+// 저글링을 소비하는 변태이고, Stock 사다리에는 그 경로가 없다.
+//
+// V3LingBaneMorphArmy 의 (2)번 블록을 그대로 떼어낸 것이며, 값싼 게이트를 전부
+// 스캔 **위로** 올렸다.  원래는 저글링 유닛그룹을 먼저 뜬 뒤에 lingCount>=12 를
+// 검사해서, 조건이 안 맞는 동안에도 매 틱 스캔 비용을 냈다.
+void V3LingBaneMorphBanelings (int player) {
+    unitgroup lings;
+    unit ling;
+    order banelingOrder;
+    int index;
+    int lingCount;
+    int banelingCount;
+    int banelingIssued;
+    point townPoint;
+
+    if (AITechCount(player, c_ZB_BanelingNest, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    // 맹독충 수가 저글링의 절반 미만(≈ 병력의 1/3)일 때만 모프한다 — 전량 전환을
+    // 막고 링 우위 혼합을 유지.  맹독충은 자폭 소모되므로 비율이 자동 유지된다.
+    // 코쿤(진행 중)까지 세어(QueuedOrBetter) 오버슛을 막는다.
+    lingCount = AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly);
+    banelingCount = AITechCount(player, c_ZU_Baneling, c_techCountQueuedOrBetter);
+    if (lingCount < 12 || banelingCount * 2 >= lingCount) {
+        return;
+    }
+    townPoint = AIGetTownLocation(player, AIGetMainTown(player));
+    if (townPoint == null) {
+        return;
+    }
+
+    // 유휴 조건이면 병력이 출격을 시작한 뒤 대상이 0이 되어 맹독충 생산이 완전히
+    // 멎었다(12슬롯 18분 실측 0마리).  위치 기준이면 전선 유닛이 자동 제외된다.
+    banelingOrder = Order(AbilityCommand("MorphToBaneling", 0));
+    lings = UnitGroup("Zergling", player, RegionCircle(townPoint, 25.0), UnitFilter(0, 0, 0, 0), 0);
+    banelingIssued = 0;
+    index = UnitGroupCount(lings, c_unitCountAlive);
+    for (;; index -= 1) {
+        ling = UnitGroupUnitFromEnd(lings, index);
+        if (ling == null || banelingIssued >= 3) {
+            break;
+        }
+        if (UnitOrderIsValid(ling, banelingOrder)) {
+            AIRemoveUnitFromAnyWaves(ling);
+            UnitIssueOrder(ling, banelingOrder, c_orderQueueReplace);
+            banelingIssued += 1;
+        }
+    }
+}
+
 // 라바가 30개+ 쌓여도 멜리 Stock 엔진이 틱당 소수만 소비하는 문제(§85~89에서
 // P15에 대해 실측된 것과 동일)를 플레이어 링/베인 빌드에서도 끊는다.  울트라
-// 전용이던 직접 라바 모프를 링/바퀴/히드라로 일반화하고, 저글링→맹독충 모프까지
+// 전용이던 직접 라바 모프를 링/히드라로 일반화하고, 저글링→맹독충 모프까지
 // 추가한다.  Stock 트랙은 그대로 두고(공존 — §V3.6 검증 패턴) 유휴 라바를 즉시
 // 병력으로 전환하는 보조 배수로다.  인덱스는 벤더 LarvaTrain InfoArray(TrainN→N-1)
-// 실측: 저글링 1, 히드라 3, 바퀴 9(울트라 6은 위 별도 함수).  맹독충은 라바가
+// 실측: 저글링 1, 히드라 3(울트라 6은 위 별도 함수).  맹독충은 라바가
 // 아니라 저글링 CAbilMorph "MorphToBaneling"(Execute=0, UpgradeToHive와 동일 구조).
 void V3LingBaneMorphArmy (int player) {
     unitgroup larvae;
     unit larva;
-    unitgroup lings;
-    unit ling;
     order lingOrder;
-    order roachOrder;
     order hydraOrder;
-    order banelingOrder;
     int index;
     int idleLarvaCount;
     int morphBudget;
     int morphIssued;
     int rotation;
-    int lingCount;
-    int banelingIssued;
-    bool hasRoach;
     bool hasHydra;
-    bool hasBaneling;
 
     lingOrder = Order(AbilityCommand("LarvaTrain", 1));
-    roachOrder = Order(AbilityCommand("LarvaTrain", 9));
     hydraOrder = Order(AbilityCommand("LarvaTrain", 3));
-    hasRoach = AITechCount(player, c_ZB_RoachWarren, c_techCountCompleteOnly) >= 1;
     hasHydra = AITechCount(player, c_ZB_HydraliskDen, c_techCountCompleteOnly) >= 1;
-    hasBaneling = AITechCount(player, c_ZB_BanelingNest, c_techCountCompleteOnly) >= 1;
 
-    // (1) 유휴 라바 → 링/바퀴/히드라 라운드로빈.  드론/오버로드용 3마리는 항상
+    // (1) 유휴 라바 → 링/히드라 라운드로빈.  드론/오버로드용 3마리는 항상
     //     남긴다(§92).  자금/공급 부족은 UnitOrderIsValid가 자동 차단한다.
     larvae = UnitGroup("Larva", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
     idleLarvaCount = 0;
@@ -172,18 +465,12 @@ void V3LingBaneMorphArmy (int player) {
             if (UnitOrderCount(larva) != 0) {
                 continue;
             }
-            // 선호 타입(로테이션 링/바퀴/히드라)을 먼저, 자금 부족 시 링으로 폴백.
-            if (rotation == 1 && hasRoach && UnitOrderIsValid(larva, roachOrder)) {
-                UnitIssueOrder(larva, roachOrder, c_orderQueueAddToEnd);
-            }
-            else if (rotation == 2 && hasHydra && UnitOrderIsValid(larva, hydraOrder)) {
+            // 선호 타입(로테이션 링/히드라)을 먼저, 자금 부족 시 링으로 폴백.
+            if (rotation == 1 && hasHydra && UnitOrderIsValid(larva, hydraOrder)) {
                 UnitIssueOrder(larva, hydraOrder, c_orderQueueAddToEnd);
             }
             else if (UnitOrderIsValid(larva, lingOrder)) {
                 UnitIssueOrder(larva, lingOrder, c_orderQueueAddToEnd);
-            }
-            else if (hasRoach && UnitOrderIsValid(larva, roachOrder)) {
-                UnitIssueOrder(larva, roachOrder, c_orderQueueAddToEnd);
             }
             else if (hasHydra && UnitOrderIsValid(larva, hydraOrder)) {
                 UnitIssueOrder(larva, hydraOrder, c_orderQueueAddToEnd);
@@ -193,60 +480,63 @@ void V3LingBaneMorphArmy (int player) {
             }
             morphIssued += 1;
             rotation += 1;
-            if (rotation >= 3) {
+            if (rotation >= 2) {
                 rotation = 0;
             }
         }
     }
 
-    // (2) 저글링 → 맹독충.  전량 전환 방지: 저글링이 12기 이상일 때 유휴 저글링만
-    //     틱당 최대 3기 모프해 링/베인 혼합을 유지한다(교전 중 저글링은 건드리지
-    //     않도록 UnitOrderCount == 0 만 대상).
-    if (hasBaneling) {
-        lingCount = AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly);
-        if (lingCount >= 12) {
-            banelingOrder = Order(AbilityCommand("MorphToBaneling", 0));
-            lings = UnitGroup("Zergling", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
-            banelingIssued = 0;
-            index = UnitGroupCount(lings, c_unitCountAlive);
-            for (;; index -= 1) {
-                ling = UnitGroupUnitFromEnd(lings, index);
-                if (ling == null || banelingIssued >= 3) {
-                    break;
-                }
-                if (UnitOrderCount(ling) != 0) {
-                    continue;
-                }
-                if (UnitOrderIsValid(ling, banelingOrder)) {
-                    UnitIssueOrder(ling, banelingOrder, c_orderQueueAddToEnd);
-                    banelingIssued += 1;
-                }
-            }
-        }
-    }
+    // (2) 저글링 → 맹독충은 V3LingBaneMorphBanelings 로 분리했다.  라바를 쓰지 않아
+    //     Stock 전환 대상이 아니므로 그쪽은 계속 호출된다.  이 함수가 복구용으로
+    //     되살아날 때도 맹독충 경로가 빠지지 않도록 여기서도 호출해 둔다.
+    V3LingBaneMorphBanelings(player);
 }
 
 void V3ZergResearchRaptor (int player) {
     unitgroup pools;
     unit pool;
     order researchOrder;
+    bool needAdrenal;
+    bool needRaptor;
 
     // 산란못이 있어야 아무 리서치도 발주 가능.
     if (AITechCount(player, c_ZB_SpawningPool, c_techCountCompleteOnly) < 1) {
         return;
     }
+
+    // 값싼 게이트를 전맵 스캔 **위로** 올린다.  둘 다 일회성 연구인데 원래는 스캔이
+    // 먼저였고, 그래서 두 연구가 끝난 뒤에도 게임이 끝날 때까지 매 틱 전맵에서
+    // 산란못을 찾고 아무것도 하지 않은 채 내려갔다.  AITechCount/AIHasRes 는 색인
+    // 조회라 사실상 공짜다.  판정식은 아래 두 블록의 원래 조건을 그대로 옮긴 것이고
+    // 둘은 상호배타적이다(아드레날린 미완 vs 완료).  동작은 동일하다.
+    //
+    // (1) 아드레날린: Hive 완성 후에만 연구 가능(멜리 규칙). 스톡이 못 잡아서 직접 발주.
+    //     비용 200/200. 이미 큐/완료면 스킵. link_index 0 로 추정(메타볼릭=1 실측 → 아드레날린=0)
+    //     — B 단계 라이브 덤프로 재확인해서 틀리면 바로잡을 것.
+    needAdrenal = AITechCount(player, c_ZR_ZerglingHaste, c_techCountQueuedOrBetter) < 1 &&
+        AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) >= 1 &&
+        AIHasRes(player, 200, 200);
+
+    // (2) 랩터: 사용자 지시 — 아드레날린 "완료" 후. 이미 큐/완료면 스킵. Lair 또는 Hive 필요.
+    //     비용 100/100. link_index 9 로 추정(roster InfoArray Research10, 규약 N-1)
+    //     — 마찬가지로 라이브 덤프로 재확인.
+    needRaptor = AITechCount(player, c_ZR_ZerglingHaste, c_techCountCompleteOnly) >= 1 &&
+        AITechCount(player, "SC2TeamRaptorEvolution", c_techCountQueuedOrBetter) < 1 &&
+        (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) >= 1 ||
+         AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) >= 1) &&
+        AIHasRes(player, 100, 100);
+
+    if (!needAdrenal && !needRaptor) {
+        return;
+    }
+
     pools = UnitGroup("SpawningPool", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
     pool = UnitGroupUnitFromEnd(pools, UnitGroupCount(pools, c_unitCountAlive));
     if (pool == null) {
         return;
     }
 
-    // (1) 아드레날린: Hive 완성 후에만 연구 가능(멜리 규칙). 스톡이 못 잡아서 직접 발주.
-    //     비용 200/200. 이미 큐/완료면 스킵. link_index 0 로 추정(메타볼릭=1 실측 → 아드레날린=0)
-    //     — B 단계 라이브 덤프로 재확인해서 틀리면 바로잡을 것.
-    if (AITechCount(player, c_ZR_ZerglingHaste, c_techCountQueuedOrBetter) < 1 &&
-        AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) >= 1 &&
-        AIHasRes(player, 200, 200)) {
+    if (needAdrenal) {
         researchOrder = Order(AbilityCommand("SpawningPoolResearch", 0));
         if (UnitOrderIsValid(pool, researchOrder)) {
             UnitIssueOrder(pool, researchOrder, c_orderQueueAddToEnd);
@@ -254,18 +544,9 @@ void V3ZergResearchRaptor (int player) {
         return;
     }
 
-    // (2) 랩터: 사용자 지시 — 아드레날린 "완료" 후. 이미 큐/완료면 스킵. Lair 또는 Hive 필요.
-    //     비용 100/100. link_index 9 로 추정(roster InfoArray Research10, 규약 N-1)
-    //     — 마찬가지로 라이브 덤프로 재확인.
-    if (AITechCount(player, c_ZR_ZerglingHaste, c_techCountCompleteOnly) >= 1 &&
-        AITechCount(player, "SC2TeamRaptorEvolution", c_techCountQueuedOrBetter) < 1 &&
-        (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) >= 1 ||
-         AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) >= 1) &&
-        AIHasRes(player, 100, 100)) {
-        researchOrder = Order(AbilityCommand("SpawningPoolResearch", 9));
-        if (UnitOrderIsValid(pool, researchOrder)) {
-            UnitIssueOrder(pool, researchOrder, c_orderQueueAddToEnd);
-        }
+    researchOrder = Order(AbilityCommand("SpawningPoolResearch", 9));
+    if (UnitOrderIsValid(pool, researchOrder)) {
+        UnitIssueOrder(pool, researchOrder, c_orderQueueAddToEnd);
     }
 }
 
@@ -299,6 +580,14 @@ void V3EnsureLingBaneUltraTech (int player) {
     }
 
     if (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) >= 1 &&
+        AITechCount(player, c_ZB_HydraliskDen, c_techCountInProgressOrBetter) < 1 &&
+        AIHasRes(player, 100, 100)) {
+        AIBuild(player, c_makePriorityTown, AIGetMainTown(player), c_ZB_HydraliskDen, 1, c_makeNoFlags);
+        gv_v3LingBaneUltraTechDeadline[player] = AIGetTime() + 30.0;
+        return;
+    }
+
+    if (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) >= 1 &&
         AITechCount(player, c_ZB_InfestationPit, c_techCountInProgressOrBetter) < 1 &&
         AIHasRes(player, 100, 100)) {
         AIBuild(player, c_makePriorityTown, AIGetMainTown(player), c_ZB_InfestationPit, 1, c_makeNoFlags);
@@ -316,148 +605,144 @@ void V3EnsureLingBaneUltraTech (int player) {
 }
 
 bool V3ZergLingBaneUltraMid (int player) {
-    AIClearStock(player);
+    V3LingBaneUltraStock(player, 1);
 
-    // Continuous economy and supply tracks.
-    AISetStockPeons( player, V3WorkerTarget(player, 60), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-    AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
-
-    // Serial stock is reserved for prerequisites and upgrades.
-    AISetStock( player, 1, c_ZB_Hatchery_Alias );
-    AISetStock( player, 1, c_ZB_SpawningPool );
-    AISetStock( player, 2, c_ZB_Extractor );
-    AISetStock( player, 1, c_ZB_BanelingNest );
-    AISetStock( player, 1, c_ZB_RoachWarren );
-    AISetStock( player, 1, c_ZB_Lair_Alias );
-    AISetStock( player, 1, c_ZB_InfestationPit );
-    AISetStock( player, 1, c_ZB_Hive );
-    AISetStock( player, 2, c_ZB_EvolutionChamber );
-    AISetStock( player, 1, c_ZB_UltraliskCavern );
-    AISetStock( player, 1, c_ZR_ZerglingSpeed );
-    AISetStock( player, 1, c_ZR_BanelingSpeed );
-    AISetStock( player, 1, c_ZR_MeleeAttacks1 );
-    AISetStock( player, 1, c_ZR_GroundCarapace1 );
-    AISetStock( player, 1, c_ZR_MeleeAttacks2 );
-    AISetStock( player, 1, c_ZR_GroundCarapace2 );
-
-    // Parallel, unbounded Ling/Bane/Roach production tracks.
-    AISetStockUnitNext( player, 30, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 16, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 8, c_ZU_Roach, c_stockAlways );
-    AISetStockUnitNext( player, 300, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 200, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 120, c_ZU_Roach, c_stockAlways );
-    AISetStockUnitNext( player, 3, c_ZU_Queen, c_stockAlways );
-
-    AISetStock( player, 1, c_ZR_UltraliskArmor );
-    AISetStockUnitNext( player, 30, c_ZU_Ultralisk, c_stockAlways );
-
-    ZergBasicDefenseStock(player);
-    ZergHDEmergencyDetectionAntiAir(player);
-
-    if (AITechCount(player, c_ZU_Roach, c_techCountQueuedOrBetter) >= 8) {
+    if (AITechCount(player, c_ZU_Hydralisk, c_techCountQueuedOrBetter) >= 4) {
         if (ZergHDFastExpand(player)) {
             return false;
         }
     }
-
-    ZergHDDefaultExtraStock(player);
-    V3SetZergMainMacroHatcheries(player, 2);
-    // 302는 나머지 3경로(저그 301·테란·플토)와 달리 네이티브 경제 드라이버가
-    // 빠져 있어 확장 타운에 가스(추출장)를 못 지었다.  301과 동일한 형태로
-    // 추가 — 일꾼/공급/확장 가스를 네이티브가 처리하고 아래 독립 트랙은 보조로
-    // 유지(301에서 검증된 공존).  V3.6 병력 트랙 무회귀는 프로브로 확인.
-    AIDefaultEconomy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor, c_ZU_Overlord, c_ZU_Drone, V3MiningWorkerCapacity(player), c_stockAlways);
-    V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
-    V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
-
-    AIEnableStock(player);
     V3EnsureLingBaneUltraTech(player);
     V3EnsureUltraliskCavernDrone(player);
+
+    // === 302 는 울트라리스크 직접 모프가 필수다 — Stock 전용 전환을 시도했고 실패했다 ===
+    //
+    // 301(로치/히드라)은 2026-07-26 에 Stock 전용으로 전환해 성공했다(18분 12슬롯,
+    // 슬롯당 울트라 11.2).  같은 전환을 302 에 적용해 24분 12슬롯 미러로 측정한 결과:
+    //
+    //                        울트라   저글링   맹독충   유휴라바   병력보급
+    //   직접모프 ON (기존)     99 총    -        -        -          -        (c7323e9, 6/12 슬롯)
+    //   Stock 전용 (측정)       0       681      294      296        54.6
+    //
+    // 24분 시점 UltraliskCavern 5개(P5·P6·P8·P10·P11), Hive 7개, 유휴 라바 296기,
+    // 맵은 rich 라 자원도 남는다.  그런데도 **케이븐 보유 5슬롯 전부 울트라 0기**다.
+    // §87 의 원래 발견("Hive+케이븐 있고 유휴 라바 있는데 AISetStock 이 울트라를 한
+    // 마리도 훈련하지 않는다")이 302 에서 그대로 재현됐다.  301 의 성공은 이 빌드로
+    // 이전되지 않는다 — 두 빌드의 사다리 구성이 다르다(302 는 울트라가 Medium 부터
+    // 2/6/14/…, 301 은 전 티어에 배치).
+    //
+    // 따라서 V3LingBaneMorphUltralisks 는 **되살려 유지한다.**  이것이 302 에서
+    // 울트라가 나오는 유일한 경로다.  다시 빼려면 사다리부터 301 형태로 바꾸고
+    // 재측정할 것 — 그냥 빼면 0 이 된다.
+    //
+    // 반면 V3LingBaneMorphArmy 의 라바 라운드로빈(저글링/바퀴/히드라)은 **호출하지
+    // 않는다.**  그 셋은 Stock 이 실제로 만들어 낸다(위 표: 저글링 681, 맹독충 294,
+    // 병력보급 54.6).  확대 근거였던 18분 비교표는 변종→울트라 누출로 오염된
+    // 측정이었고(오늘 roster/UnitData.xml 의 변종 AbilArray 로 수정), 재검증 없이는
+    // 되살리지 않는다.  죽은 코드가 아니라 복구 경로이고 LarvaTrain 인덱스(저글링 1 /
+    // 히드라 3)를 보존하는 유일한 곳이므로 지우려면 먼저 커밋할 것 — 현재 이 작업은
+    // 전부 미커밋이라 삭제하면 되찾을 수 없다.
+    //
+    // 라바를 쓰지 않는 직접 주문은 그대로 유지한다:
+    //   V3LingBaneMorphBanelings     기존 저글링 -> 맹독충 변태
+    //   V3EnsureUltraliskCavernDrone 드론으로 케이븐 건설 (301 과 공유)
     V3LingBaneMorphUltralisks(player);
-    V3LingBaneMorphArmy(player);
+
+    // (되돌림) 위 울트라 모프 재활성. 아래는 해제 시도 당시의 기록이다:
+    // 병력 생산 전체가 업스트림 배치 모델(V3LingBaneArmyBatch)로 넘어갔다.
+    // 직전 측정 "Stock 전용은 24분 울트라 0기" 는 **6티어 사다리 기준**이고,
+    // 그 사다리를 걷어냈으므로 전제가 다르다 — 이번 측정으로 다시 확인한다.
+    // 무너지면 이 호출을 되살리는 것이 첫 복구 수단이다.
+
+    // === 맹독충은 Stock 에 맡긴다 — 수동 모프 해제 (실험, 2026-07-26) ===
+    // 사용자 라이브 관측: "웨이브에 편입 안 되는 맹독충이 아주 많다".
+    //
+    // 원인 후보가 우리 코드 안에 있다.  V3LingBaneMorphBanelings 는 모프 직전에
+    // AIRemoveUnitFromAnyWaves(ling) 를 부른다.  **업스트림은 이 네이티브를 한 번도
+    // 호출하지 않는다**(AI.galaxy:418 에 선언만 있고 사용처 0).  변태가 유닛 태그를
+    // 유지하면 새 유닛이 아니므로 AINewUnitZerg 콜백이 불리지 않고, 웨이브에서 뺀
+    // 유닛은 영구 낙오한다.  그걸 되돌리려고 만든 것이 V3RejoinStragglersOfType
+    // (전맵 스캔 x3/틱) 인데, 사용자가 낙오 맹독충을 계속 보고 있으므로 그 폴러는
+    // 제 일을 못 하고 있다.
+    //
+    // 업스트림 방식: 맹독충도 그냥 Stock 이다 — AISetStock(player, 8, c_ZU_Baneling)
+    // / AIAddToStockArmy(player, c_ZU_Baneling, 4).  엔진이 저글링->맹독충 변태를
+    // 직접 하고 웨이브 소속도 엔진이 관리한다.  우리 사다리에도 맹독충은 이미
+    // 전 티어에 있다(4/8/16/30/60/100/160/240/330) — 수동 모프는 그 위에 얹힌 것이다.
+    //
+    // 측정 결과 — 3조건 24분 12슬롯 미러.  B/C 는 울트라 모프가 둘 다 ON 인
+    // 깨끗한 단일변수 비교다(맹독충 모프만 다름):
+    //
+    //                     저글링  맹독충  울트라  케이븐  away합  army_supply
+    //   A 울트OFF/맹ON      681     294      0      5      286      54.6
+    //   B 울트ON /맹OFF     526      62    120      8      276     107.2   <- 채택
+    //   C 울트ON /맹ON      780     286     25      3      236      72.9
+    //
+    // 맹독충 수동 모프를 끄면 울트라 25 -> 120, army_supply +47%, 케이븐 3 -> 8,
+    // away 236 -> 276.  맹독충 모프가 라바와 자원을 독식해 울트라를 굶기고 있었다.
+    // 맹독충 286 -> 62 는 손실이 아니다 — 사용자 판단: "맹독충은 좀 줄어도 된다,
+    // 교전 시 전멸 100% 라 상비 숫자가 낮은 게 정상".
+    //
+    // 부수 효과로 AIRemoveUnitFromAnyWaves(ling) 가 302 실행 경로에서 사라진다.
+    // **업스트림은 이 네이티브를 한 번도 호출하지 않는다**(AI.galaxy:418 선언만,
+    // 사용처 0).  웨이브에서 뺀 유닛은 변태가 태그를 유지할 경우 AINewUnitZerg
+    // 콜백을 못 받아 영구 낙오한다 — 사용자 라이브 관측("웨이브에 편입 안 되는
+    // 맹독충이 아주 많다")의 유력한 원인이었다.  away 는 +17% 개선됐다.
+    //
+    // 아직 안 건드린 것 (사용자 관측이 완전히 해소됐는지는 육안 확인 필요):
+    //   AISetAttackStatus(..., c_ZU_Baneling, 1, 999, ...) — 스스로 출격하지 않는
+    //     설정.  업스트림은 주로 4~16 을 쓴다.  주력 웨이브가 안 뜨면 계속 집에 있다.
+    //   V3RejoinStragglersOfType 가 실제로 병합에 성공하는지 — 계측된 적 없다.
+    //
+    // 함수는 지우지 않는다(복구 경로 + MorphToBaneling Execute=0 인덱스 보존;
+    // 전부 미커밋이라 삭제하면 되찾을 수 없다).
+    V3ZergRejoinMorphStragglers(player);
     V3ZergResearchRaptor(player);
 
-    V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(1), 6);
-    if (AITechCount(player, c_ZU_Zergling, c_techCountCompleteOnly) >= 12) {
-        V3SetWaveTargets(player, c_ZU_Baneling, 5, V3WaveSupplyForPhase(1), 6);
-        V3SetWaveTargets(player, c_ZU_Roach, 20, V3WaveSupplyForPhase(1), 6);
-    }
+    // 업스트림 ZergMidRushTimingLingBaneRoachVyHd 의 개시선(저글링 2/30)을 쓰되,
+    // 이 빌드에서 바퀴 자리를 대신하는 히드라와 맹독충은 999 호위로 둔다.
+    AISetAttackStatus(player, c_ZU_Zergling, 2, 30, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Baneling, 1, 999, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Hydralisk, 1, 999, c_continuousMerge);
 
     // Keep the upstream final mid-game milestones as completion gates.  The
     // original 390-second shortcut assumes a one-base opening; V3's earlier
     // natural can otherwise send this build to the Ultra stage before its
-    // Ling/Bane/Roach bridge has been produced.
-    if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) < 26 ||
-        AITechCount(player, c_ZU_Roach, c_techCountInProgressOrBetter) < 12 ||
-        AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter) < 8) {
-        return false;
+    // Ling/Bane/Hydralisk bridge has been produced.
+    // 720초 안전망.  히드라 굴이 0이던 동안 이 관문은 통과 불가였고 마지막 단계의
+    // 일꾼 96·울트라 사다리에 도달한 슬롯이 0이었다.  저그 바퀴·히드라(301)가 쓰는
+    // 마지막 단계 진입 시각과 같은 값이다.
+    if (AIGetTime() < 720.0) {
+        if (AITechCount(player, c_ZU_Drone, c_techCountCompleteOnly) < 26 ||
+            // Hydralisks arrive later and accumulate more slowly than Roaches;
+            // 12 permanently blocked phase 2 (3.7 per slot at 18 minutes).
+            AITechCount(player, c_ZU_Hydralisk, c_techCountInProgressOrBetter) < 6 ||
+            AITechCount(player, c_ZU_Baneling, c_techCountInProgressOrBetter) < 8) {
+            return false;
+        }
     }
 
     return true;
 }
 
 bool V3ZergLingBaneUltraLate (int player) {
-    AIClearStock(player);
-
-    // Continuous economy and supply tracks.
-    AISetStockPeons( player, V3WorkerTarget(player, 96), c_ZU_Drone, c_stockMaxPeons, c_stockAlways );
-    AISetStockFarms( player, c_ZU_Overlord_Alias, c_stockNormalFarms );
-
-    // Serial stock is reserved for the ground-tech chain and upgrades.
-    AISetStock( player, 1, c_ZB_Hatchery_Alias );
-    AISetStock( player, 1, c_ZB_SpawningPool );
-    AISetStock( player, 4, c_ZB_Extractor );
-    AISetStock( player, 1, c_ZB_BanelingNest );
-    AISetStock( player, 1, c_ZB_RoachWarren );
-    AISetStock( player, 1, c_ZB_Lair_Alias );
-    AISetStock( player, 1, c_ZB_InfestationPit );
-    AISetStock( player, 1, c_ZB_HydraliskDen );
-    AISetStock( player, 1, c_ZB_Hive );
-    AISetStock( player, 2, c_ZB_EvolutionChamber );
-    AISetStock( player, 1, c_ZB_UltraliskCavern );
-    AISetStock( player, 1, c_ZR_ZerglingSpeed );
-    AISetStock( player, 1, c_ZR_BanelingSpeed );
-    AISetStock( player, 1, c_ZR_UltraliskArmor );
-    AISetStock( player, 1, c_ZR_MeleeAttacks1 );
-    AISetStock( player, 1, c_ZR_GroundCarapace1 );
-    AISetStock( player, 1, c_ZR_MeleeAttacks2 );
-    AISetStock( player, 1, c_ZR_GroundCarapace2 );
-    AISetStock( player, 1, c_ZR_MeleeAttacks3 );
-    AISetStock( player, 1, c_ZR_GroundCarapace3 );
-
-    // Parallel, unbounded late-game army tracks.
-    AISetStockUnitNext( player, 470, c_ZU_Zergling, c_stockAlways );
-    AISetStockUnitNext( player, 330, c_ZU_Baneling, c_stockAlways );
-    AISetStockUnitNext( player, 160, c_ZU_Roach, c_stockAlways );
-    AISetStockUnitNext( player, 120, c_ZU_Hydralisk, c_stockAlways );
-    AISetStockUnitNext( player, 40, c_ZU_Infestor, c_stockAlways );
-    AISetStockUnitNext( player, 30, c_ZU_Ultralisk, c_stockAlways );
-    AISetStockUnitNext( player, 6, c_ZU_Queen, c_stockAlways );
-
-    ZergBasicDefenseStock(player);
-    ZergHDDefaultExtraStock(player);
-    ZergHDEmergencyDetectionAntiAir(player);
-    V3SetZergMainMacroHatcheries(player, 4);
-    // 302는 나머지 3경로(저그 301·테란·플토)와 달리 네이티브 경제 드라이버가
-    // 빠져 있어 확장 타운에 가스(추출장)를 못 지었다.  301과 동일한 형태로
-    // 추가 — 일꾼/공급/확장 가스를 네이티브가 처리하고 아래 독립 트랙은 보조로
-    // 유지(301에서 검증된 공존).  V3.6 병력 트랙 무회귀는 프로브로 확인.
-    AIDefaultEconomy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor, c_ZU_Overlord, c_ZU_Drone, V3MiningWorkerCapacity(player), c_stockAlways);
-    V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
-    V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
-
-    AIEnableStock(player);
+    V3LingBaneUltraStock(player, 2);
     V3EnsureLingBaneUltraTech(player);
     V3EnsureUltraliskCavernDrone(player);
+
+    // 라바 라운드로빈·맹독충 모프는 해제, 울트라 모프는 유지 — 위 Mid 블록 참조.
     V3LingBaneMorphUltralisks(player);
-    V3LingBaneMorphArmy(player);
+    V3ZergRejoinMorphStragglers(player);
     V3ZergResearchRaptor(player);
 
-    V3SetWaveTargets(player, c_ZU_Zergling, 5, V3WaveSupplyForPhase(2), 6);
-    V3SetWaveTargets(player, c_ZU_Roach, 20, V3WaveSupplyForPhase(2), 6);
-    V3SetWaveTargets(player, c_ZU_Hydralisk, 20, V3WaveSupplyForPhase(2), 6);
-    V3SetWaveTargets(player, c_ZU_Ultralisk, 80, V3WaveSupplyForPhase(2), 6);
+    // 업스트림 후반은 트리거를 전부 빼고 상태 기계에 맡기지만, 12 AI 판에서는
+    // 개시자가 없으면 아무도 시작하지 않는다(어제 실측).  주력 저글링에만 개시선을
+    // 두고 나머지는 999 호위로 둔다.  Wait 를 벗어난 뒤의 재출격 판단은 Blizzard 의
+    // WaveAdvancedIdleAttackLogic(직전 교전 성적 기반 30~40기 기준)이 가져간다.
+    AISetAttackStatus(player, c_ZU_Zergling, 4, 40, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Baneling, 1, 999, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Hydralisk, 1, 999, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Ultralisk, 1, 999, c_continuousMerge);
 
     if (AIGetTime() < 540) {
         if (AITechCount(player, c_ZU_Ultralisk, c_techCountInProgressOrBetter) < 6) {

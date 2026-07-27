@@ -31,6 +31,10 @@ function injectV3Hooks(source, race) {
     const thinkGuard = "void AIMeleeZerg (int player) {\r\n    int mainState = AIState(player, e_mainState);\n    if (player == 15 && AIGetUserInt(player, 145) == 0) { return; }\r\n";
     if (!patched.includes(thinkAnchor)) fail("Zerg melee entry anchor is missing");
     patched = patched.replace(thinkAnchor, thinkGuard);
+    const newUnitAnchor = "void AINewUnitZerg (int player, unit u) {\r\n    wave w;\r\n    unit drop;\r\n    string type = UnitGetType(u);\r\n";
+    const newUnitHook = "void AINewUnitZerg (int player, unit u) {\r\n    wave w;\r\n    unit drop;\r\n    string type = UnitGetType(u);\n    if (V3WildAssignLocalGarrison(player, u)) { return; }\r\n";
+    if (!patched.includes(newUnitAnchor)) fail("Zerg new-unit anchor is missing");
+    patched = patched.replace(newUnitAnchor, newUnitHook);
   }
   for (const [functionName, phase] of [[`${race}Open`, 0], [`${race}Mid`, 1], [`${race}Late`, 2]]) {
     const anchor = `void ${functionName} (int player) {\r\n    int diff = AIPlayerDifficulty(player);\r\n`;
@@ -52,6 +56,10 @@ function removeV3Hooks(source, race) {
     const thinkOriginal = "void AIMeleeZerg (int player) {\r\n    int mainState = AIState(player, e_mainState);\r\n";
     if (!restored.includes(thinkGuard)) fail("Zerg delayed-AI guard is missing");
     restored = restored.replace(thinkGuard, thinkOriginal);
+    const newUnitHook = "void AINewUnitZerg (int player, unit u) {\r\n    wave w;\r\n    unit drop;\r\n    string type = UnitGetType(u);\n    if (V3WildAssignLocalGarrison(player, u)) { return; }\r\n";
+    const newUnitOriginal = "void AINewUnitZerg (int player, unit u) {\r\n    wave w;\r\n    unit drop;\r\n    string type = UnitGetType(u);\r\n";
+    if (!restored.includes(newUnitHook)) fail("Zerg wild-garrison new-unit hook is missing");
+    restored = restored.replace(newUnitHook, newUnitOriginal);
   }
   for (const [functionName, phase] of [[`${race}Open`, 0], [`${race}Mid`, 1], [`${race}Late`, 2]]) {
     const dispatcher = `void ${functionName} (int player) {\r\n    int diff = AIPlayerDifficulty(player);\n    if (${config.runner}(player, ${phase})) { return; }\r\n`;

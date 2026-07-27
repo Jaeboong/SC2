@@ -77,7 +77,9 @@ try {
   if (matches.length !== 1) fail(`expected one MeleeInitAI call, found ${matches.length}`);
   if (script.includes(BUILD_MARKER)) fail("build selections already exist");
   const selections = buildSelections(plan);
-  if (selections.length === 0) fail("no V3 builds selected");
+  if (selections.length === 0 && plan.wild_zerg !== true) {
+    fail("no V3 builds selected");
+  }
   script = script.replace(
     matches[0],
     `${matches[0]}\n${BUILD_MARKER}\n${selections.join("\n")}`,

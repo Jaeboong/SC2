@@ -13,7 +13,8 @@
 
 Python과 Node는 게임 시작 전에 맵과 `SC2TeamV3AI.SC2Mod`를 만드는 도구다. 런처는
 생성된 mod를 SC2 `Mods` 폴더에 설치하지만 Blizzard 원본 파일을 수정하지 않는다.
-게임 중 외부 컨트롤러는 없다.
+게임 중 주기적으로 명령하는 외부 컨트롤러는 없다. 사용자 승인 예외로 P15는 맵 Galaxy가
+시작 시 AI 초기화와 초기 자원 주입만 한 번 수행하고 즉시 역할을 끝낸다.
 
 ## 소스 경계
 
@@ -30,17 +31,18 @@ Python과 Node는 게임 시작 전에 맵과 `SC2TeamV3AI.SC2Mod`를 만드는 
 종족별 Open/Mid/Late dispatcher는 build ID가 V3일 때 Blizzard 난이도별 빌드 대신
 V3 Stock 목표를 실행하고, 나머지 엔진 흐름은 그대로 유지한다.
 
-야생 저그가 활성화된 V3 mod의 저그 엔트리는 P15의 AI user int 145가 0이면
-`ZergInit` 전에 반환한다. 맵 트리거는 2초부터 P15의 선배치 전투 유닛만
-`AISetUnitScriptControlled(true)`로 잡고, 420 게임초에 플래그를 1로 바꾼 뒤 표시한
-병력을 반환한다. 해제 시 P15에는 build ID 301과 유효한 Init state를 지정한다.
-드론·건물·플레이어 컨트롤러·소유권·동맹은 변경하지 않는다.
+야생 저그가 활성화되면 맵 Galaxy는 `MeleeInitAI()` 직후 P15를 한 번만 부팅하고 즉시
+역할을 끝낸다. 타이머나 주기 이벤트는 만들지 않으며, 이후에는 임베디드
+`V3/Zerg.galaxy`(1~1141행)만 반복 실행된다.
+
+build 315의 town 구조, 400 보급 천장, 9분 휴전, 승격 3종 세트, 금지 사항은
+→ [`wild-zerg.md`](wild-zerg.md)
 
 ## 데이터 계약
 
 - AI user int 142: 빌드 ID
 - AI user int 144: 첫 확장 gate 완료
-- 빌드 ID: 101, 102, 201, 202, 301, 302
+- 빌드 ID: 101, 102, 201, 202, 301, 302, 315(P15 전용)
 - 단계: 0~5분, 5~12분, 12분 이후
 
 첫 확장은 14기·400광물 조건 후 `AIExpand()`로 타운을 등록하며

@@ -13,69 +13,69 @@
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/Zerg/Zerg.galaxy",
-      "sha256": "faedfcb7273f9a8c25af01ccacaeffb96eb9aa4eedbd57af5c102b686ff5e1a8"
+      "sha256": "396455176d1a6b865aab40a07a6e63f67459777ecd322469db52153d5554022c"
     }
   ],
   "overlays": [
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Protoss.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Protoss.galaxy",
-      "bytes": 7039,
-      "sha256": "3ec964464c5bfa9333901d930631f46eb99a08e63c8cf22eee7af07d15361762"
+      "bytes": 16170,
+      "sha256": "5b01be31e0012adefd568cb3cc00d3d82ea3bdca692447346177749e4ebd288e"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ProtossGateway.galaxy",
-      "bytes": 9212,
-      "sha256": "9c2371da4cdde34ed26830aa83ff7dad7d6fee463f1475eed2117e10421a1e9f"
+      "bytes": 8444,
+      "sha256": "0bc3361c7ddbe16501a885e186a509fb26e46c8221ce9c4df9faa87c0f6d0fe9"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ProtossGatewayRobo.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ProtossGatewayRobo.galaxy",
-      "bytes": 6620,
-      "sha256": "f8dae10c5530095360286bffb396959d624ca8d4c68aaef6e35ac9447b6aeada"
+      "bytes": 7239,
+      "sha256": "f0e07d396d6cf114b1799e067f3dbddddb7edf52e169f519aac7d1ad677095b7"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Terran.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Terran.galaxy",
-      "bytes": 5251,
-      "sha256": "522a1b9181c1bd63cccfbc74fac591fce1db9e5185dbe2e529347d65ea871ae2"
+      "bytes": 7409,
+      "sha256": "866cd9dadfde493a3286a4557e7c0ec07ce3431dba4905f6c12d32dbbf933243"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranBionic.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/TerranBionic.galaxy",
-      "bytes": 7767,
-      "sha256": "8fa91150ea34d7f01e95dc30918da44e6a935bf006d0e4242db17310df1267e2"
+      "bytes": 9875,
+      "sha256": "fb492cd645a881fc5d3e7da68787deed8e9dbb4c4c1aee6ec48123a78662e83d"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/TerranMechanic.galaxy",
-      "bytes": 8433,
-      "sha256": "cf9fa5082dc92de58dcc1ca8f344f6373d0bea59439291604cb74bc1658a2725"
+      "bytes": 7450,
+      "sha256": "d94f300e24d0ce2100d4317ab92dc362391b9b546a084cf2a1307a5016601255"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/Zerg.galaxy",
-      "bytes": 4536,
-      "sha256": "3c638d2802b93b8caf78d3e2d39e7a1c65e26a04e896e48d8da6cca67195f86f"
+      "bytes": 47171,
+      "sha256": "12ff0fa96514d8c64c3164c84851ca6b3387459da414a4b9e148865f7bc82436"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ZergLingBaneUltra.galaxy",
-      "bytes": 21465,
-      "sha256": "d9909adfc180490cdec830ff0a77fff6ebd4fbf541ebc02f993c12f6e74d1866"
+      "bytes": 37473,
+      "sha256": "5ebd7316f7a1977a17b63ad378df37e2fbce192ebf974e02c5735e1d24edbee8"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ZergRoachHydraUltra.galaxy",
-      "bytes": 13956,
-      "sha256": "21e629c39d19706dbbf53ed9597e481a42e78d3581c9011aa08954db785963b3"
+      "bytes": 32110,
+      "sha256": "756fdf9d470e88a94e43d289aaf1dd2336871cb57340c18714e0a213b01f35eb"
     },
     {
       "virtual_path": "Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",
       "source_path": "overlay/Base.SC2Data/TriggerLibs/V3/ExpansionGas.galaxy",
-      "bytes": 11104,
-      "sha256": "69741ea9f040e3e3c16826f8e41eb0394b9b6b29698e88c5e4d9910c2b48b491"
+      "bytes": 12847,
+      "sha256": "2f7651556c6004d9b4b2907ee97138e72c6f807003858c83f4f848178440f149"
     }
   ]
 }
