@@ -8,7 +8,7 @@ for the tier definitions this mirrors.
 
 Tiers
 -----
-- ``offline``      : unit tests, syntax checks, and per-fixture builder
+- ``offline``      : unit tests, syntax checks, doc-link integrity, and per-fixture builder
                     structural verification. Fully runnable without SC2.
 - ``short-engine`` : the two retained SC2 probes, each fed a disposable
                     fixture path without mutating user settings. Requires SC2.
@@ -341,6 +341,12 @@ def offline_tier() -> TierReport:
             "offline/py_compile",
         )
     )
+    report.results.append(
+        _run(
+            [PYTHON, str(VERIFICATION_DIR / "check_doc_links.py")],
+            "offline/doc_links",
+        )
+    )
     report.results.extend(_fixture_structural_builds())
     return report
 
@@ -565,7 +571,7 @@ def main() -> int:
             print(f"  {name}: {active} active slots, human at P{config.human.slot}")
         print("\nTiers:")
         print("  offline      : unit_tests, worker_supply_tests, node_syntax, "
-              "py_compile, structural_build[per fixture]")
+              "py_compile, doc_links, structural_build[per fixture]")
         print("  short-engine : bridge_probe, strategy_runtime (needs SC2)")
         print("  release-engine: versioned_map saved-config start smoke (needs SC2)")
         print("  long-engine  : " + ", ".join(LONG_ENGINE_CHECKS) + " (Tier-4)")

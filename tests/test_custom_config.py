@@ -7,7 +7,10 @@ from sc2team.custom_config import (
     CustomLauncherConfig,
     GROUND_BUILDS,
     PROTOSS_FACTIONS,
+    TEAM_LAYOUTS,
     default_custom_config,
+    team_for_slot,
+    team_label_for_slot,
 )
 
 
@@ -64,6 +67,60 @@ class CustomConfigTests(unittest.TestCase):
         original = default_custom_config()
         loaded = CustomLauncherConfig.from_dict(original.to_dict())
         self.assertEqual(loaded, original)
+
+    def test_fixed_team_modes_use_existing_p1_through_p14_locations(self) -> None:
+        expected = {
+            2: (1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2),
+            3: (3, 3, 3, 1, 1, 1, 1, 3, 3, 3, 2, 2, 2, 3),
+            4: (3, 3, 3, 1, 1, 1, 1, 4, 4, 4, 2, 2, 2, 4),
+        }
+        default = default_custom_config()
+        for team_mode, layout in expected.items():
+            with self.subTest(team_mode=team_mode):
+                slots = tuple(
+                    replace(slot, team=team_for_slot(slot.slot, team_mode))
+                    for slot in default.slots
+                )
+                config = replace(default, slots=slots, wild_zerg=False)
+                config.validate()
+                self.assertEqual(config.team_mode, team_mode)
+                self.assertEqual(tuple(slot.team for slot in slots), layout)
+                self.assertEqual(TEAM_LAYOUTS[team_mode], layout)
+                self.assertEqual(
+                    CustomLauncherConfig.from_dict(config.to_dict()).team_mode,
+                    team_mode,
+                )
+
+    def test_three_and_four_team_region_labels_match_fixed_starts(self) -> None:
+        self.assertEqual(team_label_for_slot(14, 3), "3팀·남부")
+        self.assertEqual(team_label_for_slot(14, 4), "4팀·남동")
+        self.assertEqual(team_label_for_slot(4, 4), "1팀·북서")
+        self.assertEqual(team_label_for_slot(10, 4), "4팀·남동")
+        self.assertEqual(team_label_for_slot(11, 4), "2팀·북동")
+
+    def test_legacy_east_team_layout_is_migrated_without_losing_slots(self) -> None:
+        config = default_custom_config()
+        data = config.to_dict()
+        legacy_layout = (3, 3, 3, 1, 1, 1, 1, 4, 4, 2, 2, 2, 2, 4)
+        for slot, legacy_team in zip(data["slots"], legacy_layout, strict=True):
+            slot["team"] = legacy_team
+        data["slots"][9]["race"] = "Protoss"
+
+        migrated = CustomLauncherConfig.from_dict(data)
+
+        self.assertEqual(migrated.team_mode, 4)
+        self.assertEqual(migrated.slots[9].team, 4)
+        self.assertEqual(migrated.slots[9].race, "Protoss")
+        self.assertEqual(migrated.slots[10].team, 2)
+
+    def test_arbitrary_team_mix_is_rejected(self) -> None:
+        config = default_custom_config()
+        slots = tuple(
+            replace(slot, team=4) if slot.slot == 1 else slot
+            for slot in config.slots
+        )
+        with self.assertRaisesRegex(ValueError, "고정 프리셋"):
+            replace(config, slots=slots).validate()
 
     def test_protoss_faction_is_global_and_validated(self) -> None:
         config = replace(default_custom_config(), protoss_faction="Taldarim")

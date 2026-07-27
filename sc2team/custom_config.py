@@ -87,6 +87,48 @@ MELEE_BUILDS: dict[str, str] = {
 }
 
 
+# 팀 모드는 시작 지점을 바꾸지 않고 P1~P14의 동맹만 재구성한다. 각 튜플의
+# 인덱스가 논리 슬롯(P1부터), 값이 팀 번호다. 동쪽은 P11~P13이 북동,
+# P8~P10·P14가 남동이다. P14는 3팀에서는 남부, 4팀에서는 남동 팀에 속한다.
+TEAM_LAYOUTS: dict[int, tuple[int, ...]] = {
+    2: (1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2),
+    3: (3, 3, 3, 1, 1, 1, 1, 3, 3, 3, 2, 2, 2, 3),
+    4: (3, 3, 3, 1, 1, 1, 1, 4, 4, 4, 2, 2, 2, 4),
+}
+
+# 2026-07-27 이전 런처가 P10을 북동으로 잘못 분류해 저장한 배치. 저장된
+# 플레이어 설정을 버리지 않도록 역직렬화할 때만 현재 배치로 마이그레이션한다.
+_LEGACY_TEAM_LAYOUTS: dict[int, tuple[int, ...]] = {
+    3: (3, 3, 3, 1, 1, 1, 1, 3, 3, 2, 2, 2, 2, 3),
+    4: (3, 3, 3, 1, 1, 1, 1, 4, 4, 2, 2, 2, 2, 4),
+}
+
+TEAM_MODE_LABELS: dict[int, str] = {
+    2: "2팀 · 서쪽 7 / 동쪽 7",
+    3: "3팀 · 북서 4 / 북동 3 / 남부 7",
+    4: "4팀 · 북서 4 / 북동 3 / 남서 3 / 남동 4",
+}
+
+TEAM_REGION_LABELS: dict[int, dict[int, str]] = {
+    2: {1: "서쪽", 2: "동쪽"},
+    3: {1: "북서", 2: "북동", 3: "남부"},
+    4: {1: "북서", 2: "북동", 3: "남서", 4: "남동"},
+}
+
+
+def team_for_slot(slot: int, team_mode: int) -> int:
+    if team_mode not in TEAM_LAYOUTS:
+        raise ValueError(f"지원하지 않는 팀 모드입니다: {team_mode}")
+    if not 1 <= slot <= 14:
+        raise ValueError(f"팀을 배정할 수 없는 슬롯입니다: P{slot}")
+    return TEAM_LAYOUTS[team_mode][slot - 1]
+
+
+def team_label_for_slot(slot: int, team_mode: int) -> str:
+    team = team_for_slot(slot, team_mode)
+    return f"{team}팀·{TEAM_REGION_LABELS[team_mode][team]}"
+
+
 @dataclass(frozen=True)
 class SlotConfig:
     slot: int
@@ -104,6 +146,14 @@ class SlotConfig:
     @property
     def active(self) -> bool:
         return self.controller != "empty"
+
+
+def team_mode_for_slots(slots: tuple[SlotConfig, ...]) -> int:
+    teams = tuple(slot.team for slot in slots)
+    for team_mode, layout in TEAM_LAYOUTS.items():
+        if teams == layout:
+            return team_mode
+    raise ValueError("팀 배치는 2팀·3팀·4팀 고정 프리셋 중 하나여야 합니다.")
 
 
 @dataclass(frozen=True)
@@ -137,16 +187,11 @@ class CustomLauncherConfig:
         if len(humans) != 1:
             raise ValueError("사람 플레이어는 정확히 한 명이어야 합니다.")
 
+        team_mode_for_slots(self.slots)
         active_teams: set[int] = set()
         for slot in self.slots:
-            expected_team = 1 if slot.slot <= 7 else 2
             if slot.controller not in CONTROLLERS:
                 raise ValueError(f"P{slot.slot}: 알 수 없는 플레이어 종류")
-            if slot.team != expected_team:
-                raise ValueError(
-                    f"P{slot.slot}: 현재 버전은 서쪽 P1~P7=1팀, "
-                    "동쪽 P8~P14=2팀으로 고정됩니다."
-                )
             if slot.race not in RACES:
                 raise ValueError(f"P{slot.slot}: 알 수 없는 종족 {slot.race}")
             if slot.melee_build not in MELEE_BUILDS:
@@ -161,12 +206,21 @@ class CustomLauncherConfig:
             if slot.active:
                 active_teams.add(slot.team)
 
-        if active_teams != {1, 2}:
-            raise ValueError("1팀과 2팀에 각각 최소 한 명이 있어야 합니다.")
+        # An enabled P15 wild Zerg is an independent enemy of every normal
+        # slot, so a single active P1-P14 side is already a playable game.
+        # Without it, at least two normal teams are needed for a match.
+        if not active_teams:
+            raise ValueError("활성 플레이어가 최소 한 명 필요합니다.")
+        if not self.wild_zerg and len(active_teams) < 2:
+            raise ValueError("야생 저그가 꺼져 있으면 최소 두 팀에 플레이어가 필요합니다.")
 
     @property
     def human(self) -> SlotConfig:
         return next(slot for slot in self.slots if slot.controller == "human")
+
+    @property
+    def team_mode(self) -> int:
+        return team_mode_for_slots(self.slots)
 
     @property
     def active_slots(self) -> tuple[SlotConfig, ...]:
@@ -190,6 +244,18 @@ class CustomLauncherConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CustomLauncherConfig":
+        slot_data = tuple(dict(item) for item in data["slots"])
+        saved_teams = tuple(int(item.get("team", 0)) for item in slot_data)
+        for team_mode, legacy_layout in _LEGACY_TEAM_LAYOUTS.items():
+            if saved_teams == legacy_layout:
+                slot_data = tuple(
+                    {
+                        **item,
+                        "team": team_for_slot(int(item["slot"]), team_mode),
+                    }
+                    for item in slot_data
+                )
+                break
         config = cls(
             version=int(data.get("version", 1)),
             full_vision=bool(data.get("full_vision", False)),
@@ -198,7 +264,7 @@ class CustomLauncherConfig:
             wild_zerg=bool(data.get("wild_zerg", True)),
             unit_control=bool(data.get("unit_control", False)),
             fullscreen=bool(data.get("fullscreen", True)),
-            slots=tuple(SlotConfig(**item) for item in data["slots"]),
+            slots=tuple(SlotConfig(**item) for item in slot_data),
         )
         config.validate()
         return config
@@ -216,7 +282,7 @@ def default_custom_config() -> CustomLauncherConfig:
             SlotConfig(
                 slot=slot_id,
                 controller=controller,
-                team=1 if slot_id <= 7 else 2,
+                team=team_for_slot(slot_id, 2),
                 race="Random",
                 build="random_ground",
             )

@@ -9,6 +9,14 @@ const {
   PROTOSS_FACTIONS,
 } = require("./tables.cjs");
 
+// Python launcher contract mirrored at the direct builder boundary. These
+// layouts only change alliances; P1-P14 keep their existing fixed StartLocs.
+const TEAM_LAYOUTS = new Map([
+  [2, [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2]],
+  [3, [3, 3, 3, 1, 1, 1, 1, 3, 3, 3, 2, 2, 2, 3]],
+  [4, [3, 3, 3, 1, 1, 1, 1, 4, 4, 4, 2, 2, 2, 4]],
+]);
+
 function parseMapInfoPlayers(buffer) {
   let offset = 0;
   const readU8 = () => buffer.readUInt8(offset++);
@@ -92,11 +100,21 @@ function validateConfig(config) {
       fail(`Unknown controller for P${slot.slot}: ${slot.controller}`);
     }
   }
+  const configuredTeams = config.slots.map((slot) => slot.team);
+  const teamMode = [...TEAM_LAYOUTS].find(([, layout]) =>
+    layout.every((team, index) => configuredTeams[index] === team)
+  )?.[0];
+  if (teamMode === undefined) {
+    fail("Team layout must match the fixed 2-team, 3-team, or 4-team preset");
+  }
   const activeTeams = new Set(
     config.slots.filter((slot) => slot.controller !== "empty").map((slot) => slot.team)
   );
-  if (!activeTeams.has(1) || !activeTeams.has(2)) {
-    fail("Both teams need at least one active slot");
+  if (activeTeams.size === 0) {
+    fail("At least one active player is required");
+  }
+  if (config.wild_zerg !== true && activeTeams.size < 2) {
+    fail("At least two active teams are required when Wild Zerg is disabled");
   }
   return humans[0];
 }
