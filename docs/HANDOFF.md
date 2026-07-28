@@ -78,13 +78,28 @@
 | 좌표 기반 팀 배치 유도 | `sc2team/team_layout.py`. 인원 균등 제약 아래 총 방위 비용 최소를 DP 로 정확히 푼다. |
 | 미니맵 프리뷰 | `tools/make_map_previews.py` → `map/img/`. 시작 지점에 P 라벨을 팀 색상으로. 규칙은 [`rules/map-layer.md`](rules/map-layer.md). |
 | 런처 맵 선택 + 프리뷰 패널 | `app/play_custom_ai_v3.py` 오른쪽 패널. 선택은 `runtime/v3_launcher_settings.json` 의 `map` 키에 저장. |
+| 야생 저그 맵 조건 강제 | 캠프나 여분 시작 지점이 없으면 `wild_zerg=False` 로 강제하고 체크박스를 잠근다. 아래 참조. |
+
+### 야생 저그 맵 조건
+
+두 조건을 동시에 만족해야 켤 수 있다 — 선배치된 P15 저그 본진(없으면 §90 때문에
+전투 유닛을 한 기도 못 만든다)과 활성 플레이어가 쓰고 남은 시작 지점 하나
+(P15 를 로비 Computer 로 승격시킬 때 그 자리를 준다). 판정은
+`MapProfile.wild_zerg_available(활성_플레이어_수)`.
+
+**활성 플레이어 수로 센다 — 수용 인원이 아니다.** 슬롯을 켜면 여분 시작 지점이
+사라져 조건이 뒤집히므로, 갱신이 세 시점에서 일어난다: 맵 변경, 프로필 로드,
+**슬롯 컨트롤러 변경**. 실행 중에는 잠금이 풀리지 않는다.
+
+`_start` 에 이중 가드가 있다. `runtime/v3_launcher_settings.json` 에 옛
+`wild_zerg: true` 가 남아 있어도 그 조합으로는 시작되지 않는다.
+
+동작 확인은 단위 테스트가 순수 함수(`wild_zerg_availability`)만 덮는다. 위젯 잠금·
+강제 해제·조건 뒤집힘은 런처를 조립해 위젯 상태를 읽는 방식으로 확인했다(8항목).
 
 **남은 것**
 
-1. **야생 저그를 P15 캠프 있는 맵에만 허용** — 캠프나 여분 시작 지점이 없으면
-   `wild_zerg=False` 로 강제하고 체크박스를 잠근다. 판정 로직
-   (`MapProfile.wild_zerg_available`)은 이미 있고 표시만 하고 있다.
-2. **2~14인 지원** — 지금은 14인 맵만 실행된다(`map_blocker` 가 그 외를 막는다).
+1. **2~14인 지원** — 지금은 14인 맵만 실행된다(`map_blocker` 가 그 외를 막는다).
    14칸 전제가 남은 곳: `tools/build/mapinfo.cjs`(`validateConfig` 의 14칸),
    `sc2team/custom_config.py`(`TEAM_LAYOUTS`, `team_for_slot` 의 `1<=slot<=14`),
    `v3/sc2team_v3/config.py`, 런처의 14행 UI.

@@ -98,6 +98,16 @@ def map_blocker(profile: MapProfile | None) -> str:
     return ""
 
 
+def wild_zerg_availability(
+    profile: MapProfile | None, active_player_count: int
+) -> tuple[bool, str]:
+    """현재 맵과 활성 슬롯 조합에서 야생 저그를 켤 수 있는지 판정한다."""
+
+    if profile is None:
+        return False, "맵 능력을 읽지 못했습니다."
+    return profile.wild_zerg_available(active_player_count)
+
+
 def _default_state() -> tuple[CustomLauncherConfig, dict[int, str]]:
     active_ai = {2, 3, 4, 8, 9, 10, 11}
     race_order = ("Terran", "Protoss", "Zerg")
@@ -464,8 +474,20 @@ class V3LauncherApp:
         self.wild_zerg_var = tk.BooleanVar(value=config.wild_zerg)
         self.fullscreen_var = tk.BooleanVar(value=config.fullscreen)
         self.faction_var = tk.StringVar(value=PROTOSS_FACTIONS[config.protoss_faction])
-        for label, variable in (("사람 전체 시야", self.full_vision_var), ("야생 저그 활성화", self.wild_zerg_var), ("전체 화면", self.fullscreen_var)):
+        for label, variable in (("사람 전체 시야", self.full_vision_var),):
             tk.Checkbutton(options, text=label, variable=variable, bg="#08101d", fg="#d6e3f3", selectcolor="#17243a", activebackground="#08101d", activeforeground="#fff").pack(side="left", padx=(0, 18))
+        self.wild_zerg_check = tk.Checkbutton(
+            options,
+            text="야생 저그 활성화",
+            variable=self.wild_zerg_var,
+            bg="#08101d",
+            fg="#d6e3f3",
+            selectcolor="#17243a",
+            activebackground="#08101d",
+            activeforeground="#fff",
+        )
+        self.wild_zerg_check.pack(side="left", padx=(0, 18))
+        tk.Checkbutton(options, text="전체 화면", variable=self.fullscreen_var, bg="#08101d", fg="#d6e3f3", selectcolor="#17243a", activebackground="#08101d", activeforeground="#fff").pack(side="left", padx=(0, 18))
         tk.Label(options, text="프로토스 전역 진영", bg="#08101d", fg="#d6e3f3").pack(side="left", padx=(8, 6))
         self.faction_box = ttk.Combobox(options, textvariable=self.faction_var, values=list(PROTOSS_FACTIONS.values()), state="readonly", width=13)
         self.faction_box.pack(side="left")
@@ -599,6 +621,7 @@ class V3LauncherApp:
             self.preview_label.configure(image="", text=self.profile_error or "맵이 없습니다.")
             self.preview_image = None
             self.map_detail_var.set(f"{MAP_SOURCE_DIR} 에 .SC2Map 을 넣으세요.")
+            self._refresh_wild_zerg_control()
             return
 
         image_file = next(
@@ -634,12 +657,13 @@ class V3LauncherApp:
         profile = self.profiles.get(name)
         if profile is None:
             self.map_detail_var.set(self.profile_error or "맵 능력을 읽는 중…")
+            self._refresh_wild_zerg_control()
             return
         lines = [
             f"수용 {profile.max_players}명 · 최대 {profile.max_teams}팀 · "
             f"시작 지점 {len(profile.start_locations)}",
         ]
-        available, reason = profile.wild_zerg_available(profile.max_players)
+        available, reason = self._refresh_wild_zerg_control()
         lines.append(
             f"야생 저그 캠프 {profile.wild_zerg_town_halls}"
             + ("" if available else f" — 사용 불가: {reason}")
@@ -647,6 +671,25 @@ class V3LauncherApp:
         blocker = map_blocker(profile)
         lines.append("✔ 이 맵으로 시작할 수 있습니다." if not blocker else f"⚠ {blocker}")
         self.map_detail_var.set("\n".join(lines))
+
+    def _active_player_count(self) -> int:
+        """비어 있지 않은 현재 로비 슬롯 수를 센다."""
+
+        return sum(row.controller != "empty" for row in self.rows)
+
+    def _wild_zerg_availability(self) -> tuple[bool, str]:
+        return wild_zerg_availability(self.map_profile, self._active_player_count())
+
+    def _refresh_wild_zerg_control(self) -> tuple[bool, str]:
+        """맵·슬롯 조합에 맞춰 야생 저그 설정을 강제하거나 푼다."""
+
+        available, reason = self._wild_zerg_availability()
+        if not available:
+            self.wild_zerg_var.set(False)
+        self.wild_zerg_check.configure(
+            state="normal" if available and not self.running else "disabled"
+        )
+        return available, reason
 
     def _rebuild_preview(self) -> None:
         name = self.map_name
@@ -685,6 +728,7 @@ class V3LauncherApp:
             for row in self.rows:
                 if row is not changed and row.controller == "human":
                     row.set_controller("empty")
+        self._refresh_map_panel()
 
     def _layout_team_sections(self) -> None:
         for label in self.team_section_labels.values():
@@ -812,6 +856,10 @@ class V3LauncherApp:
         self.map_box.configure(state="readonly" if enabled else "disabled")
         self.preview_button.configure(state="normal" if enabled else "disabled")
         self.faction_box.configure(state="readonly" if enabled else "disabled")
+        if enabled:
+            self._refresh_wild_zerg_control()
+        else:
+            self.wild_zerg_check.configure(state="disabled")
         self.observer_check.configure(state="normal" if enabled else "disabled")
         self.live_observe_check.configure(state="normal" if enabled else "disabled")
         self.command_card_check.configure(
@@ -828,6 +876,9 @@ class V3LauncherApp:
             if blocker:
                 raise ValueError(f"{self.map_name or '맵 없음'}: {blocker}")
             config, builds = self._current()
+            available, reason = self._wild_zerg_availability()
+            if config.wild_zerg and not available:
+                raise ValueError(f"야생 저그를 사용할 수 없습니다: {reason}")
             self._save(config, builds)
         except Exception as error:
             messagebox.showerror("V3 설정 오류", str(error), parent=self.root)

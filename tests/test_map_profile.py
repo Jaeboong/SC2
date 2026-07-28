@@ -12,6 +12,7 @@ from sc2team.map_profile import (
     max_teams_for,
     read_map_profiles,
 )
+from app.play_custom_ai_v3 import wild_zerg_availability
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -94,6 +95,31 @@ class WildZergAvailabilityTests(unittest.TestCase):
     def test_unreadable_map_never_allows_wild_zerg(self) -> None:
         available, _ = make_profile(readable=False).wild_zerg_available(2)
         self.assertFalse(available)
+
+
+class LauncherWildZergAvailabilityTests(unittest.TestCase):
+    def test_map_without_p15_town_hall_is_unavailable(self) -> None:
+        available, reason = wild_zerg_availability(
+            make_profile(wild_zerg_town_halls=0), 14
+        )
+        self.assertFalse(available)
+        self.assertIn("저그 본진", reason)
+
+    def test_start_locations_must_exceed_active_players(self) -> None:
+        starts = tuple(
+            StartLocation(id=index, x=float(index), y=0.0) for index in range(1, 15)
+        )
+        profile = make_profile(start_locations=starts)
+        self.assertFalse(wild_zerg_availability(profile, 14)[0])
+        self.assertTrue(wild_zerg_availability(profile, 13)[0])
+
+    def test_activating_final_slot_reverses_availability(self) -> None:
+        starts = tuple(
+            StartLocation(id=index, x=float(index), y=0.0) for index in range(1, 16)
+        )
+        profile = make_profile(start_locations=starts)
+        self.assertTrue(wild_zerg_availability(profile, 14)[0])
+        self.assertFalse(wild_zerg_availability(profile, 15)[0])
 
 
 class UsabilityTests(unittest.TestCase):
