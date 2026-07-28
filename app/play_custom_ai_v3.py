@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import tkinter as tk
@@ -36,6 +39,7 @@ from sc2team.custom_runtime import (  # noqa: E402
 from sc2team.live_observe import DEFAULT_PORT as OBSERVE_PORT, LiveObserveBridge  # noqa: E402
 from sc2team.map_preview import PREVIEW_CONTENT_SIZE, preview_path, slot_positions  # noqa: E402
 from sc2team.map_profile import MapProfile, read_map_profiles  # noqa: E402
+from sc2team.map_sync import plan_map_sync  # noqa: E402
 from sc2team.process import discover_sc2_executable, launch_sc2, stop_process  # noqa: E402
 from sc2team.protocol import Sc2Connection  # noqa: E402
 from sc2team.team_layout import resolve_team_layout  # noqa: E402
@@ -430,6 +434,7 @@ class V3LauncherApp:
         self.root.configure(bg="#08101d")
         self.root.protocol("WM_DELETE_WINDOW", self._close)
         self.running = False
+        self.syncing_maps = False
         self.close_requested = False
         self.cancel_event = threading.Event()
         self.worker: threading.Thread | None = None
@@ -460,14 +465,20 @@ class V3LauncherApp:
         self._set_team_modes(modes, team_mode)
         self._build_ui(config, builds)
         self._refresh_map_panel()
+        # 창과 조작부를 먼저 보여 준 뒤에만 node/프리뷰 작업을 시작한다.
+        self.root.after(50, self._start_map_sync)
 
     def _initial_map_name(self) -> str:
         names = [path.stem for path in map_source_files()]
         if self.requested_map in names:
             return self.requested_map
         if DEFAULT_MAP_NAME in names:
-            return DEFAULT_MAP_NAME
-        return names[0] if names else ""
+            selected = DEFAULT_MAP_NAME
+        else:
+            selected = names[0] if names else ""
+        # 저장된 선택이 지워진 맵을 가리켜도 이후 저장에서는 유효한 기본값을 쓴다.
+        self.requested_map = selected
+        return selected
 
     @property
     def map_name(self) -> str:
@@ -848,14 +859,23 @@ class V3LauncherApp:
 
     def _rebuild_preview(self) -> None:
         name = self.map_name
-        if not name or self.running:
+        if not name or self.running or self.syncing_maps:
             return
         self.preview_button.configure(state="disabled")
         self.status_var.set(f"{name} 프리뷰를 만드는 중…")
 
         def worker() -> None:
             completed = subprocess.run(
-                [sys.executable, str(PREVIEW_TOOL), "--force", name],
+                [
+                    sys.executable,
+                    str(PREVIEW_TOOL),
+                    "--force",
+                    name,
+                    "--source-dir",
+                    str(MAP_SOURCE_DIR),
+                    "--image-dir",
+                    str(MAP_IMAGE_DIR),
+                ],
                 cwd=PROJECT_ROOT,
                 check=False,
                 capture_output=True,
@@ -874,9 +894,151 @@ class V3LauncherApp:
         threading.Thread(target=worker, name="v3-map-preview", daemon=True).start()
 
     def _preview_rebuilt(self, message: str) -> None:
-        self.preview_button.configure(state="normal" if not self.running else "disabled")
+        self.preview_button.configure(
+            state="normal" if not self.running and not self.syncing_maps else "disabled"
+        )
         self.status_var.set(message)
         self._refresh_map_panel()
+
+    def _sync_status(self, message: str) -> None:
+        """작업 스레드가 맵 하나를 끝낼 때 UI에 즉시 진행 상황을 남긴다."""
+
+        if not self.close_requested:
+            self.status_var.set(message)
+            self.root.update_idletasks()
+
+    @staticmethod
+    def _command_error(completed: subprocess.CompletedProcess[str]) -> str:
+        return ((completed.stderr or completed.stdout).strip().splitlines() or ["알 수 없는 오류"])[-1]
+
+    def _prepare_map(self, name: str) -> str | None:
+        """원본을 임시 산출물로 준비한 뒤, 성공한 경우에만 원본과 교체한다."""
+
+        source = MAP_SOURCE_DIR / f"{name}.SC2Map"
+        temporary_file = tempfile.NamedTemporaryFile(
+            prefix=f"{name}-prepare-", suffix=".SC2Map", dir=source.parent, delete=False
+        )
+        temporary = Path(temporary_file.name)
+        temporary_file.close()
+        try:
+            completed = subprocess.run(
+                ["node", str(PROJECT_ROOT / "tools" / "build_team_map.cjs"), str(source), str(temporary)],
+                cwd=PROJECT_ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env={
+                    **os.environ,
+                    "NODE_PATH": (
+                        f"{PROJECT_ROOT / 'tools' / 'node_modules'}{os.pathsep}{os.environ['NODE_PATH']}"
+                        if os.environ.get("NODE_PATH")
+                        else str(PROJECT_ROOT / "tools" / "node_modules")
+                    ),
+                },
+            )
+            if completed.returncode:
+                return self._command_error(completed)
+            os.replace(temporary, source)
+            return None
+        except OSError as error:
+            return str(error)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def _start_map_sync(self) -> None:
+        if self.running or self.syncing_maps or self.close_requested:
+            return
+        self.syncing_maps = True
+        self._set_enabled(False)
+        self._sync_status("맵 동기화 계획을 확인하는 중…")
+
+        def status(message: str) -> None:
+            self.root.after(0, self._sync_status, message)
+
+        def worker() -> None:
+            names = tuple(path.stem for path in map_source_files())
+            plan = plan_map_sync(names, MAP_IMAGE_DIR, dict(self.profiles))
+            prepared: list[str] = []
+            previewed: list[str] = []
+            cleaned: list[str] = []
+            failures: list[str] = []
+            for image_dir in plan.stale_image_dirs:
+                status(f"맵 동기화: {image_dir.name} 이미지 정리 중…")
+                try:
+                    shutil.rmtree(image_dir)
+                    cleaned.append(image_dir.name)
+                except OSError as error:
+                    failures.append(f"{image_dir.name} 정리: {error}")
+            for name in plan.to_prepare:
+                status(f"맵 동기화: {name} 준비 중…")
+                error = self._prepare_map(name)
+                if error is None:
+                    prepared.append(name)
+                else:
+                    failures.append(f"{name} 준비: {error}")
+            for name in plan.to_preview:
+                status(f"맵 동기화: {name} 프리뷰 만드는 중…")
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        str(PREVIEW_TOOL),
+                        "--force",
+                        name,
+                        "--source-dir",
+                        str(MAP_SOURCE_DIR),
+                        "--image-dir",
+                        str(MAP_IMAGE_DIR),
+                    ],
+                    cwd=PROJECT_ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                if completed.returncode == 0:
+                    previewed.append(name)
+                else:
+                    failures.append(f"{name} 프리뷰: {self._command_error(completed)}")
+            self.root.after(
+                0,
+                self._map_sync_finished,
+                prepared,
+                previewed,
+                cleaned,
+                list(plan.unpreparable),
+                failures,
+            )
+
+        threading.Thread(target=worker, name="v3-map-sync", daemon=True).start()
+
+    def _map_sync_finished(
+        self,
+        prepared: list[str],
+        previewed: list[str],
+        cleaned: list[str],
+        unpreparable: list[str],
+        failures: list[str],
+    ) -> None:
+        self.syncing_maps = False
+        self._load_profiles(refresh=False)
+        names = [path.stem for path in map_source_files()]
+        self.map_box.configure(values=names)
+        if self.map_name not in names:
+            self.map_var.set(DEFAULT_MAP_NAME if DEFAULT_MAP_NAME in names else (names[0] if names else ""))
+        self._map_changed()
+        self._set_enabled(True)
+        if prepared or previewed or cleaned or unpreparable or failures:
+            summary = (
+                f"맵 동기화 완료 — 준비 {len(prepared)}"
+                + (f" ({', '.join(prepared)})" if prepared else "")
+                + f", 프리뷰 {len(previewed)}, 정리 {len(cleaned)}, 준비 불가 {len(unpreparable)}"
+            )
+            if failures:
+                summary += " — 실패: " + "; ".join(failures)
+            self.status_var.set(summary)
 
     def on_controller_changed(self, changed: SlotRow) -> None:
         if changed.controller == "human":

@@ -78,6 +78,7 @@
 | 좌표 기반 팀 배치 유도 | `sc2team/team_layout.py`. 인원 균등 제약 아래 총 방위 비용 최소를 DP 로 정확히 푼다. |
 | 미니맵 프리뷰 | `tools/make_map_previews.py` → `map/img/<맵이름>/`. 맵마다 디렉터리 하나 (`terrain.png` + `<N>team.png`). 시작 지점에 P 라벨을 팀 색상으로. 규칙은 [`rules/map-layer.md`](rules/map-layer.md). |
 | 런처 맵 선택 + 프리뷰 패널 | `app/play_custom_ai_v3.py` 오른쪽 패널. 선택은 `runtime/v3_launcher_settings.json` 의 `map` 키에 저장. |
+| 시작 시 맵 동기화 | `sc2team/map_sync.py` 의 `plan_map_sync` 가 계획을 세우고 런처가 실행한다. 새 맵 자동 준비(원본 덮어씀) + 프리뷰 + 사라진 맵의 잔여 이미지 정리. 창을 먼저 그린 뒤 `after(50)` 으로 시작하고 워커 스레드에서 돈다. |
 | 야생 저그 맵 조건 강제 | 캠프나 여분 시작 지점이 없으면 `wild_zerg=False` 로 강제하고 체크박스를 잠근다. 아래 참조. |
 
 ### 야생 저그 맵 조건
@@ -246,6 +247,43 @@ MAPINFO_REGRESSION=OK
 게이트: `Ran 108 tests / OK`, `VERIFY_ALL[offline]=PASS (13 checks, 0 failed)`,
 `LAUNCHER_SMOKE=OK`, `MULTIMAP_CHECK=OK`. `.galaxy` 는 건드리지 않았으므로 스모크
 프로브 대상이 아니다.
+
+### 런처 시작 시 맵 동기화 (2026-07-28)
+
+`map/source/` 에 맵을 던져 넣고 런처를 켜면 끝나도록 만들었다. 준비 버튼은 없다 —
+시작할 때 자동 동기화 하나뿐이다.
+
+`plan_map_sync` 판정: `prepared` 가 거짓이고 `preparable` 이 참이면 준비 대상,
+둘 다 거짓이면 손대지 않고 목록에만 남긴다. 준비 대상은 슬롯 번호가 바뀌므로 프리뷰도
+무조건 다시 만든다. `map/img/` **바로 아래 하위 디렉터리** 중 짝 없는 것만 지운다 —
+파일이나 `map/img/` 자신은 절대 대상이 아니다.
+
+준비는 `build_team_map.cjs` 가 `source === output` 을 거부하므로 임시 파일로 만든 뒤
+`os.replace` 로 갈아끼운다. 실패하면 원본을 그대로 두고 임시 파일을 지운다.
+
+**고친 결함 하나 (실측).** 런처가 프리뷰 생성기를 부를 때 `--source-dir`/`--image-dir` 를
+넘기지 않아, 런처의 경로 상수와 생성기의 기본값이 각자 같기를 바라는 구조였다. 임시
+디렉터리로 시험하니 갈라졌다 — 준비는 임시 디렉터리에서 됐는데 프리뷰는 진짜 `map/img/`
+로 떨어졌고, 동기화가 "프리뷰 1 완료" 라고 보고하면서 정작 그 자리엔 파일이 없어
+**켤 때마다 프리뷰를 다시 만들었다.** 호출 두 곳에서 디렉터리를 명시하도록 고쳤다.
+
+실측 (임시 디렉터리, 진짜 `map/source`·`map/img` 무변경 확인):
+
+```
+[1회차] 맵 동기화 완료 — 준비 1 (asia), 프리뷰 1, 정리 1, 준비 불가 0
+  prepared=True / maxPlayers=8 / 짝 없는 디렉터리 삭제됨
+  프리뷰 4종 생성 / 임시 산출물 잔여 없음
+[2회차] 요약 없음 (할 일 없음) — 맵 mtime·크기 동일, 프리뷰 재생성 없음
+진짜 map/img 무변경
+MAP_SYNC_CHECK=OK
+```
+
+게이트: `Ran 114 tests / OK`, `VERIFY_ALL[offline]=PASS (13 checks, 0 failed)`.
+
+**하네스 주의.** 동기화는 워커 스레드에서 `root.after` 로 UI 에 돌아온다(이 코드베이스가
+이미 네 군데서 쓰는 패턴). 시험에서 `root.update()` 루프로 몰면
+`RuntimeError: main thread is not in main loop` 가 난다 — 런처가 아니라 하네스가 틀린
+것이다. 반드시 진짜 `mainloop()` 을 돌리고 `after` 폴링으로 `quit()` 해라.
 
 ## 엔진 프로브 (2026-07-28, HEAD 4e07150)
 
