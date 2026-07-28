@@ -76,7 +76,7 @@
 | 맵 능력 판정 | `tools/map_capabilities.cjs` → 수용 인원·팀 상한·시작 지점·P15 캠프·기하. 못 읽는 맵은 이유를 실어 돌려주고 목록에서 사라지지 않는다. |
 | 수용 인원 상한 | MapInfo 슬롯 − 2 (중립·적대). 전 맵 성립 확인. 슬롯을 새로 만드는 경로는 없다. |
 | 좌표 기반 팀 배치 유도 | `sc2team/team_layout.py`. 인원 균등 제약 아래 총 방위 비용 최소를 DP 로 정확히 푼다. |
-| 미니맵 프리뷰 | `tools/make_map_previews.py` → `map/img/`. 시작 지점에 P 라벨을 팀 색상으로. 규칙은 [`rules/map-layer.md`](rules/map-layer.md). |
+| 미니맵 프리뷰 | `tools/make_map_previews.py` → `map/img/<맵이름>/`. 맵마다 디렉터리 하나 (`terrain.png` + `<N>team.png`). 시작 지점에 P 라벨을 팀 색상으로. 규칙은 [`rules/map-layer.md`](rules/map-layer.md). |
 | 런처 맵 선택 + 프리뷰 패널 | `app/play_custom_ai_v3.py` 오른쪽 패널. 선택은 `runtime/v3_launcher_settings.json` 의 `map` 키에 저장. |
 | 야생 저그 맵 조건 강제 | 캠프나 여분 시작 지점이 없으면 `wild_zerg=False` 로 강제하고 체크박스를 잠근다. 아래 참조. |
 

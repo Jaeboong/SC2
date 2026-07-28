@@ -56,7 +56,7 @@
 | 경로 | 무엇 |
 | --- | --- |
 | `map/source/` | 런처가 고를 수 있는 플레이용 맵. **불가침.** 새 맵은 여기 넣는다. |
-| `map/img/` | `tools/make_map_previews.py` 가 만드는 프리뷰 PNG. 생성물이라 덮어써도 된다. |
+| `map/img/<맵이름>/` | `tools/make_map_previews.py` 가 만드는 프리뷰 PNG. **맵마다 하위 디렉터리** 하나다 — `terrain.png` (마커 없음) 와 `2team.png`·`3team.png`·`4team.png`. 생성물이라 덮어써도 된다. |
 | `runtime/maps/` | 빌드 산출물. `v3-<맵이름>.SC2Map` 로 나온다. |
 
 - `runtime/maps/` 아래 생성된 맵을 **소스 파일로 편집하지 않는다.** 빌더나 고정 팀 베이스

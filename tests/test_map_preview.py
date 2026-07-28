@@ -170,20 +170,20 @@ class SlotPositionTests(unittest.TestCase):
 
 class PreviewNameTests(unittest.TestCase):
     def test_terrain_only_name(self) -> None:
-        self.assertEqual(preview_file_name("torches-le", None), "torches-le.png")
+        self.assertEqual(preview_file_name(None), "terrain.png")
 
     def test_team_mode_suffix(self) -> None:
-        self.assertEqual(preview_file_name("torches-le", 3), "torches-le-3team.png")
+        self.assertEqual(preview_file_name(3), "3team.png")
 
     def test_path_joins_the_image_directory(self) -> None:
         self.assertEqual(
             preview_path(Path("map/img"), "torches-le", 4),
-            Path("map/img/torches-le-4team.png"),
+            Path("map/img/torches-le/4team.png"),
         )
 
     def test_unsupported_team_mode_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
-            preview_file_name("torches-le", 5)
+            preview_file_name(5)
 
 
 if __name__ == "__main__":

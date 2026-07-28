@@ -59,7 +59,7 @@ npm install --prefix .\tools
 > | | |
 > | --- | --- |
 > | `map/source/` | 런처가 고를 수 있는 플레이용 맵. 새 맵은 여기 넣는다. |
-> | `map/img/` | `tools/make_map_previews.py` 가 만드는 미니맵 프리뷰 PNG. |
+> | `map/img/<맵이름>/` | `tools/make_map_previews.py` 가 만드는 미니맵 프리뷰 PNG. 맵마다 디렉터리 하나. |
 >
 > 중간 산출물을 `map/source/` 에 쓰지 않는다 — 그 디렉터리는 런처 맵 목록이다.
 > 아래 파이프라인을 다시 돌릴 때는 `runtime/maps/` 같은 작업 경로를 출력으로 쓰고,
@@ -103,7 +103,8 @@ node .\tools\fix_player_starts.cjs `
 ## 맵 프리뷰
 
 `map/source/` 에 맵을 넣은 뒤 프리뷰를 만든다. 런처 오른쪽 패널이 이 PNG 를 그대로 띄우고,
-`map/img/` 를 열어 보면 어떤 맵인지 바로 확인할 수 있다.
+`map/img/<맵이름>/` 을 열어 보면 어떤 맵인지 바로 확인할 수 있다. 맵마다 디렉터리 하나에
+`terrain.png` (마커 없음) 와 팀 모드별 `2team.png`·`3team.png`·`4team.png` 가 들어간다.
 
 ```powershell
 .\.venv\Scripts\python.exe .\tools\make_map_previews.py          # 없는 것만

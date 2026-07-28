@@ -135,18 +135,18 @@ def slot_positions(profile: MapProfile) -> tuple[tuple[SlotPosition, ...], bool]
     )
 
 
-def preview_file_name(map_name: str, team_mode: int | None) -> str:
+def preview_file_name(team_mode: int | None) -> str:
     """`team_mode` 가 None 이면 마커 없는 지형 프리뷰."""
 
     if team_mode is None:
-        return f"{map_name}.png"
+        return "terrain.png"
     if team_mode not in SUPPORTED_TEAM_MODES:
         raise ValueError(f"지원하지 않는 팀 모드입니다: {team_mode}")
-    return f"{map_name}-{team_mode}team.png"
+    return f"{team_mode}team.png"
 
 
 def preview_path(image_dir: Path, map_name: str, team_mode: int | None) -> Path:
-    return image_dir / preview_file_name(map_name, team_mode)
+    return image_dir / map_name / preview_file_name(team_mode)
 
 
 __all__ = [

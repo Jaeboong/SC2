@@ -2,9 +2,9 @@
 
     .venv\\Scripts\\python.exe tools\\make_map_previews.py [--force] [맵 이름 ...]
 
-맵 하나당 파일이 여러 개 나온다. 지형만 그린 `<이름>.png` 와, 팀 모드별로
-시작 지점에 P1..PN 라벨을 팀 색상으로 찍은 `<이름>-2team.png` 등이다. 런처는
-현재 선택된 팀 모드에 맞는 파일을 그대로 띄운다.
+맵 하나당 `map/img/<이름>/` 디렉터리에 파일이 여러 개 나온다. 지형만 그린
+`terrain.png` 와, 팀 모드별로 시작 지점에 P1..PN 라벨을 팀 색상으로 찍은
+`2team.png` 등이다. 런처는 현재 선택된 팀 모드에 맞는 파일을 그대로 띄운다.
 
 MPQ 를 여는 건 node(`tools/extract_minimap.cjs`, `tools/map_capabilities.cjs`)
 고 이미지 합성은 여기서 한다. Pillow 는 이 도구만 쓴다 — 런처는 tk 가 PNG 를
@@ -305,6 +305,7 @@ def build_previews(profile: MapProfile, image_dir: Path, force: bool) -> int:
     if provisional:
         print("  슬롯 번호는 잠정이다 — 이 맵은 아직 준비되지 않았다(startPoint 미지정).")
 
+    (image_dir / profile.name).mkdir(parents=True, exist_ok=True)
     written = 0
     modes: list[int | None] = [None, *range(2, profile.max_teams + 1)]
     for team_mode in modes:
@@ -312,7 +313,6 @@ def build_previews(profile: MapProfile, image_dir: Path, force: bool) -> int:
         if destination.exists() and not force:
             print(f"  이미 있음: {destination.name} (--force 로 다시 만든다)")
             continue
-        destination.parent.mkdir(parents=True, exist_ok=True)
         render(profile, content, placement, team_mode, slots, provisional).save(
             destination
         )
