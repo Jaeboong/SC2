@@ -125,8 +125,10 @@ function parseMapInfoPlayers(buffer) {
 }
 
 function validateConfig(config) {
-  if (config.version !== 1 || !Array.isArray(config.slots) || config.slots.length !== 14) {
-    fail("Expected a version 1 configuration with fourteen slots");
+  if (config.version !== 1) fail("Expected a version 1 configuration");
+  if (!Array.isArray(config.slots)) fail("Expected a slots array");
+  if (config.slots.length < 2 || config.slots.length > 14) {
+    fail("Expected between 2 and 14 slots");
   }
   const humans = config.slots.filter((slot) => slot.controller === "human");
   if (humans.length !== 1) fail("Exactly one human slot is required");
@@ -137,19 +139,23 @@ function validateConfig(config) {
   if (!PROTOSS_FACTIONS.has(protossFaction)) {
     fail(`Unknown Protoss faction: ${protossFaction}`);
   }
-  for (let index = 0; index < 14; index += 1) {
+  for (let index = 0; index < config.slots.length; index += 1) {
     const slot = config.slots[index];
-    if (slot.slot !== index + 1) fail("Slots must be ordered P1 through P14");
+    if (slot.slot !== index + 1) {
+      fail("Slots must be ordered consecutively from P1");
+    }
     if (!["empty", "human", "custom_ai"].includes(slot.controller)) {
       fail(`Unknown controller for P${slot.slot}: ${slot.controller}`);
     }
   }
   const configuredTeams = config.slots.map((slot) => slot.team);
-  const teamMode = [...TEAM_LAYOUTS].find(([, layout]) =>
-    layout.every((team, index) => configuredTeams[index] === team)
-  )?.[0];
-  if (teamMode === undefined) {
-    fail("Team layout must match the fixed 2-team, 3-team, or 4-team preset");
+  const teamNumbers = [...new Set(configuredTeams)].sort((left, right) => left - right);
+  if (!teamNumbers.every((team, index) => Number.isInteger(team) && team === index + 1)) {
+    fail("Team numbers must be consecutive from 1 without gaps");
+  }
+  const teamMode = teamNumbers.length;
+  if (teamMode < 2 || teamMode > 4) {
+    fail("Expected between 2 and 4 teams");
   }
   const activeTeams = new Set(
     config.slots.filter((slot) => slot.controller !== "empty").map((slot) => slot.team)

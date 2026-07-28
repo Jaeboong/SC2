@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from sc2team.map_profile import MAX_PLAYER_SLOTS
+
 
 CONTROLLERS: dict[str, str] = {
     "empty": "비어 있음",
@@ -119,7 +121,7 @@ TEAM_REGION_LABELS: dict[int, dict[int, str]] = {
 def team_for_slot(slot: int, team_mode: int) -> int:
     if team_mode not in TEAM_LAYOUTS:
         raise ValueError(f"지원하지 않는 팀 모드입니다: {team_mode}")
-    if not 1 <= slot <= 14:
+    if not 1 <= slot <= MAX_PLAYER_SLOTS:
         raise ValueError(f"팀을 배정할 수 없는 슬롯입니다: P{slot}")
     return TEAM_LAYOUTS[team_mode][slot - 1]
 
@@ -149,11 +151,15 @@ class SlotConfig:
 
 
 def team_mode_for_slots(slots: tuple[SlotConfig, ...]) -> int:
-    teams = tuple(slot.team for slot in slots)
-    for team_mode, layout in TEAM_LAYOUTS.items():
-        if teams == layout:
-            return team_mode
-    raise ValueError("팀 배치는 2팀·3팀·4팀 고정 프리셋 중 하나여야 합니다.")
+    team_numbers = {slot.team for slot in slots}
+    team_mode = len(team_numbers)
+    if team_numbers != set(range(1, team_mode + 1)):
+        raise ValueError("팀 번호는 1부터 빈칸 없이 연속이어야 합니다.")
+    if team_mode not in TEAM_LAYOUTS:
+        raise ValueError("팀 수는 2팀·3팀·4팀 중 하나여야 합니다.")
+    # 임의 맵은 좌표에서 팀 배치를 유도하므로 14칸 고정 프리셋과 대조할 수 없다.
+    # 대신 연속 팀 번호와 지원 팀 수로 잘못된 배치를 계속 거부한다.
+    return team_mode
 
 
 @dataclass(frozen=True)
@@ -178,8 +184,12 @@ class CustomLauncherConfig:
     def validate(self) -> None:
         if self.version != 1:
             raise ValueError(f"지원하지 않는 설정 버전입니다: {self.version}")
-        if tuple(slot.slot for slot in self.slots) != tuple(range(1, 15)):
-            raise ValueError("슬롯은 P1부터 P14까지 순서대로 모두 있어야 합니다.")
+        if not 2 <= len(self.slots) <= MAX_PLAYER_SLOTS:
+            raise ValueError(f"슬롯 수는 2개 이상 P{MAX_PLAYER_SLOTS} 이하여야 합니다.")
+        if tuple(slot.slot for slot in self.slots) != tuple(
+            range(1, len(self.slots) + 1)
+        ):
+            raise ValueError("슬롯은 P1부터 빈칸 없이 순서대로 있어야 합니다.")
         if self.protoss_faction not in PROTOSS_FACTIONS:
             raise ValueError(f"알 수 없는 프로토스 진영: {self.protoss_faction}")
 

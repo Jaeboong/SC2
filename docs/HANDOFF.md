@@ -97,12 +97,28 @@
 동작 확인은 단위 테스트가 순수 함수(`wild_zerg_availability`)만 덮는다. 위젯 잠금·
 강제 해제·조건 뒤집힘은 런처를 조립해 위젯 상태를 읽는 방식으로 확인했다(8항목).
 
+### 2~14인 지원: 1단계 완료 (설정 계층)
+
+**진짜 걸림돌은 숫자 14 가 아니라 고정표 역대조였다.** `team_mode_for_slots` 가
+팀 배치를 `TEAM_LAYOUTS`(길이 14 튜플 3개)와 대조해 팀 수를 복원했다. 임의 인원
+맵에는 대응 표가 없어 무조건 예외였다. 이제 팀 번호를 센다 — 1..N 연속이고
+N 이 2~4 면 통과. 슬롯 수는 P1 부터 연속 2~14.
+
+**같은 검사가 `tools/build/mapinfo.cjs` 의 `validateConfig` 에 미러링돼 있다.**
+둘은 같은 계약의 양쪽이라 한쪽만 풀면 런처는 통과시키고 빌더가 거부한다. 양쪽을
+같이 고쳤고 사례 12종으로 판정이 일치함을 확인했다(프리셋 3종, 2·3·4슬롯,
+프리셋 아닌 배치, 팀 번호 구멍, 팀 5개, 한 팀, 팀 0, 15슬롯).
+
+의도적 완화다 — 프리셋이 아닌 배치도 받는다. 좌표에서 유도한 배치를 써야 하므로
+어쩔 수 없고, 연속·2~4 조건으로 쓰레기 배치는 계속 거부한다.
+
 **남은 것**
 
-1. **2~14인 지원** — 지금은 14인 맵만 실행된다(`map_blocker` 가 그 외를 막는다).
-   14칸 전제가 남은 곳: `tools/build/mapinfo.cjs`(`validateConfig` 의 14칸),
-   `sc2team/custom_config.py`(`TEAM_LAYOUTS`, `team_for_slot` 의 `1<=slot<=14`),
-   `v3/sc2team_v3/config.py`, 런처의 14행 UI.
+1. **2~14인 지원 2단계** — 아직 14인 맵만 실행된다(`map_blocker` 가 그 외를 막는다).
+   남은 곳: 런처의 14행 UI(맵 인원만큼 행을 만들고 팀 배치를 `resolve_team_layout`
+   에서 받아야 한다), `tools/build/mapinfo.cjs` 의 `patchPlayers`
+   (`activeSlots[player.id - 1]` 가 길이 14 배열을 전제), `v3/sc2team_v3/config.py`
+   의 슬롯 상한(값은 맞으나 확인 필요), `SlotConfig.side` 의 `slot <= 7`.
    `unit_control.cjs` 와 `strategy_controller.py` 의 `1..14` 는 런타임 ID 범위라 그대로 둔다.
 3. **로비 Attributes 를 맵 슬롯 수에 맞춰 생성** — `tools/build_team_map.cjs` 가
    7v7/14슬롯 XML 을 하드코딩한다.

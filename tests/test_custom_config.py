@@ -7,10 +7,12 @@ from sc2team.custom_config import (
     CustomLauncherConfig,
     GROUND_BUILDS,
     PROTOSS_FACTIONS,
+    SlotConfig,
     TEAM_LAYOUTS,
     default_custom_config,
     team_for_slot,
     team_label_for_slot,
+    team_mode_for_slots,
 )
 
 
@@ -91,6 +93,33 @@ class CustomConfigTests(unittest.TestCase):
                     team_mode,
                 )
 
+    def test_team_mode_for_slots_preserves_fixed_presets(self) -> None:
+        for team_mode, layout in TEAM_LAYOUTS.items():
+            with self.subTest(team_mode=team_mode):
+                slots = tuple(
+                    SlotConfig(slot=index, team=team)
+                    for index, team in enumerate(layout, start=1)
+                )
+                self.assertEqual(team_mode_for_slots(slots), team_mode)
+
+    def test_team_mode_for_slots_rejects_team_number_gaps(self) -> None:
+        slots = tuple(
+            SlotConfig(slot=index, team=team)
+            for index, team in enumerate((1, 1, 3, 3), start=1)
+        )
+        with self.assertRaisesRegex(ValueError, "빈칸 없이"):
+            team_mode_for_slots(slots)
+
+    def test_team_mode_for_slots_rejects_unsupported_team_counts(self) -> None:
+        for teams in ((1, 1), (1, 2, 3, 4, 5)):
+            with self.subTest(teams=teams):
+                slots = tuple(
+                    SlotConfig(slot=index, team=team)
+                    for index, team in enumerate(teams, start=1)
+                )
+                with self.assertRaisesRegex(ValueError, "팀 수"):
+                    team_mode_for_slots(slots)
+
     def test_three_and_four_team_region_labels_match_fixed_starts(self) -> None:
         self.assertEqual(team_label_for_slot(14, 3), "3팀·남부")
         self.assertEqual(team_label_for_slot(14, 4), "4팀·남동")
@@ -113,14 +142,57 @@ class CustomConfigTests(unittest.TestCase):
         self.assertEqual(migrated.slots[9].race, "Protoss")
         self.assertEqual(migrated.slots[10].team, 2)
 
-    def test_arbitrary_team_mix_is_rejected(self) -> None:
-        config = default_custom_config()
-        slots = tuple(
-            replace(slot, team=4) if slot.slot == 1 else slot
-            for slot in config.slots
+    def test_non_preset_team_mix_is_accepted(self) -> None:
+        slots = (
+            SlotConfig(slot=1, controller="human", team=1),
+            SlotConfig(slot=2, controller="custom_ai", team=2),
+            SlotConfig(slot=3, controller="empty", team=1),
+            SlotConfig(slot=4, controller="empty", team=2),
         )
-        with self.assertRaisesRegex(ValueError, "고정 프리셋"):
-            replace(config, slots=slots).validate()
+        config = CustomLauncherConfig(version=1, slots=slots, wild_zerg=False)
+        config.validate()
+        self.assertEqual(config.team_mode, 2)
+
+    def test_two_slot_config_is_accepted(self) -> None:
+        config = CustomLauncherConfig(
+            version=1,
+            slots=(
+                SlotConfig(slot=1, controller="human", team=1),
+                SlotConfig(slot=2, controller="custom_ai", team=2),
+            ),
+            wild_zerg=False,
+        )
+        config.validate()
+
+    def test_slot_count_must_be_between_two_and_fourteen(self) -> None:
+        one_slot = CustomLauncherConfig(
+            version=1,
+            slots=(SlotConfig(slot=1, controller="human", team=1),),
+        )
+        fifteen_slots = CustomLauncherConfig(
+            version=1,
+            slots=tuple(
+                SlotConfig(
+                    slot=index,
+                    controller="human" if index == 1 else "empty",
+                    team=1 if index % 2 else 2,
+                )
+                for index in range(1, 16)
+            ),
+        )
+        for config in (one_slot, fifteen_slots):
+            with self.subTest(slot_count=len(config.slots)):
+                with self.assertRaisesRegex(ValueError, "슬롯 수"):
+                    config.validate()
+
+    def test_slots_must_start_at_p1_without_gaps(self) -> None:
+        slots = (
+            SlotConfig(slot=1, controller="human", team=1),
+            SlotConfig(slot=2, controller="custom_ai", team=2),
+            SlotConfig(slot=4, controller="empty", team=1),
+        )
+        with self.assertRaisesRegex(ValueError, "P1부터 빈칸 없이"):
+            CustomLauncherConfig(version=1, slots=slots).validate()
 
     def test_protoss_faction_is_global_and_validated(self) -> None:
         config = replace(default_custom_config(), protoss_faction="Taldarim")
