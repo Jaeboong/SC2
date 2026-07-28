@@ -585,7 +585,10 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
   if (script.includes("sc2team_HostileWildForceSpawn")) {
     fail("P15 army must be trained from Larvae, not spawned by UnitCreate");
   }
-  if (!/<ObjectUnit\b[^>]*\bUnitType="(?:Hatchery|Lair|Hive)"[^>]*\bPlayer="15"/.test(objects)) {
+  // 야생 저그를 끄면 P15는 중립 적대로 남아 둥지가 무의미하다. 켜진 경로에서는
+  // 이 앵커 검사가 계속 강제되고, runtime 빌더의 "Wild Zerg has no town hall in
+  // Objects" 검사도 같은 불변식을 별도로 지킨다.
+  if (wildZergActive && !/<ObjectUnit\b[^>]*\bUnitType="(?:Hatchery|Lair|Hive)"[^>]*\bPlayer="15"/.test(objects)) {
     fail("P15 hostile wildlife has no Zerg nest anchors");
   }
   const raceData = archive.readFileAsString(

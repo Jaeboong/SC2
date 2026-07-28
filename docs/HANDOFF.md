@@ -112,14 +112,64 @@ N 이 2~4 면 통과. 슬롯 수는 P1 부터 연속 2~14.
 의도적 완화다 — 프리셋이 아닌 배치도 받는다. 좌표에서 유도한 배치를 써야 하므로
 어쩔 수 없고, 연속·2~4 조건으로 쓰레기 배치는 계속 거부한다.
 
+### 2~14인 지원: 2단계 완료 (맵 준비기와 빌드 경로)
+
+**2~14인 맵이 빌드까지 끝까지 통과한다.** 실측:
+
+```
+설정: 슬롯 4 팀 2 활성 4 야생저그 False
+BUILD_OK map=np-prepared-Flat128-4-4.SC2Map bytes=61554
+설정: 슬롯 2 팀 2 활성 2 야생저그 False
+BUILD_OK map=np-prepared-Simple64-2-2.SC2Map bytes=84422
+```
+
+**이미 인원 무관하게 동작하던 것 — 손대지 않았다.** `patchPlayers` 의
+`activeSlots` 는 `[사람, ...커스텀AI]` 로 **압축된** 목록이고 MapInfo 플레이어 id 로
+인덱싱한다. 활성이 8명이면 플레이어 9~14 는 `undefined` 가 되어 control 0 으로
+꺼진다. `player_setups`·`runtime_player_id`·`v3_players` 도 전부 활성 슬롯 기준이다.
+
+**고친 것 셋:**
+
+1. `parseMapInfoPlayers` 의 15~16 제한. MapInfo 는 `사용 가능 인원 + 2`(id 0 과
+   id 15)를 담는다 — Flat128 은 6(`0,1,2,3,4,15`), Simple64 는 4(`0,1,2,15`).
+   최소 3개만 요구하도록 완화했다.
+2. `build_custom_runtime_map.cjs` 에 용량 검사 추가. MapInfo 논리 플레이어 수가
+   `activeSlots.length` 보다 적으면 실패한다. 위 15~16 검사가 하던 파싱-어긋남
+   방어를 이게 대신한다.
+3. `build_team_map.cjs` 의 7v7 하드코딩 네 곳 — 시작 지점 서/동 분할,
+   `patchFixedPlayerStarts` 루프, Attributes XML(`MaxTeamSize`, 2011 슬롯 배정),
+   커스텀 블록 galaxy 루프. `--players N` 으로 지정하고 기본값은 맵 수용 최대치다.
+   **N=14 에서 Attributes·Galaxy 문자열이 바이트 단위로 이전과 같다.**
+
+로비는 항상 2팀이다. 3·4팀은 로비 팀이 아니라 인게임 동맹이다.
+
+### 검증기의 P15 둥지 앵커 검사 (게이트 추가)
+
+`verify.cjs` 의 둥지 앵커 검사가 `wildZergActive` 게이트 **밖**에 있었다(게이트
+블록은 358~397·1811~1844, 검사는 588행). 그래서 P15 저그 둥지가 없는 맵은 **야생
+저그를 꺼도** 빌드가 거부됐다 — 임의 맵 지원의 유일한 남은 차단점이었다.
+
+게이트를 끼우기 전에 세 가지를 실증했다:
+
+- 이 검사만 열면 4인·2인 맵이 V3 파이프라인을 **끝까지** 통과한다(뒤에 다른
+  차단점이 없다).
+- 게이트를 끼운 뒤에도 **야생 저그를 켜면** 캠프 없는 맵은 여전히 막힌다 —
+  `Wild Zerg has no town hall in Objects` 가 먼저 잡는다. 불변식이 이중 보호된다.
+- 14인 오프라인 tier 무영향.
+
+야생 저그가 꺼져 있으면 P15 는 둥지가 있든 없든 아무것도 생산하지 못한다(§90).
+그래서 이 게이트는 인게임 동작을 바꾸지 않는다.
+
 **남은 것**
 
-1. **2~14인 지원 2단계** — 아직 14인 맵만 실행된다(`map_blocker` 가 그 외를 막는다).
-   남은 곳: 런처의 14행 UI(맵 인원만큼 행을 만들고 팀 배치를 `resolve_team_layout`
-   에서 받아야 한다), `tools/build/mapinfo.cjs` 의 `patchPlayers`
-   (`activeSlots[player.id - 1]` 가 길이 14 배열을 전제), `v3/sc2team_v3/config.py`
-   의 슬롯 상한(값은 맞으나 확인 필요), `SlotConfig.side` 의 `slot <= 7`.
+1. **2~14인 지원 3단계 — 런처 UI.** 아직 14인 맵만 **런처에서** 시작된다
+   (`map_blocker` 가 그 외를 막는다). 남은 곳: 14행 고정 UI 를 맵 인원만큼으로,
+   팀 배치를 `sc2team/team_layout.py` 의 `resolve_team_layout`(좌표 기반)에서 받기,
+   팀 수 콤보를 맵 상한(`MapProfile.max_teams`)으로 제한, `_layout_team_sections`
+   의 `range(1, 15)`, `_default_state()` 의 14슬롯, 저장된 14슬롯 설정의 마이그레이션,
+   `map_blocker` 의 14인 게이트 제거.
    `unit_control.cjs` 와 `strategy_controller.py` 의 `1..14` 는 런타임 ID 범위라 그대로 둔다.
+   `SlotConfig.side` 의 `slot <= 7` 은 V1 계층 전용이라 범위 밖.
 3. **로비 Attributes 를 맵 슬롯 수에 맞춰 생성** — `tools/build_team_map.cjs` 가
    7v7/14슬롯 XML 을 하드코딩한다.
 4. **[별도조사] MapInfo 파서 견고화** — 순차 위치 파싱이라 선택적 필드가 있는 맵에서

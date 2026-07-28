@@ -114,11 +114,11 @@ function readMapInfoGeometry(buffer) {
   return parseMapInfo(buffer).geometry;
 }
 
-// 빌드 경로용. 지금 빌더는 논리 P1~P14 + 중립/적대 두 슬롯을 전제하므로
-// 슬롯 수가 15~16 이 아닌 맵은 여기서 막는다.
+// 빌드 경로용. id 0 및 15와 실제 플레이어가 최소 하나는 있어야 한다.
+// 상한은 parseMapInfo()의 개연성 검사에서 이미 막는다.
 function parseMapInfoPlayers(buffer) {
   const players = readMapInfoPlayers(buffer);
-  if (players.length < 15 || players.length > 16) {
+  if (players.length < 3) {
     fail(`Unexpected MapInfo player count: ${players.length}`);
   }
   return players;
