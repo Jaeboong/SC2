@@ -27,7 +27,6 @@ from sc2team.custom_config import (  # noqa: E402
     CustomLauncherConfig,
     SlotConfig,
     team_for_slot,
-    team_label_for_slot,
 )
 from sc2team.custom_runtime import (  # noqa: E402
     RACE_VALUES,
@@ -35,10 +34,11 @@ from sc2team.custom_runtime import (  # noqa: E402
     runtime_player_id,
 )
 from sc2team.live_observe import DEFAULT_PORT as OBSERVE_PORT, LiveObserveBridge  # noqa: E402
-from sc2team.map_preview import PREVIEW_CONTENT_SIZE, preview_path  # noqa: E402
-from sc2team.map_profile import MAX_PLAYER_SLOTS, MapProfile, read_map_profiles  # noqa: E402
+from sc2team.map_preview import PREVIEW_CONTENT_SIZE, preview_path, slot_positions  # noqa: E402
+from sc2team.map_profile import MapProfile, read_map_profiles  # noqa: E402
 from sc2team.process import discover_sc2_executable, launch_sc2, stop_process  # noqa: E402
 from sc2team.protocol import Sc2Connection  # noqa: E402
+from sc2team.team_layout import resolve_team_layout  # noqa: E402
 from sc2team_v3.config import (  # noqa: E402
     V3_DEFAULT_BUILD_BY_RACE,
     V3_GROUND_BUILDS,
@@ -89,12 +89,8 @@ def map_blocker(profile: MapProfile | None) -> str:
             "아직 준비되지 않은 맵입니다. `node tools/build_team_map.cjs <원본> <출력>` "
             "으로 한 번 준비해야 합니다."
         )
-    if profile.max_players != MAX_PLAYER_SLOTS:
-        # 런처의 슬롯 표와 검증기가 아직 14칸을 전제한다. 2~14인 지원은 별도 작업이다.
-        return (
-            f"수용 인원이 {profile.max_players}명입니다. 지금은 14인 맵만 실행할 수 "
-            "있습니다(2~14인 지원은 작업 중)."
-        )
+    if profile.max_players < 2:
+        return f"수용 인원이 {profile.max_players}명입니다. 최소 2명 맵이 필요합니다."
     return ""
 
 
@@ -108,13 +104,24 @@ def wild_zerg_availability(
     return profile.wild_zerg_available(active_player_count)
 
 
-def _default_state() -> tuple[CustomLauncherConfig, dict[int, str]]:
+def _fallback_team_layout(slot_ids: tuple[int, ...], team_mode: int) -> dict[int, int]:
+    """프로필 좌표를 읽지 못했을 때만 쓰는 안전한 연속 분할."""
+
+    if not slot_ids:
+        return {}
+    return {
+        slot: min(team_mode, index * team_mode // len(slot_ids) + 1)
+        for index, slot in enumerate(slot_ids)
+    }
+
+
+def _default_state(max_players: int = 14) -> tuple[CustomLauncherConfig, dict[int, str]]:
     active_ai = {2, 3, 4, 8, 9, 10, 11}
     race_order = ("Terran", "Protoss", "Zerg")
     slots: list[SlotConfig] = []
     builds: dict[int, str] = {}
     ai_index = 0
-    for slot_id in range(1, 15):
+    for slot_id in range(1, max_players + 1):
         if slot_id == 1:
             controller = "human"
             race = "Terran"
@@ -130,7 +137,9 @@ def _default_state() -> tuple[CustomLauncherConfig, dict[int, str]]:
             SlotConfig(
                 slot=slot_id,
                 controller=controller,
-                team=team_for_slot(slot_id, 2),
+                team=team_for_slot(slot_id, 2)
+                if max_players == 14
+                else _fallback_team_layout(tuple(range(1, max_players + 1)), 2)[slot_id],
                 race=race,
                 build=DEFAULT_BUILD_BY_RACE[race],
                 melee_build="Macro" if controller == "custom_ai" else "",
@@ -144,6 +153,60 @@ def _default_state() -> tuple[CustomLauncherConfig, dict[int, str]]:
     )
     config.validate()
     return config, builds
+
+
+def _resize_config(
+    config: CustomLauncherConfig, builds: dict[int, str], max_players: int, team_mode: int
+) -> tuple[CustomLauncherConfig, dict[int, str]]:
+    """저장된 슬롯을 맵 수용 인원에 맞춘다. 앞 슬롯 상태를 보존한다."""
+
+    slot_ids = tuple(range(1, max_players + 1))
+    teams = _fallback_team_layout(slot_ids, team_mode)
+    saved = {slot.slot: slot for slot in config.slots}
+    slots: list[SlotConfig] = []
+    human_seen = False
+    for slot_id in slot_ids:
+        previous = saved.get(slot_id)
+        if previous is None:
+            controller, race, build, melee_build = "empty", "Random", "Random", ""
+        else:
+            controller, race = previous.controller, previous.race
+            build, melee_build = previous.build, previous.melee_build
+        if controller == "human":
+            if human_seen:
+                controller, race, build, melee_build = "empty", "Random", "Random", ""
+            human_seen = True
+        slots.append(
+            SlotConfig(
+                slot=slot_id,
+                controller=controller,
+                team=teams[slot_id],
+                race=race,
+                build=build,
+                melee_build=melee_build,
+            )
+        )
+    if not human_seen:
+        first = slots[0]
+        slots[0] = SlotConfig(
+            slot=first.slot,
+            controller="human",
+            team=first.team,
+            race="Terran",
+            build=DEFAULT_BUILD_BY_RACE["Terran"],
+            melee_build="",
+        )
+    resized = CustomLauncherConfig(
+        version=config.version,
+        slots=tuple(slots),
+        full_vision=config.full_vision,
+        allow_support_air=config.allow_support_air,
+        protoss_faction=config.protoss_faction,
+        wild_zerg=config.wild_zerg,
+        unit_control=config.unit_control,
+        fullscreen=config.fullscreen,
+    )
+    return resized, {slot: build for slot, build in builds.items() if slot in slot_ids}
 
 
 async def run_v3_game(
@@ -286,6 +349,16 @@ class SlotRow:
             sticky="ew",
         )
 
+    def destroy(self) -> None:
+        for widget in (
+            self.slot_label,
+            self.team_label,
+            self.controller_box,
+            self.race_box,
+            self.build_box,
+        ):
+            widget.destroy()
+
     @property
     def controller(self) -> str:
         return next(key for key, value in CONTROLLERS.items() if value == self.controller_var.get())
@@ -309,7 +382,7 @@ class SlotRow:
 
     def refresh(self) -> None:
         self.team_label.configure(
-            text=team_label_for_slot(self.slot_id, self.app.team_mode)
+            text=self.app.team_label_for(self.slot_id)
         )
         active = self.controller != "empty"
         ai = self.controller == "custom_ai" or (
@@ -339,7 +412,7 @@ class SlotRow:
         return SlotConfig(
             slot=self.slot_id,
             controller=self.controller,
-            team=team_for_slot(self.slot_id, self.app.team_mode),
+            team=self.app.team_for(self.slot_id),
             race=self.race,
             build=DEFAULT_BUILD_BY_RACE[self.race],
             melee_build="Macro" if self.controller == "custom_ai" else "",
@@ -369,12 +442,24 @@ class V3LauncherApp:
         self.preview_image: tk.PhotoImage | None = None
         self.profiles: dict[str, MapProfile] = {}
         self.profile_error = ""
+        self._team_layout: dict[int, int] = {}
+        self._team_mode_labels: dict[str, int] = {}
+        self.requested_map = DEFAULT_MAP_NAME
         self._style()
         config, builds = self._load()
-        self.team_mode_var = tk.StringVar(value=TEAM_MODE_LABELS[config.team_mode])
         self.map_var = tk.StringVar(value=self._initial_map_name())
+        self._load_profiles(refresh=False)
+        max_players = max(
+            2, self.map_profile.max_players if self.map_profile else len(config.slots)
+        )
+        max_teams = self.map_profile.max_teams if self.map_profile else 4
+        modes = self._available_team_modes(max_players, max_teams)
+        team_mode = config.team_mode if config.team_mode in modes else modes[-1]
+        config, builds = _resize_config(config, builds, max_players, team_mode)
+        self.team_mode_var = tk.StringVar()
+        self._set_team_modes(modes, team_mode)
         self._build_ui(config, builds)
-        self._load_profiles()
+        self._refresh_map_panel()
 
     def _initial_map_name(self) -> str:
         names = [path.stem for path in map_source_files()]
@@ -392,7 +477,7 @@ class V3LauncherApp:
     def map_profile(self) -> MapProfile | None:
         return self.profiles.get(self.map_name)
 
-    def _load_profiles(self) -> None:
+    def _load_profiles(self, *, refresh: bool = True) -> None:
         """맵 능력을 읽는다. node 를 부르므로 실패해도 런처는 살아야 한다."""
 
         paths = map_source_files()
@@ -407,14 +492,58 @@ class V3LauncherApp:
                 self.profile_error = ""
             except (OSError, RuntimeError, FileNotFoundError) as error:
                 self.profile_error = f"맵 능력을 읽지 못했습니다: {error}"
-        self._refresh_map_panel()
+        if refresh:
+            self._refresh_map_panel()
 
     @property
     def team_mode(self) -> int:
         selected = self.team_mode_var.get()
+        if selected in self._team_mode_labels:
+            return self._team_mode_labels[selected]
+        # 이전 저장 라벨과 기존 조립 스모크는 14인 문구를 직접 넣는다. UI 목록에는
+        # 새 맵 크기 문구만 남기되, 이 경로에서는 안전하게 같은 팀 수로 해석한다.
         return next(
-            mode for mode, label in TEAM_MODE_LABELS.items() if label == selected
+            (mode for mode, label in TEAM_MODE_LABELS.items() if label == selected), 2
         )
+
+    @staticmethod
+    def _available_team_modes(max_players: int, max_teams: int) -> tuple[int, ...]:
+        upper = min(max_players, max_teams, 4)
+        return tuple(mode for mode in TEAM_MODE_LABELS if mode <= upper) or (2,)
+
+    @staticmethod
+    def _team_mode_label(team_mode: int) -> str:
+        return f"{team_mode}팀 · {'/'.join(TEAM_REGION_LABELS[team_mode].values())}"
+
+    def _set_team_modes(self, modes: tuple[int, ...], selected: int) -> None:
+        labels = {self._team_mode_label(mode): mode for mode in modes}
+        self._team_mode_labels = labels
+        self.team_mode_var.set(next(label for label, mode in labels.items() if mode == selected))
+        if hasattr(self, "team_mode_box"):
+            self.team_mode_box.configure(values=list(labels))
+
+    def _update_team_layout(self) -> None:
+        slot_ids = tuple(row.slot_id for row in self.rows)
+        fallback = _fallback_team_layout(slot_ids, self.team_mode)
+        profile = self.map_profile
+        if profile is None or not profile.readable:
+            self._team_layout = fallback
+            return
+        try:
+            positions, _provisional = slot_positions(profile)
+            layout = resolve_team_layout(positions, self.team_mode)
+            self._team_layout = (
+                layout if set(layout) == set(slot_ids) else fallback
+            )
+        except (RuntimeError, ValueError):
+            self._team_layout = fallback
+
+    def team_for(self, slot_id: int) -> int:
+        return self._team_layout.get(slot_id, 1)
+
+    def team_label_for(self, slot_id: int) -> str:
+        team = self.team_for(slot_id)
+        return f"{TEAM_REGION_LABELS[self.team_mode][team]} · {team}팀"
 
     def _style(self) -> None:
         style = ttk.Style(self.root)
@@ -439,7 +568,7 @@ class V3LauncherApp:
         self.team_mode_box = ttk.Combobox(
             team_controls,
             textvariable=self.team_mode_var,
-            values=list(TEAM_MODE_LABELS.values()),
+            values=list(self._team_mode_labels),
             state="readonly",
             width=42,
         )
@@ -465,9 +594,7 @@ class V3LauncherApp:
                 pady=4,
                 font=("Malgun Gothic", 10, "bold"),
             )
-        for slot in config.slots:
-            self.rows.append(SlotRow(self, self.table, slot, builds.get(slot.slot)))
-        self._layout_team_sections()
+        self._rebuild_slot_rows(config.slots, builds)
         options = tk.Frame(self.root, bg="#08101d")
         options.pack(fill="x", padx=22, pady=4)
         self.full_vision_var = tk.BooleanVar(value=config.full_vision)
@@ -541,6 +668,25 @@ class V3LauncherApp:
         self.stop_button = tk.Button(footer, text="게임 종료", command=self._stop, state="disabled", bg="#713a3a", fg="#fff", relief="flat", padx=12, pady=8)
         self.stop_button.pack(side="right")
 
+    def _rebuild_slot_rows(
+        self, slots: tuple[SlotConfig, ...], builds: dict[int, str]
+    ) -> None:
+        """맵 슬롯 수가 바뀔 때 표 위젯을 교체한다."""
+
+        for row in self.rows:
+            row.destroy()
+        self.rows.clear()
+        # SlotRow 생성 중에도 팀 라벨을 갱신하므로, 이전 맵의 팀 번호가 새 모드에
+        # 남아 있지 않게 먼저 안전한 배치를 넣는다.
+        self._team_layout = _fallback_team_layout(
+            tuple(slot.slot for slot in slots), self.team_mode
+        )
+        self.rows.extend(
+            SlotRow(self, self.table, slot, builds.get(slot.slot)) for slot in slots
+        )
+        self._update_team_layout()
+        self._layout_team_sections()
+
     def _build_map_panel(self, parent: tk.Widget) -> None:
         """오른쪽 맵 패널. 맵 선택 · 프리뷰 · 맵이 정하는 상한을 보여준다."""
 
@@ -605,6 +751,15 @@ class V3LauncherApp:
         self.preview_label.pack(side="top", padx=10, pady=4)
 
     def _map_changed(self, _event=None) -> None:
+        current, builds = self._current_unvalidated()
+        profile = self.map_profile
+        max_players = max(2, profile.max_players) if profile else len(self.rows)
+        max_teams = profile.max_teams if profile else 4
+        modes = self._available_team_modes(max_players, max_teams)
+        team_mode = self.team_mode if self.team_mode in modes else modes[-1]
+        current, builds = _resize_config(current, builds, max_players, team_mode)
+        self._set_team_modes(modes, team_mode)
+        self._rebuild_slot_rows(current.slots, builds)
         self._refresh_map_panel()
         blocker = map_blocker(self.map_profile)
         self.status_var.set(
@@ -739,8 +894,8 @@ class V3LauncherApp:
         for team in range(1, self.team_mode + 1):
             slot_ids = tuple(
                 slot
-                for slot in range(1, 15)
-                if team_for_slot(slot, self.team_mode) == team
+                for slot in rows_by_slot
+                if self.team_for(slot) == team
             )
             region = TEAM_REGION_LABELS[self.team_mode][team]
             section = self.team_section_labels[team]
@@ -765,12 +920,13 @@ class V3LauncherApp:
                 grid_row += 1
 
     def _team_mode_changed(self, _event=None) -> None:
+        self._update_team_layout()
         for row in self.rows:
             row.refresh()
         self._layout_team_sections()
         self._refresh_map_panel()
         self.status_var.set(
-            f"팀 구성을 {TEAM_MODE_LABELS[self.team_mode]} 모드로 변경했습니다."
+            f"팀 구성을 {self._team_mode_label(self.team_mode)} 모드로 변경했습니다."
         )
 
     def _live_observe_changed(self) -> None:
@@ -790,7 +946,7 @@ class V3LauncherApp:
             else "일반 모드: 사람 슬롯으로 직접 플레이합니다."
         )
 
-    def _current(self) -> tuple[CustomLauncherConfig, dict[int, str]]:
+    def _current_unvalidated(self) -> tuple[CustomLauncherConfig, dict[int, str]]:
         slots = tuple(row.to_slot() for row in self.rows)
         config = CustomLauncherConfig(
             version=1,
@@ -802,7 +958,6 @@ class V3LauncherApp:
             unit_control=False,
             fullscreen=self.fullscreen_var.get(),
         )
-        config.validate()
         builds: dict[int, str] = {}
         for row in self.rows:
             is_v3_ai = row.controller == "custom_ai" or (
@@ -813,6 +968,11 @@ class V3LauncherApp:
             if row.race == "Random" or row.build_id not in V3_GROUND_BUILDS.get(row.race, {}):
                 raise ValueError(f"P{row.slot_id}: V3 AI는 종족과 세부 빌드를 직접 선택해야 합니다.")
             builds[row.slot_id] = row.build_id
+        return config, builds
+
+    def _current(self) -> tuple[CustomLauncherConfig, dict[int, str]]:
+        config, builds = self._current_unvalidated()
+        config.validate()
         return config, builds
 
     def _load(self) -> tuple[CustomLauncherConfig, dict[int, str]]:
