@@ -53,9 +53,11 @@ for (const target of targets.flatMap(expand)) {
     mapInfoSlots: capabilities.mapInfoSlots,
     maxPlayers: capabilities.maxPlayers,
     maxTeams: maxTeamsFor(capabilities.maxPlayers),
+    geometry: capabilities.geometry,
     startLocations: capabilities.startLocations,
     playerStarts: capabilities.playerStarts,
     wildZergTownHalls: capabilities.wildZergTownHalls,
+    hasMinimap: capabilities.hasMinimap,
     prepared: capabilities.prepared,
     preparable: capabilities.preparable,
   });

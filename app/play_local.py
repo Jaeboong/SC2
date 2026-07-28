@@ -34,8 +34,8 @@ from sc2team.protocol import Sc2Connection
 
 BASE_MAP_FILE = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 SETTINGS_FILE = PROJECT_ROOT / "runtime" / "launcher_settings.json"

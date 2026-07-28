@@ -13,7 +13,7 @@ Check the environment:
 ```powershell
 Test-Path .\.venv\Scripts\python.exe
 Test-Path .\tools\node_modules\@jamiephan\stormlib
-Test-Path '.\maps\generated\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map'
+Test-Path '.\map\source\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map'
 ```
 
 Before engine tests, close SC2 and SC2 Editor or verify that no stale process owns the fixed API ports:

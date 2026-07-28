@@ -10,7 +10,10 @@
 
 const { Archive } = require("@jamiephan/stormlib");
 
-const { readMapInfoPlayers } = require("./mapinfo.cjs");
+const { readMapInfoGeometry, readMapInfoPlayers } = require("./mapinfo.cjs");
+
+// 맵 아카이브가 들고 있는 미니맵 텍스처. 에디터가 저장할 때 만든다.
+const MINIMAP_FILE = "Minimap.tga";
 
 // 논리 슬롯 P1~P14. P15 는 야생 저그, P16 은 중립이라 사람/커스텀 AI 가
 // 앉을 수 없다.
@@ -86,9 +89,11 @@ function readMapCapabilities(mapPath) {
     reason: "",
     mapInfoSlots: 0,
     maxPlayers: 0,
+    geometry: null,
     startLocations: [],
     playerStarts: [],
     wildZergTownHalls: 0,
+    hasMinimap: false,
     prepared: false,
     preparable: false,
   };
@@ -104,7 +109,9 @@ function readMapCapabilities(mapPath) {
   let playerSlots = [];
   try {
     try {
-      const players = readMapInfoPlayers(archive.readFile("MapInfo"));
+      const mapInfo = archive.readFile("MapInfo");
+      const players = readMapInfoPlayers(mapInfo);
+      capabilities.geometry = readMapInfoGeometry(mapInfo);
       capabilities.mapInfoSlots = players.length;
       playerSlots = players.filter(
         (player) => player.id >= FIRST_PLAYER_SLOT && player.id <= LAST_PLAYER_SLOT
@@ -123,6 +130,10 @@ function readMapCapabilities(mapPath) {
       capabilities.reason = `Objects 를 읽을 수 없다: ${error.message}`;
       return capabilities;
     }
+
+    // 프리뷰를 만들 수 있는지만 본다. 미니맵이 없어도 맵은 정상 동작하므로
+    // readable 을 깎지 않는다.
+    capabilities.hasMinimap = archive.hasFile(MINIMAP_FILE);
 
     try {
       const script = archive.readFileAsString("MapScript.galaxy", "utf8");

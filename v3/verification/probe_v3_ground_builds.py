@@ -29,7 +29,7 @@ from sc2team_v3.config import V3BuildConfig  # noqa: E402
 from sc2team_v3.runtime import build_v3_map, install_v3_mod  # noqa: E402
 
 
-BASE_MAP = PROJECT_ROOT / "maps" / "generated" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
+BASE_MAP = PROJECT_ROOT / "map" / "source" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 OUTPUT_MAP = PROJECT_ROOT / "runtime" / "maps" / "v3-ground-builds-probe.SC2Map"
 ARCHIVE_BASELINE_MOD = PROJECT_ROOT / "runtime" / "v3-opening-static-check" / "SC2TeamV3AI.SC2Mod"
 PORT = 14183

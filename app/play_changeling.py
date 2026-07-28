@@ -27,8 +27,8 @@ from sc2team.worker_supply_proxy import WorkerSupplyProxy
 
 MAP_FILE = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "torches-le-Pro-Bot_test.SC2Map"
 )
 BOT_DIRECTORY = (

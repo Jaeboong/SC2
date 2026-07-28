@@ -47,6 +47,41 @@ class StartLocation:
 
 
 @dataclass(frozen=True)
+class PlayerStart:
+    """논리 슬롯 하나가 실제로 앉는 좌표."""
+
+    slot: int
+    start_point: int
+    x: float
+    y: float
+
+
+@dataclass(frozen=True)
+class PlayableBounds:
+    """카메라 경계. 미니맵 이미지가 덮는 사각형이 정확히 이것이다."""
+
+    left: int
+    bottom: int
+    right: int
+    top: int
+
+    @property
+    def width(self) -> int:
+        return self.right - self.left
+
+    @property
+    def height(self) -> int:
+        return self.top - self.bottom
+
+
+@dataclass(frozen=True)
+class MapGeometry:
+    width: int
+    height: int
+    bounds: PlayableBounds
+
+
+@dataclass(frozen=True)
 class MapProfile:
     """한 맵의 수용 능력. 전부 맵에서 읽은 사실이며 설정이 아니다."""
 
@@ -56,8 +91,11 @@ class MapProfile:
     reason: str
     map_info_slots: int
     max_players: int
+    geometry: MapGeometry | None
     start_locations: tuple[StartLocation, ...]
+    player_starts: tuple[PlayerStart, ...]
     wild_zerg_town_halls: int
+    has_minimap: bool
     prepared: bool
     preparable: bool
 
@@ -105,10 +143,37 @@ def _node_environment(project_root: Path) -> dict[str, str]:
     return env
 
 
+def _geometry_from_entry(raw: object) -> MapGeometry | None:
+    if not isinstance(raw, dict):
+        return None
+    bounds = raw.get("bounds")
+    if not isinstance(bounds, dict):
+        return None
+    return MapGeometry(
+        width=int(raw.get("width", 0) or 0),
+        height=int(raw.get("height", 0) or 0),
+        bounds=PlayableBounds(
+            left=int(bounds.get("left", 0) or 0),
+            bottom=int(bounds.get("bottom", 0) or 0),
+            right=int(bounds.get("right", 0) or 0),
+            top=int(bounds.get("top", 0) or 0),
+        ),
+    )
+
+
 def _profile_from_entry(entry: dict[str, object]) -> MapProfile:
     starts = tuple(
         StartLocation(id=int(item["id"]), x=float(item["x"]), y=float(item["y"]))
         for item in entry.get("startLocations", ())  # type: ignore[union-attr]
+    )
+    player_starts = tuple(
+        PlayerStart(
+            slot=int(item["slot"]),
+            start_point=int(item["startPoint"]),
+            x=float(item["x"]),
+            y=float(item["y"]),
+        )
+        for item in entry.get("playerStarts", ())  # type: ignore[union-attr]
     )
     return MapProfile(
         name=str(entry.get("name", "")),
@@ -117,8 +182,11 @@ def _profile_from_entry(entry: dict[str, object]) -> MapProfile:
         reason=str(entry.get("reason", "")),
         map_info_slots=int(entry.get("mapInfoSlots", 0) or 0),
         max_players=int(entry.get("maxPlayers", 0) or 0),
+        geometry=_geometry_from_entry(entry.get("geometry")),
         start_locations=starts,
+        player_starts=player_starts,
         wild_zerg_town_halls=int(entry.get("wildZergTownHalls", 0) or 0),
+        has_minimap=bool(entry.get("hasMinimap", False)),
         prepared=bool(entry.get("prepared", False)),
         preparable=bool(entry.get("preparable", False)),
     )
@@ -160,7 +228,10 @@ __all__ = [
     "MAX_PLAYER_SLOTS",
     "MAX_TEAMS",
     "MIN_PLAYERS",
+    "MapGeometry",
     "MapProfile",
+    "PlayableBounds",
+    "PlayerStart",
     "StartLocation",
     "max_teams_for",
     "read_map_profiles",

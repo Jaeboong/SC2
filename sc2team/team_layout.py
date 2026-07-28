@@ -19,6 +19,8 @@ import math
 from dataclasses import dataclass
 from itertools import combinations
 
+from sc2team.custom_config import TEAM_LAYOUTS as FIXED_TEAM_LAYOUTS
+
 
 # 팀 번호 -> 방위. TEAM_REGION_LABELS 와 같은 번호 체계를 유지한다.
 TEAM_ANCHORS: dict[int, dict[int, float]] = {
@@ -168,10 +170,29 @@ def derive_team_layout(
     return layout
 
 
+def resolve_team_layout(
+    positions: list[SlotPosition] | tuple[SlotPosition, ...], team_mode: int
+) -> dict[int, int]:
+    """슬롯 -> 팀 번호. **지금 게임이 실제로 쓰는** 배치를 돌려준다.
+
+    슬롯이 정확히 P1~P14 인 맵에는 사람이 손으로 검증한 고정표가 있고 런처가
+    그 표로 게임을 만든다. 그런 맵에는 고정표를 그대로 쓴다 — 프리뷰가 실제
+    게임과 다른 팀 구성을 보여주면 안 된다. 고정표가 없는 맵(인원이 14 가
+    아닌 임의 맵)은 :func:`derive_team_layout` 로 좌표에서 유도한다.
+    """
+
+    slots = sorted(position.slot for position in positions)
+    fixed = FIXED_TEAM_LAYOUTS.get(team_mode)
+    if fixed is not None and slots == list(range(1, len(fixed) + 1)):
+        return {slot: fixed[slot - 1] for slot in slots}
+    return derive_team_layout(positions, team_mode)
+
+
 __all__ = [
     "SUPPORTED_TEAM_MODES",
     "TEAM_ANCHORS",
     "SlotPosition",
     "derive_team_layout",
+    "resolve_team_layout",
     "team_sizes",
 ]

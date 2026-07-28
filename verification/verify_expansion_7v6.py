@@ -21,7 +21,7 @@ from sc2team.protocol import Sc2Connection
 from sc2team.strategy_controller import GAME_LOOPS_PER_SECOND, StrategyController
 
 
-BASE_MAP = PROJECT_ROOT / "maps" / "generated" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
+BASE_MAP = PROJECT_ROOT / "map" / "source" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 PROBE_MAP = PROJECT_ROOT / "runtime" / "maps" / "expansion-7v6-probe.SC2Map"
 PORT = 14150
 TERRAN_TOWN_HALLS = {18, 130, 132}

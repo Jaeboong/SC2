@@ -25,8 +25,9 @@
 | 플레이 대상 | **V3 임베디드 AI mod** (`v3/ai/overlay` → `SC2TeamV3AI.SC2Mod`) |
 | 버전 | 앱 `3.2.0` / AI `V3.16` |
 | 진입점 | `start_custom_ai_v3.cmd` → `app/play_custom_ai_v3.py` → `v3/sc2team_v3/` |
-| 베이스 맵 | `maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map` |
-| 생성 산출물 | `runtime/maps/europe-melee-v3-ground.SC2Map`, `runtime/mods/SC2TeamV3AI.SC2Mod`, `.v3plan.json` |
+| 맵 선택 | 런처가 `map/source/*.SC2Map` 을 훑어 고른다. 프리뷰는 `map/img/` |
+| 기본 맵 | `map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map` |
+| 생성 산출물 | `runtime/maps/v3-<맵이름>.SC2Map`, `runtime/mods/SC2TeamV3AI.SC2Mod`, `.v3plan.json` |
 | 작업 로그 | [`v3/docs/status.md`](v3/docs/status.md) |
 
 V3는 자체 맵 빌더가 없다. `build_runtime_map(..., melee_only=True)`로 V1의 맵 계층을 그대로

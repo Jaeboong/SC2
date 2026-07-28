@@ -29,8 +29,8 @@ from sc2team.worker_supply_proxy import WorkerSupplyProxy
 
 MAP_FILE = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-Pro-Bot-v0.2_test.SC2Map"
 )
 BOT_SOURCE_DIRECTORY = (

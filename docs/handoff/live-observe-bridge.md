@@ -215,7 +215,7 @@ SC2의 `-listen/-port`는 `ws://127.0.0.1:14180/sc2api` 웹소켓 하나를 연�
 
 ## 7. 하지 말 것
 
-- **`maps/generated/**` 절대 수정 금지.** 사용자 자산이다.
+- **`map/source/**` 절대 수정 금지.** 사용자 자산이다.
 - **`v3/ai/upstream/**` 읽기 전용.** SHA-256으로 고정돼 있다.
 - **`v3/ai/overlay/**`, `v3/ai/overlay-manifest.json`, `tools/campaign_data/**`
   손대지 마라.** 지금 내 세션(fb10399d)이 커밋 안 된 변경을 잔뜩 들고 있다.

@@ -37,8 +37,8 @@ from sc2team.protocol import Sc2Connection
 
 BASE_MAP = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 PROBE_MAP = PROJECT_ROOT / "runtime" / "maps" / "expansion-layout-probe.SC2Map"

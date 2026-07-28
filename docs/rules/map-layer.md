@@ -53,14 +53,48 @@
 
 ## 맵 파일
 
+| 경로 | 무엇 |
+| --- | --- |
+| `map/source/` | 런처가 고를 수 있는 플레이용 맵. **불가침.** 새 맵은 여기 넣는다. |
+| `map/img/` | `tools/make_map_previews.py` 가 만드는 프리뷰 PNG. 생성물이라 덮어써도 된다. |
+| `runtime/maps/` | 빌드 산출물. `v3-<맵이름>.SC2Map` 로 나온다. |
+
 - `runtime/maps/` 아래 생성된 맵을 **소스 파일로 편집하지 않는다.** 빌더나 고정 팀 베이스
   맵을 고치고 재생성한다.
 - **사용자 맵 편집은 보존한다.** 요청이 명시적으로 대체하는 경우가 아니면 건드리지 않는다.
-  `maps/generated/**`는 불가침이다.
-- 베이스 맵: `maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map`.
+  `map/source/**`는 불가침이다. 중간 산출물을 여기 쓰지 않는다 — 이 디렉터리가 곧
+  런처의 맵 목록이다.
+- 베이스 맵: `map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map`.
   **rich(50000)이다** — 자원 부족은 어떤 증상의 원인도 될 수 없다.
 - 실행 중인 게임은 의존성 목록을 맵의 `DocumentInfo`가 아니라 **`DocumentHeader`**에서
   읽는다. 둘 다 패치하지 않으면 의존성이 조용히 무시된다.
+
+## 맵 기하와 미니맵 프리뷰
+
+`MapInfo` 는 전체 크기(`width`/`height`)와 **플레이 영역**(카메라 경계
+`left`/`bottom`/`right`/`top`)을 따로 들고 있다. 둘은 다르다 — Flat128 은 전체
+152x160 에 플레이 영역 128x128 이다. `tools/build/mapinfo.cjs` 의
+`readMapInfoGeometry` 가 이 값을 읽는다.
+
+**미니맵 좌표 변환 규칙 (맵 22개 실측 확정, 예외 없음):**
+
+- 아카이브의 `Minimap.tga` 는 2의 거듭제곱 크기 텍스처다.
+- 그 안에 플레이 영역이 **정수 배율**로 확대돼 **중앙 정렬**로 들어간다.
+- 배율 = `min(texW // playW, texH // playH)`.
+- 게임 좌표 -> 픽셀: `px = left + (x - bounds.left) * scale`,
+  `py = top + (bounds.top - y) * scale`. **SC2 는 +y 가 북쪽이고 이미지는 위가 행 0**
+  이므로 y 를 뒤집는다.
+
+실측 사례 세 형태: 유럽 256x256 -> 1024x1024 배율 4 (패딩 없음), Torches
+128x144 -> 128x256 배율 1 에 세로 패딩 56, Flat48 48x48 -> 64x64 배율 1 에
+사방 패딩 8. 22개 전부에서 이 계산 결과가 실제 이미지의 비검정 경계와 정확히
+일치했다. 구현은 `sc2team/map_preview.py`.
+
+**준비 전 맵은 슬롯 -> 좌표 연결이 없다.** MapInfo 의 `startPoint` 가 모든
+슬롯에서 0 이며, 엔진이 경기 시작 때 배정한다. `tools/build_team_map.cjs` 로
+준비할 때 고정된다. 그래서 프리뷰의 슬롯 번호는 준비 전 맵에서 **잠정**이고
+이미지에 그렇게 표시한다 — 방위 분할(팀 색)은 좌표에서 나오므로 잠정 여부와
+무관하게 맞다.
 
 ## 보급 상한
 

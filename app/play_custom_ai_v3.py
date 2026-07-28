@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
 import sys
 import threading
 import time
@@ -34,6 +35,8 @@ from sc2team.custom_runtime import (  # noqa: E402
     runtime_player_id,
 )
 from sc2team.live_observe import DEFAULT_PORT as OBSERVE_PORT, LiveObserveBridge  # noqa: E402
+from sc2team.map_preview import PREVIEW_CONTENT_SIZE, preview_path  # noqa: E402
+from sc2team.map_profile import MAX_PLAYER_SLOTS, MapProfile, read_map_profiles  # noqa: E402
 from sc2team.process import discover_sc2_executable, launch_sc2, stop_process  # noqa: E402
 from sc2team.protocol import Sc2Connection  # noqa: E402
 from sc2team_v3.config import (  # noqa: E402
@@ -45,15 +48,16 @@ from sc2team_v3.runtime import build_v3_map, install_v3_mod  # noqa: E402
 
 
 APP_VERSION = "3.2.0"
-BASE_MAP_FILE = (
-    PROJECT_ROOT
-    / "maps"
-    / "generated"
-    / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
-)
-RUNTIME_MAP_FILE = PROJECT_ROOT / "runtime" / "maps" / "europe-melee-v3-ground.SC2Map"
+MAP_SOURCE_DIR = PROJECT_ROOT / "map" / "source"
+MAP_IMAGE_DIR = PROJECT_ROOT / "map" / "img"
+PREVIEW_TOOL = PROJECT_ROOT / "tools" / "make_map_previews.py"
+DEFAULT_MAP_NAME = "europe-melee-2-7v7-rich-50000-fixed-teams"
 SETTINGS_FILE = PROJECT_ROOT / "runtime" / "v3_launcher_settings.json"
 PORT = 14180
+
+# 프리뷰 콘텐츠 폭에 테두리·좌우 여백(26px)을 더한 값. 생성기와 하나의
+# 상수를 공유하므로 프리뷰 크기를 바꿔도 패널 폭이 함께 맞춰진다.
+PREVIEW_PANEL_WIDTH = PREVIEW_CONTENT_SIZE + 26
 
 TEAM_SECTION_COLORS: dict[int, tuple[str, str]] = {
     1: ("#203d61", "#cce6ff"),
@@ -61,6 +65,37 @@ TEAM_SECTION_COLORS: dict[int, tuple[str, str]] = {
     3: ("#30533a", "#d5f6dc"),
     4: ("#563665", "#efd7ff"),
 }
+
+
+def map_source_files() -> list[Path]:
+    if not MAP_SOURCE_DIR.is_dir():
+        return []
+    return sorted(MAP_SOURCE_DIR.glob("*.SC2Map"))
+
+
+def runtime_map_for(map_name: str) -> Path:
+    return PROJECT_ROOT / "runtime" / "maps" / f"v3-{map_name}.SC2Map"
+
+
+def map_blocker(profile: MapProfile | None) -> str:
+    """이 맵으로 지금 게임을 시작할 수 없는 이유. 빈 문자열이면 시작할 수 있다."""
+
+    if profile is None:
+        return "맵 능력을 읽지 못했습니다."
+    if not profile.readable:
+        return profile.reason or "맵을 읽을 수 없습니다."
+    if not profile.prepared:
+        return (
+            "아직 준비되지 않은 맵입니다. `node tools/build_team_map.cjs <원본> <출력>` "
+            "으로 한 번 준비해야 합니다."
+        )
+    if profile.max_players != MAX_PLAYER_SLOTS:
+        # 런처의 슬롯 표와 검증기가 아직 14칸을 전제한다. 2~14인 지원은 별도 작업이다.
+        return (
+            f"수용 인원이 {profile.max_players}명입니다. 지금은 14인 맵만 실행할 수 "
+            "있습니다(2~14인 지원은 작업 중)."
+        )
+    return ""
 
 
 def _default_state() -> tuple[CustomLauncherConfig, dict[int, str]]:
@@ -107,6 +142,8 @@ async def run_v3_game(
     cancel_event: threading.Event,
     status: Callable[[str], None],
     *,
+    base_map: Path,
+    runtime_map_file: Path,
     observer: bool = False,
     live_observe: bool = False,
     command_card: bool = False,
@@ -117,15 +154,15 @@ async def run_v3_game(
         player_builds=tuple(sorted(builds.items())),
     )
     v3_config.validate()
-    status("검증된 V3 커스텀 AI와 맵을 빌드하는 중…")
+    status(f"{base_map.stem} 맵과 V3 커스텀 AI를 빌드하는 중…")
     runtime_map = build_v3_map(
         PROJECT_ROOT,
-        BASE_MAP_FILE,
-        RUNTIME_MAP_FILE,
+        base_map,
+        runtime_map_file,
         config,
         v3_config,
         observer_mode=observer,
-        active_config_file=RUNTIME_MAP_FILE.with_suffix(".json"),
+        active_config_file=runtime_map_file.with_suffix(".json"),
     )
     executable = discover_sc2_executable()
     installed = install_v3_mod(PROJECT_ROOT, executable.parents[2])
@@ -303,8 +340,10 @@ class V3LauncherApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title(f"SC2 V3 Ground AI v{APP_VERSION}")
-        self.root.geometry("1040x920")
-        self.root.minsize(940, 820)
+        self.root.geometry("1440x920")
+        # 슬롯 표와 360px 프리뷰(푸터 포함)를 모두 표시하는 요구 높이가
+        # 867px이므로, 축소 시 어느 패널도 잘리지 않게 여유를 둔다.
+        self.root.minsize(1120, 880)
         self.root.configure(bg="#08101d")
         self.root.protocol("WM_DELETE_WINDOW", self._close)
         self.running = False
@@ -316,10 +355,49 @@ class V3LauncherApp:
         # 진단용 옵트인. 기본은 꺼짐 — 평소 플레이는 지금과 완전히 동일해야 한다.
         self.live_observe_var = tk.BooleanVar(value=False)
         self.command_card_var = tk.BooleanVar(value=False)
+        # PhotoImage 는 참조가 끊기면 즉시 회수돼 라벨이 비어 버린다.
+        self.preview_image: tk.PhotoImage | None = None
+        self.profiles: dict[str, MapProfile] = {}
+        self.profile_error = ""
         self._style()
         config, builds = self._load()
         self.team_mode_var = tk.StringVar(value=TEAM_MODE_LABELS[config.team_mode])
+        self.map_var = tk.StringVar(value=self._initial_map_name())
         self._build_ui(config, builds)
+        self._load_profiles()
+
+    def _initial_map_name(self) -> str:
+        names = [path.stem for path in map_source_files()]
+        if self.requested_map in names:
+            return self.requested_map
+        if DEFAULT_MAP_NAME in names:
+            return DEFAULT_MAP_NAME
+        return names[0] if names else ""
+
+    @property
+    def map_name(self) -> str:
+        return self.map_var.get()
+
+    @property
+    def map_profile(self) -> MapProfile | None:
+        return self.profiles.get(self.map_name)
+
+    def _load_profiles(self) -> None:
+        """맵 능력을 읽는다. node 를 부르므로 실패해도 런처는 살아야 한다."""
+
+        paths = map_source_files()
+        if not paths:
+            self.profile_error = f"{MAP_SOURCE_DIR} 에 맵이 없습니다."
+        else:
+            try:
+                self.profiles = {
+                    profile.name: profile
+                    for profile in read_map_profiles(PROJECT_ROOT, *paths)
+                }
+                self.profile_error = ""
+            except (OSError, RuntimeError, FileNotFoundError) as error:
+                self.profile_error = f"맵 능력을 읽지 못했습니다: {error}"
+        self._refresh_map_panel()
 
     @property
     def team_mode(self) -> int:
@@ -357,8 +435,11 @@ class V3LauncherApp:
         )
         self.team_mode_box.pack(side="left")
         self.team_mode_box.bind("<<ComboboxSelected>>", self._team_mode_changed)
-        self.table = tk.Frame(self.root, bg="#111a28", highlightbackground="#2b4667", highlightthickness=1)
-        self.table.pack(fill="both", expand=True, padx=22, pady=6)
+        body = tk.Frame(self.root, bg="#08101d")
+        body.pack(fill="both", expand=True, padx=22, pady=6)
+        self.table = tk.Frame(body, bg="#111a28", highlightbackground="#2b4667", highlightthickness=1)
+        self.table.pack(side="left", fill="both", expand=True)
+        self._build_map_panel(body)
         for column, (heading, width) in enumerate(zip(("슬롯", "위치·팀", "플레이어", "종족", "V3 지상군 빌드"), (5, 12, 13, 13, 40))):
             tk.Label(self.table, text=heading, width=width, bg="#1a2a40", fg="#bcd7f5", font=("Malgun Gothic", 9, "bold"), pady=7).grid(row=0, column=column, sticky="ew")
             self.table.grid_columnconfigure(column, weight=3 if column == 4 else 1)
@@ -438,6 +519,167 @@ class V3LauncherApp:
         self.stop_button = tk.Button(footer, text="게임 종료", command=self._stop, state="disabled", bg="#713a3a", fg="#fff", relief="flat", padx=12, pady=8)
         self.stop_button.pack(side="right")
 
+    def _build_map_panel(self, parent: tk.Widget) -> None:
+        """오른쪽 맵 패널. 맵 선택 · 프리뷰 · 맵이 정하는 상한을 보여준다."""
+
+        panel = tk.Frame(
+            parent,
+            bg="#111a28",
+            highlightbackground="#2b4667",
+            highlightthickness=1,
+            width=PREVIEW_PANEL_WIDTH,
+        )
+        panel.pack(side="right", fill="y", padx=(12, 0))
+        panel.pack_propagate(False)
+        tk.Label(
+            panel,
+            text="맵",
+            bg="#1a2a40",
+            fg="#bcd7f5",
+            font=("Malgun Gothic", 9, "bold"),
+            pady=7,
+        ).pack(fill="x")
+        chooser = tk.Frame(panel, bg="#111a28")
+        chooser.pack(fill="x", padx=10, pady=(10, 6))
+        self.map_box = ttk.Combobox(
+            chooser,
+            textvariable=self.map_var,
+            values=[path.stem for path in map_source_files()],
+            state="readonly",
+        )
+        self.map_box.pack(fill="x")
+        self.map_box.bind("<<ComboboxSelected>>", self._map_changed)
+        # 버튼과 설명을 먼저 아래쪽에 고정한다. 세로로 긴 맵의 프리뷰가 패널보다
+        # 높아도 컨트롤이 화면 밖으로 밀리지 않고 이미지만 잘린다.
+        self.preview_button = tk.Button(
+            panel,
+            text="프리뷰 다시 만들기",
+            command=self._rebuild_preview,
+            bg="#1e3a5c",
+            fg="#dbe9fb",
+            relief="flat",
+            padx=10,
+            pady=5,
+        )
+        self.preview_button.pack(side="bottom", padx=12, pady=(8, 12), anchor="w")
+        self.map_detail_var = tk.StringVar()
+        tk.Label(
+            panel,
+            textvariable=self.map_detail_var,
+            bg="#111a28",
+            fg="#9fb0c7",
+            anchor="w",
+            justify="left",
+            wraplength=PREVIEW_PANEL_WIDTH - 30,
+            font=("Malgun Gothic", 9),
+        ).pack(side="bottom", fill="x", padx=12, pady=(6, 0))
+        self.preview_label = tk.Label(
+            panel,
+            bg="#0b1220",
+            fg="#8296b0",
+            justify="center",
+            wraplength=PREVIEW_PANEL_WIDTH - 40,
+        )
+        self.preview_label.pack(side="top", padx=10, pady=4)
+
+    def _map_changed(self, _event=None) -> None:
+        self._refresh_map_panel()
+        blocker = map_blocker(self.map_profile)
+        self.status_var.set(
+            f"{self.map_name} 맵을 선택했습니다."
+            if not blocker
+            else f"{self.map_name}: {blocker}"
+        )
+
+    def _refresh_map_panel(self) -> None:
+        """선택된 맵의 프리뷰와 설명을 갱신한다."""
+
+        name = self.map_name
+        if not name:
+            self.preview_label.configure(image="", text=self.profile_error or "맵이 없습니다.")
+            self.preview_image = None
+            self.map_detail_var.set(f"{MAP_SOURCE_DIR} 에 .SC2Map 을 넣으세요.")
+            return
+
+        image_file = next(
+            (
+                candidate
+                for candidate in (
+                    preview_path(MAP_IMAGE_DIR, name, self.team_mode),
+                    preview_path(MAP_IMAGE_DIR, name, None),
+                )
+                if candidate.is_file()
+            ),
+            None,
+        )
+        if image_file is None:
+            self.preview_image = None
+            self.preview_label.configure(
+                image="",
+                text="프리뷰가 없습니다.\n아래 버튼으로 만드세요.",
+                height=12,
+                width=46,
+            )
+        else:
+            try:
+                self.preview_image = tk.PhotoImage(file=str(image_file))
+            except tk.TclError as error:
+                self.preview_image = None
+                self.preview_label.configure(image="", text=f"프리뷰를 읽지 못했습니다: {error}")
+            else:
+                self.preview_label.configure(
+                    image=self.preview_image, text="", height=0, width=0
+                )
+
+        profile = self.profiles.get(name)
+        if profile is None:
+            self.map_detail_var.set(self.profile_error or "맵 능력을 읽는 중…")
+            return
+        lines = [
+            f"수용 {profile.max_players}명 · 최대 {profile.max_teams}팀 · "
+            f"시작 지점 {len(profile.start_locations)}",
+        ]
+        available, reason = profile.wild_zerg_available(profile.max_players)
+        lines.append(
+            f"야생 저그 캠프 {profile.wild_zerg_town_halls}"
+            + ("" if available else f" — 사용 불가: {reason}")
+        )
+        blocker = map_blocker(profile)
+        lines.append("✔ 이 맵으로 시작할 수 있습니다." if not blocker else f"⚠ {blocker}")
+        self.map_detail_var.set("\n".join(lines))
+
+    def _rebuild_preview(self) -> None:
+        name = self.map_name
+        if not name or self.running:
+            return
+        self.preview_button.configure(state="disabled")
+        self.status_var.set(f"{name} 프리뷰를 만드는 중…")
+
+        def worker() -> None:
+            completed = subprocess.run(
+                [sys.executable, str(PREVIEW_TOOL), "--force", name],
+                cwd=PROJECT_ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            message = (
+                f"{name} 프리뷰를 만들었습니다."
+                if completed.returncode == 0
+                else "프리뷰 생성 실패: "
+                + ((completed.stderr or completed.stdout).strip().splitlines() or [""])[-1]
+            )
+            self.root.after(0, self._preview_rebuilt, message)
+
+        threading.Thread(target=worker, name="v3-map-preview", daemon=True).start()
+
+    def _preview_rebuilt(self, message: str) -> None:
+        self.preview_button.configure(state="normal" if not self.running else "disabled")
+        self.status_var.set(message)
+        self._refresh_map_panel()
+
     def on_controller_changed(self, changed: SlotRow) -> None:
         if changed.controller == "human":
             for row in self.rows:
@@ -482,6 +724,7 @@ class V3LauncherApp:
         for row in self.rows:
             row.refresh()
         self._layout_team_sections()
+        self._refresh_map_panel()
         self.status_var.set(
             f"팀 구성을 {TEAM_MODE_LABELS[self.team_mode]} 모드로 변경했습니다."
         )
@@ -534,11 +777,13 @@ class V3LauncherApp:
             self.observer_var.set(bool(data.get("observer_mode", False)))
             self.live_observe_var.set(bool(data.get("live_observe", False)))
             self.command_card_var.set(bool(data.get("command_card", False)))
+            self.requested_map = str(data.get("map", DEFAULT_MAP_NAME))
             return CustomLauncherConfig.from_dict(data["launcher"]), {int(key): str(value) for key, value in data["builds"].items()}
         except (FileNotFoundError, OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
             self.observer_var.set(False)
             self.live_observe_var.set(False)
             self.command_card_var.set(False)
+            self.requested_map = DEFAULT_MAP_NAME
             return _default_state()
 
     def _save(self, config: CustomLauncherConfig, builds: dict[int, str]) -> None:
@@ -546,7 +791,8 @@ class V3LauncherApp:
         SETTINGS_FILE.write_text(
             json.dumps(
                 {
-                    "version": 2,
+                    "version": 3,
+                    "map": self.map_name,
                     "launcher": config.to_dict(),
                     "builds": builds,
                     "observer_mode": self.observer_var.get(),
@@ -563,6 +809,8 @@ class V3LauncherApp:
         for row in self.rows:
             row.set_enabled(enabled)
         self.team_mode_box.configure(state="readonly" if enabled else "disabled")
+        self.map_box.configure(state="readonly" if enabled else "disabled")
+        self.preview_button.configure(state="normal" if enabled else "disabled")
         self.faction_box.configure(state="readonly" if enabled else "disabled")
         self.observer_check.configure(state="normal" if enabled else "disabled")
         self.live_observe_check.configure(state="normal" if enabled else "disabled")
@@ -576,11 +824,16 @@ class V3LauncherApp:
         if self.running:
             return
         try:
+            blocker = map_blocker(self.map_profile)
+            if blocker:
+                raise ValueError(f"{self.map_name or '맵 없음'}: {blocker}")
             config, builds = self._current()
             self._save(config, builds)
         except Exception as error:
             messagebox.showerror("V3 설정 오류", str(error), parent=self.root)
             return
+        base_map = MAP_SOURCE_DIR / f"{self.map_name}.SC2Map"
+        runtime_map_file = runtime_map_for(self.map_name)
         self.running = True
         observer = self.observer_var.get()
         live_observe = self.live_observe_var.get()
@@ -599,6 +852,8 @@ class V3LauncherApp:
                         builds,
                         self.cancel_event,
                         status,
+                        base_map=base_map,
+                        runtime_map_file=runtime_map_file,
                         observer=observer,
                         live_observe=live_observe,
                         command_card=command_card,

@@ -22,8 +22,8 @@ ATTACK_ABILITY_ID = 23
 
 BASE_MAP_FILE = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 RUNTIME_MAP_FILE = PROJECT_ROOT / "runtime" / "maps" / "campaign-visual-probe.SC2Map"

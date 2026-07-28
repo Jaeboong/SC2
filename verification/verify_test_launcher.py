@@ -37,7 +37,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "app"))
 from play_custom_ai import TEST_RESOURCE_FLOOR, TEST_RESOURCE_GRANTS_ON_JOIN
 
 BASE_MAP_FILE = (
-    PROJECT_ROOT / "maps" / "generated" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
+    PROJECT_ROOT / "map" / "source" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 RUNTIME_MAP_FILE = PROJECT_ROOT / "runtime" / "maps" / "test-launcher-probe.SC2Map"
 PORT = 14134

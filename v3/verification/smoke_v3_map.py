@@ -41,8 +41,8 @@ from sc2team.protocol import Sc2Connection  # noqa: E402
 
 BASE_MAP = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 # Kept distinct from V1/V2 verification ports.  Do not share it with a launcher.

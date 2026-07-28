@@ -4,7 +4,10 @@ import unittest
 from pathlib import Path
 
 from sc2team.map_profile import (
+    MapGeometry,
     MapProfile,
+    PlayableBounds,
+    PlayerStart,
     StartLocation,
     max_teams_for,
     read_map_profiles,
@@ -14,8 +17,8 @@ from sc2team.map_profile import (
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BASE_MAP = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 
@@ -28,10 +31,20 @@ def make_profile(**overrides: object) -> MapProfile:
         "reason": "",
         "map_info_slots": 16,
         "max_players": 14,
+        "geometry": MapGeometry(
+            width=256,
+            height=256,
+            bounds=PlayableBounds(left=0, bottom=0, right=256, top=256),
+        ),
         "start_locations": tuple(
             StartLocation(id=index, x=float(index), y=0.0) for index in range(1, 21)
         ),
+        "player_starts": tuple(
+            PlayerStart(slot=index, start_point=index, x=float(index), y=0.0)
+            for index in range(1, 15)
+        ),
         "wild_zerg_town_halls": 14,
+        "has_minimap": True,
         "prepared": True,
         "preparable": False,
     }

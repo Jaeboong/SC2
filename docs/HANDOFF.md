@@ -29,7 +29,7 @@
 - `f2c4738` v3: 302 테크 구조물을 (드론 직접주문 아닌) AIBuild로
 - `0155b23` v3: 302 직접 하이브 사슬 + 전군 회군 제거 + galaxy 컴파일 함정 2개 수정
 
-(작업 트리에 사용자 맵 `maps/generated/...SC2Map`, HANDOFF 삭제분, 다른 잡의 Terran/Protoss
+(작업 트리에 사용자 맵 `map/source/...SC2Map`, HANDOFF 삭제분, 다른 잡의 Terran/Protoss
 변경 등 미커밋 상태가 섞여 있음. 커밋은 항상 사용자 맵·미추적 파일 제외하고 V3 파일만 골라서.)
 
 ## 이번 세션(V3.16) 완료 + 검증
@@ -64,6 +64,42 @@
   우리가 직접 드론 잡아 배치하는 주문은 실패한다(측정). 상세: [[v3-allows-targeted-direct-orders]] 취지 =
   `v3/docs/status.md` V3.15, `v3/docs/build-integration.md` "함정" 절.
 
+## 임의 맵 지원 (진행 중)
+
+목표: 어떤 맵을 넣어도 처리한다. 플레이어 2~14명, 팀 수 상한은 인원이 정한다
+(2명→2팀, 3명→3팀, 4명부터 4팀). 야생 저그는 P15 캠프가 있는 맵에만.
+
+**끝난 것**
+
+| | |
+| --- | --- |
+| 맵 능력 판정 | `tools/map_capabilities.cjs` → 수용 인원·팀 상한·시작 지점·P15 캠프·기하. 못 읽는 맵은 이유를 실어 돌려주고 목록에서 사라지지 않는다. |
+| 수용 인원 상한 | MapInfo 슬롯 − 2 (중립·적대). 전 맵 성립 확인. 슬롯을 새로 만드는 경로는 없다. |
+| 좌표 기반 팀 배치 유도 | `sc2team/team_layout.py`. 인원 균등 제약 아래 총 방위 비용 최소를 DP 로 정확히 푼다. |
+| 미니맵 프리뷰 | `tools/make_map_previews.py` → `map/img/`. 시작 지점에 P 라벨을 팀 색상으로. 규칙은 [`rules/map-layer.md`](rules/map-layer.md). |
+| 런처 맵 선택 + 프리뷰 패널 | `app/play_custom_ai_v3.py` 오른쪽 패널. 선택은 `runtime/v3_launcher_settings.json` 의 `map` 키에 저장. |
+
+**남은 것**
+
+1. **야생 저그를 P15 캠프 있는 맵에만 허용** — 캠프나 여분 시작 지점이 없으면
+   `wild_zerg=False` 로 강제하고 체크박스를 잠근다. 판정 로직
+   (`MapProfile.wild_zerg_available`)은 이미 있고 표시만 하고 있다.
+2. **2~14인 지원** — 지금은 14인 맵만 실행된다(`map_blocker` 가 그 외를 막는다).
+   14칸 전제가 남은 곳: `tools/build/mapinfo.cjs`(`validateConfig` 의 14칸),
+   `sc2team/custom_config.py`(`TEAM_LAYOUTS`, `team_for_slot` 의 `1<=slot<=14`),
+   `v3/sc2team_v3/config.py`, 런처의 14행 UI.
+   `unit_control.cjs` 와 `strategy_controller.py` 의 `1..14` 는 런타임 ID 범위라 그대로 둔다.
+3. **로비 Attributes 를 맵 슬롯 수에 맞춰 생성** — `tools/build_team_map.cjs` 가
+   7v7/14슬롯 XML 을 하드코딩한다.
+4. **[별도조사] MapInfo 파서 견고화** — 순차 위치 파싱이라 선택적 필드가 있는 맵에서
+   어긋난다. Torches LE 실측: `str4` 가 4바이트 길어 오프셋 88 에서 u16 길이를 29505 로
+   읽는다. 지금은 개연성 검사로 깔끔히 거절한다. 공수 미지.
+
+**동의가 필요한 것 하나** — 3팀 배치가 바뀐다. 기존 고정표는 의도적 비대칭
+(남부 7 / 북서 4 / 북동 3)이고, 임의 맵에 쓸 일반 규칙인 균등 분배로는
+북서 5 / 북동 5 / 남부 4 가 된다. 2팀·4팀은 고정표와 **완전히 일치**한다.
+지금은 `resolve_team_layout` 이 14슬롯 맵에 고정표를 그대로 쓰므로 **동작은 그대로다.**
+
 ## 열린 항목 (다음 우선순위)
 
 1. **저그 극단 "저글링 홍수" 4슬롯** — 테크 이전 상류 행동. 4/12가 드론~28·저글링 100+·InfestPit 0으로
@@ -82,6 +118,10 @@
 - V3 정적: `.\.venv\Scripts\python.exe v3\verification\verify_v3_structure.py` → `V3_STRUCTURE=PASS`
 - V3 mod 빌드: `node v3\tools\build_v3_ai_mod.cjs <출력.SC2Mod> <읽기가능 .v3plan.json>` → `V3_AI_MOD_BUILD=PASS`
 - 오프라인 tier: `.\.venv\Scripts\python.exe verification\verify_all.py --tier offline`
+- 파이썬 단위 테스트: `.\.venv\Scripts\python.exe -m unittest discover -s tests -q`
+  (pytest 는 설치돼 있지 않다)
+- 맵 능력 확인: `node tools\map_capabilities.cjs map\source` (디렉터리·파일 모두 받는다)
+- 맵 프리뷰 재생성: `.\.venv\Scripts\python.exe tools\make_map_previews.py --force`
 - **스모크(필수, galaxy 수정 시):** `probe_v3_ground_builds.py --duration 360`
 - V3 엔진(18분 미러, SC2 닫고): `probe_v3_ground_builds.py --all-lingbane|--all-roach-hydra|--all-gateway
   --mirror-count 12 --duration 1080 --report <out.json>` — `--mirror-count`는 **이 맵에선 12만 정상 스폰**

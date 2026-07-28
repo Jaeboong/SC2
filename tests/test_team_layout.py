@@ -87,7 +87,7 @@ class BaseMapRegressionTests(unittest.TestCase):
     이 배치가 흔들리면 실제 게임의 팀 구성이 바뀐다.
     """
 
-    # maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map 의
+    # map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map 의
     # MapInfo 가 각 슬롯에 물려둔 시작 지점 좌표.
     POSITIONS = [
         SlotPosition(slot=1, x=28.5, y=11.5),

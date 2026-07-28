@@ -161,7 +161,7 @@ v2/
 {
   "version": 1,
   "source_map": {
-    "path": "maps/generated/....SC2Map",
+    "path": "map/source/....SC2Map",
     "sha256": "...",
     "size": 3020527
   },

@@ -29,7 +29,7 @@ const MAX_PLAUSIBLE_MAPINFO_SLOTS = 64;
 // 경로)가 있는 맵에서는 정렬이 어긋나 슬롯 수가 터무니없이 나온다 —
 // Torches LE 실측: 오프셋 88 에서 u16 길이를 29505 로 읽는다. 그래서 아래
 // 개연성 검사가 "지원하지 않는 레이아웃"의 실질적 판별기 역할을 한다.
-function readMapInfoPlayers(buffer) {
+function parseMapInfo(buffer) {
   let offset = 0;
   const readU8 = () => buffer.readUInt8(offset++);
   const readU16 = () => {
@@ -61,13 +61,20 @@ function readMapInfoPlayers(buffer) {
   const version = readU32();
   if (version !== 0x27) fail(`Unsupported MapInfo version 0x${version.toString(16)}`);
 
-  readU32(); readU32(); readU32(); readU32();
+  readU32(); readU32();
+  const width = readU32();
+  const height = readU32();
   let previewType = readU32();
   if (previewType === 2) readCString();
   previewType = readU32();
   if (previewType === 2) readCString();
   readCString(); readCString(); readU32(); readU32(); readCString(); readCString();
-  for (let index = 0; index < 5; index += 1) readU32();
+  // 플레이 영역(카메라 경계). 미니맵 이미지가 덮는 범위가 바로 이 사각형이다.
+  const left = readU32();
+  const bottom = readU32();
+  const right = readU32();
+  const top = readU32();
+  readU32();
   const loadScreenType = readU32();
   if (loadScreenType === 2) readCString();
   skip(readU16());
@@ -92,7 +99,19 @@ function readMapInfoPlayers(buffer) {
     readU32(); readCString();
     players.push({ id, control, controlOffset, startPoint, startPointOffset });
   }
-  return players;
+  return {
+    geometry: { width, height, bounds: { left, bottom, right, top } },
+    players,
+  };
+}
+
+function readMapInfoPlayers(buffer) {
+  return parseMapInfo(buffer).players;
+}
+
+// 맵 전체 크기와 플레이 영역. 미니맵 프리뷰의 좌표 변환에 쓴다.
+function readMapInfoGeometry(buffer) {
+  return parseMapInfo(buffer).geometry;
 }
 
 // 빌드 경로용. 지금 빌더는 논리 P1~P14 + 중립/적대 두 슬롯을 전제하므로
@@ -194,6 +213,7 @@ function patchPlayers(mapInfo, activeSlots, wildStartPoint = null) {
 // §69: prereqStructure(요구 구조물 게이트)를 함수에 넘긴다. 없으면 빈 문자열.
 
 module.exports = {
+  readMapInfoGeometry,
   readMapInfoPlayers,
   parseMapInfoPlayers,
   validateConfig,

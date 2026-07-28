@@ -13,7 +13,7 @@ Use this guide for changes to slots, starts, alliances, MapInfo, Galaxy triggers
 The production input is:
 
 ```text
-maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
+map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
 ```
 
 The main generated output is:

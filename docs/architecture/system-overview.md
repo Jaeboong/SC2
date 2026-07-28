@@ -121,7 +121,7 @@ GUI SlotConfig
 The original cached map is `maps/source/europe-melee-2-original.SC2Map`. Historical builders produced the stable fixed-team base map:
 
 ```text
-maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
+map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
 ```
 
 The current launcher always derives a per-run map from that base. Runtime maps are generated artifacts, not editable sources.

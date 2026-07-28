@@ -24,7 +24,7 @@ from sc2team.strategy_controller import GAME_LOOPS_PER_SECOND, StrategyControlle
 from s2clientprotocol import sc2api_pb2 as sc_pb
 
 
-BASE_MAP = PROJECT_ROOT / "maps" / "generated" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
+BASE_MAP = PROJECT_ROOT / "map" / "source" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 PORT = 14152
 WORKERS = {"Terran": 45, "Protoss": 84, "Zerg": 104}
 TOWN_HALLS = {

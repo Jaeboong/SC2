@@ -47,8 +47,8 @@ PYTHON = str(_VENV_PY if _VENV_PY.exists() else sys.executable)
 FIXTURE_DIR = PROJECT_ROOT / "tests" / "fixtures"
 BASE_MAP = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 RUNTIME_MAPS = PROJECT_ROOT / "runtime" / "maps"
