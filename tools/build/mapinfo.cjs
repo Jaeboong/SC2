@@ -25,33 +25,54 @@ const MAX_PLAUSIBLE_MAPINFO_SLOTS = 64;
 // map_capabilities.cjs 가 15~16 이 아닌 맵도 읽어야 하기 때문이다. 빌드
 // 경로가 쓰는 15~16 검사는 parseMapInfoPlayers 가 계속 들고 있다.
 //
-// 이 파서는 필드 순서를 고정 가정한다. 선택적 필드(예: 로드스크린 이미지
-// 경로)가 있는 맵에서는 정렬이 어긋나 슬롯 수가 터무니없이 나온다 —
-// Torches LE 실측: 오프셋 88 에서 u16 길이를 29505 로 읽는다. 그래서 아래
-// 개연성 검사가 "지원하지 않는 레이아웃"의 실질적 판별기 역할을 한다.
+// 이 파서는 필드 순서를 고정 가정한다. 로드스크린 경로는 loadScreenType 과
+// 무관하게 항상 cstring으로 뒤따른다. 이를 타입 2일 때만 읽으면, 비어 있지
+// 않은 경로를 가진 맵에서 이후 blob 길이와 플레이어 표의 정렬이 어긋난다.
 function parseMapInfo(buffer) {
   let offset = 0;
-  const readU8 = () => buffer.readUInt8(offset++);
+  let readingPlayerTable = false;
+  const truncated = () => {
+    if (readingPlayerTable) {
+      fail(
+        "MapInfo 플레이어 표가 버퍼 끝에서 잘렸습니다 " +
+          "(지원하지 않는 MapInfo 레이아웃일 가능성이 높다)"
+      );
+    }
+    fail("MapInfo is truncated");
+  };
+  const ensureAvailable = (length) => {
+    if (offset + length > buffer.length) truncated();
+  };
+  const readU8 = () => {
+    ensureAvailable(1);
+    return buffer.readUInt8(offset++);
+  };
   const readU16 = () => {
+    ensureAvailable(2);
     const value = buffer.readUInt16LE(offset);
     offset += 2;
     return value;
   };
   const readU32 = () => {
+    ensureAvailable(4);
     const value = buffer.readUInt32LE(offset);
     offset += 4;
     return value;
   };
   const readCString = () => {
+    ensureAvailable(1);
     const end = buffer.indexOf(0, offset);
-    if (end < 0) fail(`Unterminated MapInfo string at offset ${offset}`);
+    if (end < 0) {
+      if (readingPlayerTable) truncated();
+      fail(`Unterminated MapInfo string at offset ${offset}`);
+    }
     const value = buffer.subarray(offset, end).toString("utf8");
     offset = end + 1;
     return value;
   };
   const skip = (length) => {
     offset += length;
-    if (offset > buffer.length) fail("MapInfo is truncated");
+    if (offset > buffer.length) truncated();
   };
 
   if (buffer.subarray(0, 4).toString("ascii") !== "IpaM") {
@@ -65,9 +86,9 @@ function parseMapInfo(buffer) {
   const width = readU32();
   const height = readU32();
   let previewType = readU32();
-  if (previewType === 2) readCString();
   previewType = readU32();
-  if (previewType === 2) readCString();
+  // previewType 값과 무관하게 뒤에는 문자열 두 개가 온다. 타입 2 조건은
+  // 근거 없이 정렬을 깨므로 읽지 않는다.
   readCString(); readCString(); readU32(); readU32(); readCString(); readCString();
   // 플레이 영역(카메라 경계). 미니맵 이미지가 덮는 범위가 바로 이 사각형이다.
   const left = readU32();
@@ -76,10 +97,9 @@ function parseMapInfo(buffer) {
   const top = readU32();
   readU32();
   const loadScreenType = readU32();
-  if (loadScreenType === 2) readCString();
+  readCString();
   skip(readU16());
-  for (let index = 0; index < 8; index += 1) readU32();
-  skip(8); skip(9); skip(4); skip(8);
+  skip(60);
 
   const playerCount = readU32();
   if (playerCount > MAX_PLAUSIBLE_MAPINFO_SLOTS) {
@@ -89,8 +109,27 @@ function parseMapInfo(buffer) {
     );
   }
   const players = [];
+  readingPlayerTable = true;
   for (let index = 0; index < playerCount; index += 1) {
     const id = readU8();
+    if (id > 15) {
+      fail(
+        `MapInfo 플레이어 id ${id} (표 ${index}번째)가 0..15 범위를 벗어났습니다 ` +
+          "(지원하지 않는 MapInfo 레이아웃일 가능성이 높다)"
+      );
+    }
+    if (index === 0 && id !== 0) {
+      fail(
+        `MapInfo 플레이어 표의 첫 id가 ${id}입니다 (0이어야 함; ` +
+          "지원하지 않는 MapInfo 레이아웃일 가능성이 높다)"
+      );
+    }
+    if (index > 0 && id <= players[index - 1].id) {
+      fail(
+        `MapInfo 플레이어 id가 엄격히 증가하지 않습니다: ${players[index - 1].id} 뒤에 ${id} ` +
+          "(지원하지 않는 MapInfo 레이아웃일 가능성이 높다)"
+      );
+    }
     const controlOffset = offset;
     const control = readU32();
     readU32(); readCString(); readU32();
@@ -98,6 +137,18 @@ function parseMapInfo(buffer) {
     const startPoint = readU32();
     readU32(); readCString();
     players.push({ id, control, controlOffset, startPoint, startPointOffset });
+  }
+  if (players.length === 0) {
+    fail(
+      "MapInfo 플레이어 표가 비어 있습니다 (0으로 시작해 15로 끝나야 함; " +
+        "지원하지 않는 MapInfo 레이아웃일 가능성이 높다)"
+    );
+  }
+  if (players[players.length - 1].id !== 15) {
+    fail(
+      `MapInfo 플레이어 표의 마지막 id가 ${players[players.length - 1].id}입니다 ` +
+        "(15여야 함; 지원하지 않는 MapInfo 레이아웃일 가능성이 높다)"
+    );
   }
   return {
     geometry: { width, height, bounds: { left, bottom, right, top } },
