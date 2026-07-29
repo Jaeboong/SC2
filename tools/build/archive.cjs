@@ -117,8 +117,16 @@ function patchLocalization(archive, protossFaction = "Standard") {
       "DocInfo/Name": MAP_NAME_KO,
       "DocInfo/DescShort": "14슬롯 로컬 전략 AI 대전",
       "DocInfo/DescLong": "런처에서 선택한 사람 및 커스텀 AI 슬롯으로 실행되는 로컬 전용 맵입니다.",
-      "Unit/Name/SC2TeamTorrasque": "토라스크",
-      "Unit/Name/SC2TeamTorrasqueChrysalis": "토라스크 고치",
+      // Torrasque keeps Blizzard's own unit ids (HotSTorrasque and friends), so
+      // its strings are keyed on those, not on an SC2Team* name. The keys were
+      // "Unit/Name/SC2TeamTorrasque*" for three versions, which no record ever
+      // reads — the unit therefore fell back to the undefined
+      // "Unit/Name/HotSTorrasque" and displayed a raw key in game.
+      // UnitSubtitle/HotSTorrasque is referenced by all four records.
+      "Unit/Name/HotSTorrasque": "토라스크",
+      "Unit/Name/TorrasqueChrysalis": "토라스크 고치",
+      "Unit/Name/TorrasqueCorpse": "토라스크 사체",
+      "UnitSubtitle/HotSTorrasque": "토라스크",
       "Unit/Name/SC2TeamAberration": "변종",
       "Unit/Name/SC2TeamGoliath": "골리앗",
       "Unit/Name/SC2TeamPredator": "프레데터",
@@ -141,8 +149,10 @@ function patchLocalization(archive, protossFaction = "Standard") {
       "DocInfo/Name": MAP_NAME_EN,
       "DocInfo/DescShort": "Fourteen-slot local strategy AI match",
       "DocInfo/DescLong": "A local-only map configured by the launcher for human and custom AI slots.",
-      "Unit/Name/SC2TeamTorrasque": "Torrasque",
-      "Unit/Name/SC2TeamTorrasqueChrysalis": "Torrasque Cocoon",
+      "Unit/Name/HotSTorrasque": "Torrasque",
+      "Unit/Name/TorrasqueChrysalis": "Torrasque Cocoon",
+      "Unit/Name/TorrasqueCorpse": "Torrasque Corpse",
+      "UnitSubtitle/HotSTorrasque": "Torrasque",
       "Unit/Name/SC2TeamAberration": "Aberration",
       "Unit/Name/SC2TeamGoliath": "Goliath",
       "Unit/Name/SC2TeamPredator": "Predator",

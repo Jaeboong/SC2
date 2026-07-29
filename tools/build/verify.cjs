@@ -585,7 +585,10 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
   if (script.includes("sc2team_HostileWildForceSpawn")) {
     fail("P15 army must be trained from Larvae, not spawned by UnitCreate");
   }
-  if (!/<ObjectUnit\b[^>]*\bUnitType="(?:Hatchery|Lair|Hive)"[^>]*\bPlayer="15"/.test(objects)) {
+  // 야생 저그를 끄면 P15는 중립 적대로 남아 둥지가 무의미하다. 켜진 경로에서는
+  // 이 앵커 검사가 계속 강제되고, runtime 빌더의 "Wild Zerg has no town hall in
+  // Objects" 검사도 같은 불변식을 별도로 지킨다.
+  if (wildZergActive && !/<ObjectUnit\b[^>]*\bUnitType="(?:Hatchery|Lair|Hive)"[^>]*\bPlayer="15"/.test(objects)) {
     fail("P15 hostile wildlife has no Zerg nest anchors");
   }
   const raceData = archive.readFileAsString(
@@ -883,6 +886,60 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
     if (!actorData.includes(`Model value="${sentinelModel}"`) ||
         !modelData.includes(`id="${sentinelModel}"`)) {
       fail(`Wrong Protoss faction model wiring for ${protossFaction}`);
+    }
+    // §115: 캠페인 애셋은 원본 크기가 멜리 유닛과 달라, 블리자드도 자기 CModel 에서
+    // ScaleMax/Min 으로 줄여 쓴다.  그 값이 빠지면 유닛이 크게 렌더되고 기본 크기에
+    // 맞춰 만든 불멸자 보호막 껍데기(ImmortalShield.m3)가 몸에서 어긋난다.
+    // 값은 void.sc2campaign ModelData.xml 원본과 같아야 한다.
+    for (const [modelId, scale] of Object.entries({
+      SC2TeamZealotAiurModel: "0.900000",
+      SC2TeamZealotNerazimModel: "0.900000",
+      SC2TeamStalkerPurifierModel: "0.690000",
+      SC2TeamImmortalNerazimModel: "0.750000",
+      SC2TeamImmortalTaldarimModel: "0.750000",
+      SC2TeamColossusTaldarimModel: "0.750000",
+    })) {
+      const start = modelData.indexOf(`<CModel id="${modelId}"`);
+      if (start < 0) continue;
+      const record = modelData.slice(start, modelData.indexOf("</CModel>", start));
+      const wanted = `<ScaleMax value="${scale},${scale},${scale}" />`;
+      if (!record.includes(wanted)) {
+        fail(`Protoss faction model lost its upstream scale: ${modelId} expected ${scale}`);
+      }
+    }
+    // §115: 본체 모델만 교체하면 죽음·소환·초상화가 기본 프로토스 것으로 남는다.
+    // 부족별로 최소한 이 링크들이 붙어 있어야 한다.
+    const factionVisualLinks = {
+      Aiur: ["SC2TeamZealotAiurWarpInModel", "SC2TeamZealotAiurPortraitModel"],
+      Nerazim: [
+        "SC2TeamZealotNerazimDeathModel",
+        "SC2TeamZealotNerazimPortraitModel",
+        "SC2TeamImmortalNerazimDeathModel",
+        "SC2TeamImmortalNerazimWarpInModel",
+        "SC2TeamImmortalNerazimPortraitModel",
+      ],
+      Purifier: [
+        "SC2TeamZealotPurifierWarpInModel",
+        "SC2TeamZealotPurifierPortraitModel",
+        "SC2TeamStalkerPurifierDeathModel",
+        "SC2TeamStalkerPurifierPortraitModel",
+      ],
+      Taldarim: [
+        "SC2TeamZealotTaldarimDeathModel",
+        "SC2TeamStalkerTaldarimDeathModel",
+        "SC2TeamImmortalTaldarimDeathModel",
+        "SC2TeamImmortalTaldarimWarpInModel",
+        "SC2TeamColossusTaldarimDeathModel",
+        "SC2TeamColossusTaldarimWarpInModel",
+      ],
+    }[protossFaction] ?? [];
+    for (const link of factionVisualLinks) {
+      if (!modelData.includes(`<CModel id="${link}"`)) {
+        fail(`Protoss faction visual model missing: ${link}`);
+      }
+      if (!actorData.includes(link)) {
+        fail(`Protoss faction visual link not wired into an actor: ${link}`);
+      }
     }
     if (protossFaction === "Aiur") {
       const abilData = archive.readFileAsString(
@@ -1756,32 +1813,50 @@ function verify(archive, config, humanRuntimeId, assignments, activeSlots) {
     }
     if (wildZergActive) {
       for (const marker of [
+        "sc2team_InitializeV3WildBootstrap();",
+        "AIMeleeStart(15);",
+        "AIInitCampaignTowns(15);",
+        "AIInitCampaignHarvest(15);",
+        "AIHarvestRate(15, 1);",
+        "AISetUserInt(15, 145, 1);",
+        "AISetUserInt(15, 142, 315);",
+        "AISetSpecificState(15, 1, 1);",
+        "AISetSpecificState(15, 2, 1);",
+        "AISetSpecificState(15, 3, 1);",
+        "AISetUserInt(15, 139, 540);",
+        "PlayerModifyPropertyInt(15, c_playerPropMinerals, c_playerPropOperAdd, 50000);",
+        "PlayerModifyPropertyInt(15, c_playerPropVespene, c_playerPropOperAdd, 50000);",
+      ]) {
+        if (!script.includes(marker)) fail(`V3 P15 one-shot bootstrap marker is missing: ${marker}`);
+      }
+      for (const forbidden of [
         "sc2team_InitializeHostileWildIdle();",
         "sc2team_InitializeV3WildTruce();",
-        "libNtve_ge_AllianceSetting_Neutral",
-        "libNtve_ge_AllianceSetting_Enemy",
-        "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);",
-        "TriggerEnable(gt_sc2team_V3WildRelease, false);",
+        "sc2team_InitializeV3WildDelay();",
+        "sc2team_V3WildRelease_Func",
+        "AISetUnitScriptControlled(",
+        "TriggerAddEventTimePeriodic(gt_sc2team_",
       ]) {
-        if (!script.includes(marker)) fail(`V3 P15 seven-minute truce marker is missing: ${marker}`);
+        if (script.includes(forbidden)) {
+          fail(`V3 P15 bootstrap contains recurring or legacy control: ${forbidden}`);
+        }
       }
-      const withoutAllowedWildTimers = script
-        .replace(
-          "TriggerAddEventTimePeriodic(gt_sc2team_HostileWildIdle, 10.0, c_timeGame);",
-          ""
-        )
-        .replace(
-          "TriggerAddEventTimePeriodic(gt_sc2team_V3WildRelease, 420.0, c_timeGame);",
-          ""
-        );
-      if (withoutAllowedWildTimers.includes("TriggerAddEventTimePeriodic(gt_sc2team_")) {
-        fail("melee_only map contains an unexpected custom periodic trigger");
+      if (script.includes("AISetSpecificState(15, 1, -1)")) {
+        fail("V3 P15 bootstrap must not use the invalid Disabled main state");
+      }
+      const bootstrapFunction = /void sc2team_InitializeV3WildBootstrap \(\) \{([^}]*)\}/s.exec(script);
+      const bootstrapBody = bootstrapFunction && bootstrapFunction[1];
+      if (!bootstrapBody) fail("V3 P15 one-shot bootstrap function is missing");
+      if (/SetAlliance|PlayerSetController|UnitSetOwner/.test(bootstrapBody)) {
+        fail("V3 P15 one-shot bootstrap changes players, alliances, or ownership");
       }
     }
     else {
       for (const forbidden of [
         "sc2team_InitializeHostileWildIdle();",
         "sc2team_InitializeV3WildTruce();",
+        "sc2team_InitializeV3WildDelay();",
+        "sc2team_InitializeV3WildBootstrap();",
         "TriggerAddEventTimePeriodic(gt_sc2team_",
       ]) {
         if (script.includes(forbidden)) {

@@ -1,8 +1,21 @@
 <?xml version='1.0' encoding='utf-8'?>
 <Catalog>
+    <!-- §115 (2026-07-27): 아래 교체 모델들은 스케일·반경을 비워 둔 상태였다.  캠페인
+         애셋은 원본 크기가 멜리 유닛과 다르고, 블리자드는 자기 CModel 에서 ScaleMax/Min
+         으로 줄여 쓴다(광전사 0.9 / 정화자 추적자 0.69 / 불멸자·거신 0.75).  그 값이 없으면
+         유닛이 의도보다 크게 렌더되고, **기본 크기에 맞춰 만든 불멸자 보호막 껍데기
+         (ImmortalShield.m3)가 몸에 어긋난다** — 사용자 관측의 원인.  값은 전부
+         void.sc2campaign ModelData.xml 원본에서 그대로 가져왔다. -->
     <CModel id="SC2TeamZealotAiurModel" parent="Unit" Race="Protoss">
         <Model value="Assets\Units\Protoss\Zealot_Aiur\Zealot_Aiur.m3" />
         <RequiredAnims value="Assets\Units\Protoss\Zealot_SwarmAnims\Zealot_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <ScaleMax value="0.900000,0.900000,0.900000" />
+        <ScaleMin value="0.900000,0.900000,0.900000" />
+        <SelectionRadius value="0.416500" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="0.375000" />
+        <ShadowRadius value="0.416500" />
     </CModel>
     <CModel id="Dragoon" parent="Unit" Race="Protoss">
         <Occlusion value="Show"/>
@@ -47,32 +60,235 @@
     <CModel id="SC2TeamZealotNerazimModel" parent="Unit" Race="Protoss">
         <Model value="Assets\Units\Protoss\Zealot_Shakuras\Zealot_Shakuras.m3" />
         <RequiredAnims value="Assets\Units\Protoss\Zealot_SwarmAnims\Zealot_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <ScaleMax value="0.900000,0.900000,0.900000" />
+        <ScaleMin value="0.900000,0.900000,0.900000" />
+        <SelectionRadius value="0.416500" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="0.375000" />
+        <ShadowRadius value="0.416500" />
     </CModel>
+    <!-- AttachProps 는 ImmortalShakuras 원본 그대로다.  무기 발사 위치(Ref_Weapon
+         Right/Left)와 터렛 하드포인트를 캠페인 모델의 참조점에 연결한다. -->
     <CModel id="SC2TeamImmortalNerazimModel" parent="Unit" Race="Protoss">
+        <AttachProps Id="Ref_Weapon Right">
+            <Keys index="Weapon" value="0" />
+        </AttachProps>
+        <AttachProps Id="Ref_Weapon Left">
+            <Keys index="Weapon" value="1" />
+        </AttachProps>
+        <AttachProps Id="Ref_Hardpoint">
+            <Keys index="Turret" value="0" />
+        </AttachProps>
         <Model value="Assets\Units\Protoss\Immortal_Nerazim\Immortal_Nerazim.m3" />
         <RequiredAnims value="Assets\Units\Protoss\Immortal_SwarmAnims\Immortal_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <Tipability value="0.750000" />
+        <TipabilityWidth value="0.800000" />
+        <TipabilityLength value="0.800000" />
+        <ScaleMax value="0.750000,0.750000,0.750000" />
+        <ScaleMin value="0.750000,0.750000,0.750000" />
+        <SelectionRadius value="0.866400" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="0.650000" />
+        <ShadowRadius value="0.866400" />
     </CModel>
+    <!-- 정화자 광전사는 원본에도 스케일 지정이 없다(= 1.0).  반경만 채운다. -->
     <CModel id="SC2TeamZealotPurifierModel" parent="Unit" Race="Protoss">
         <Model value="Assets\Units\Protoss\Zealot_Purifier\Zealot_Purifier.m3" />
         <RequiredAnims value="Assets\Units\Protoss\Zealot_SwarmAnims\Zealot_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <SelectionRadius value="0.416500" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="0.375000" />
+        <ShadowRadius value="0.416500" />
     </CModel>
     <CModel id="SC2TeamStalkerPurifierModel" parent="Unit" Race="Protoss">
         <Model value="Assets\Units\Protoss\Stalker_Purifier\Stalker_Purifier.m3" />
         <RequiredAnims value="Assets\Units\Protoss\Stalker_SwarmAnims\Stalker_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <ScaleMax value="0.690000,0.690000,0.690000" />
+        <ScaleMin value="0.690000,0.690000,0.690000" />
+        <SelectionRadius value="1.087000" />
+        <Tipability value="0.750000" />
+        <TipabilityWidth value="0.800000" />
+        <TipabilityLength value="0.800000" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="0.850000" />
+        <ShadowRadius value="1.087000" />
     </CModel>
-    <CModel id="SC2TeamZealotTaldarimModel" parent="Unit" Race="Protoss">
+    <!-- 탈다림 광전사·추적자는 원본(DarkZealot/DarkStalker)이 멜리 모델을 부모로 삼아
+         Model 만 갈아끼운다.  같은 형태로 두면 반경·기울기·카메라를 멜리에서 물려받고
+         크기도 1.0 로 일치한다(원본에 스케일 지정 없음). -->
+    <CModel id="SC2TeamZealotTaldarimModel" parent="Zealot">
         <Model value="Assets\Units\Protoss\Zealot_Taldarim\Zealot_Taldarim.m3" />
     </CModel>
-    <CModel id="SC2TeamStalkerTaldarimModel" parent="Unit" Race="Protoss">
+    <CModel id="SC2TeamStalkerTaldarimModel" parent="Stalker">
         <Model value="Assets\Units\Protoss\Stalker_TalDarim\Stalker_TalDarim.m3" />
     </CModel>
     <CModel id="SC2TeamImmortalTaldarimModel" parent="Unit" Race="Protoss">
+        <AttachProps Id="Ref_Weapon Right">
+            <Keys index="Weapon" value="0" />
+        </AttachProps>
+        <AttachProps Id="Ref_Weapon Left">
+            <Keys index="Weapon" value="1" />
+        </AttachProps>
+        <AttachProps Id="Ref_Hardpoint">
+            <Keys index="Turret" value="0" />
+        </AttachProps>
         <Model value="Assets\Units\Protoss\Immortal_Taldarim\Immortal_Taldarim.m3" />
         <RequiredAnims value="Assets\Units\Protoss\Immortal_SwarmAnims\Immortal_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <Tipability value="0.750000" />
+        <TipabilityWidth value="0.800000" />
+        <TipabilityLength value="0.800000" />
+        <ScaleMax value="0.750000,0.750000,0.750000" />
+        <ScaleMin value="0.750000,0.750000,0.750000" />
+        <SelectionRadius value="0.866400" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="0.650000" />
+        <ShadowRadius value="0.866400" />
     </CModel>
     <CModel id="SC2TeamColossusTaldarimModel" parent="Unit" Race="Protoss">
         <Model value="Assets\Units\Protoss\Colossus_TaldarimEx3\Colossus_TaldarimEx3.m3" />
         <RequiredAnims value="Assets\Units\Protoss\Colossus_SwarmAnims\Colossus_SwarmAnims.m3a" />
+        <Occlusion value="Show" />
+        <ScaleMax value="0.750000,0.750000,0.750000" />
+        <ScaleMin value="0.750000,0.750000,0.750000" />
+        <SelectionRadius value="1.333200" />
+        <SquibTypeDefault value="Metal" />
+        <Radius value="1.000000" />
+        <ShadowRadius value="1.333200" />
+    </CModel>
+
+    <!-- ============================================================================
+         §115: 부족 교체 유닛의 나머지 시각 요소 (죽음·소환·초상화·배치).
+         예전에는 본체 모델만 갈아끼워서 죽는 모습·워프인 이펙트·초상화가 전부 기본
+         프로토스 것이었다.  경로는 void.sc2campaign 원본 CModel 에서 그대로 가져왔고,
+         멜리 카탈로그에 있다고 확인되지 않은 참조(Lighting, 캠페인 전용 LowQualityModel)
+         는 의도적으로 생략했다 — 없는 id 를 가리키면 데이터 로드가 흔들린다.
+         ============================================================================ -->
+
+    <!-- 아이어: 광전사 (죽음은 원본도 표준 ZealotDeath 를 쓴다) -->
+    <CModel id="SC2TeamZealotAiurWarpInModel" parent="OneShotSpellFX">
+        <Model value="Assets\Units\Protoss\Zealot_Aiur_WarpIn\Zealot_Aiur_WarpIn.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamZealotAiurPortraitModel" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Aiur_ZealotEx2_Portrait\Aiur_ZealotEx2_Portrait.m3" />
+        <Image value="Assets\Textures\aiurzealotportrait_static.dds" />
+    </CModel>
+    <CModel id="SC2TeamZealotAiurPlacementModel" parent="Placement" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Aiur_Placement\Zealot_Aiur_Placement.m3" />
+    </CModel>
+
+    <!-- 네라짐: 광전사 -->
+    <CModel id="SC2TeamZealotNerazimDeathModel" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\PrisonZealotDeath\PrisonZealotDeath.m3" />
+        <Occlusion value="Show" />
+        <LowQualityModel value="ProtossSpiritDeathLow" />
+    </CModel>
+    <CModel id="SC2TeamZealotNerazimWarpInModel" parent="OneShotSpellFX">
+        <Model value="Assets\Units\Protoss\Zealot_Nerazim_WarpIn\Zealot_Nerazim_WarpIn.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamZealotNerazimPortraitModel" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Shakuras_ZealotEx2_Portrait\Shakuras_ZealotEx2_Portrait.m3" />
+        <Image value="Assets\Textures\shakuraszealotportrait_static.dds" />
+    </CModel>
+    <CModel id="SC2TeamZealotNerazimPlacementModel" parent="Placement" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Shakuras_Placement\Zealot_Shakuras_Placement.m3" />
+    </CModel>
+
+    <!-- 네라짐: 불멸자 -->
+    <CModel id="SC2TeamImmortalNerazimDeathModel" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Immortal_Nerazim_Death\Immortal_Nerazim_Death.m3" />
+        <Occlusion value="Show" />
+        <LowQualityModel value="ProtossMediumUnitDeathLow" />
+    </CModel>
+    <CModel id="SC2TeamImmortalNerazimWarpInModel" parent="OneShotSpellFX">
+        <Model value="Assets\Units\Protoss\ImmortalNerazim_WarpIn\ImmortalNerazim_WarpIn.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamImmortalNerazimPortraitModel" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Immortal_Nerazim_Portrait\Immortal_Nerazim_Portrait.m3" />
+        <Image value="Assets\Textures\nerazimimmortalportrait_static.dds" />
+    </CModel>
+    <CModel id="SC2TeamImmortalNerazimPlacementModel" parent="Placement" Race="Protoss">
+        <Model value="Assets\Units\Protoss\ImmortalNerazim_Placement\ImmortalNerazim_Placement.m3" />
+    </CModel>
+
+    <!-- 정화자: 광전사 (죽음은 아래 ZealotPurifierDeath 를 재사용) -->
+    <CModel id="SC2TeamZealotPurifierWarpInModel" parent="OneShotSpellFX">
+        <Model value="Assets\Units\Protoss\Zealot_Purifier_WarpIn\Zealot_Purifier_WarpIn.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamZealotPurifierPortraitModel" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Zealot_Purifier_Portrait\Zealot_Purifier_Portrait.m3" />
+        <Image value="Assets\Textures\purifierzealotportrait_static.dds" />
+    </CModel>
+    <CModel id="SC2TeamZealotPurifierPlacementModel" parent="Placement" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Zealot_Purifier_Placement\Zealot_Purifier_Placement.m3" />
+    </CModel>
+
+    <!-- 정화자: 추적자 (소환·배치는 원본도 표준 StalkerWarpIn/Placement) -->
+    <CModel id="SC2TeamStalkerPurifierDeathModel" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Stalker_Purifier_Death\Stalker_Purifier_Death.m3" />
+        <Occlusion value="Show" />
+        <LowQualityModel value="ProtossMediumUnitDeathLow" />
+    </CModel>
+    <CModel id="SC2TeamStalkerPurifierPortraitModel" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Stalker_Purifier_Portrait\Stalker_Purifier_Portrait.m3" />
+        <Image value="Assets\Textures\purifierstalkerportrait_static.dds" />
+    </CModel>
+
+    <!-- 탈다림: 광전사·추적자.  원본(DarkZealotDeath/DarkStalkerDeath)처럼 멜리 죽음
+         모델을 부모로 삼는다.  이 둘은 3D 초상화가 없어 정적 이미지만 존재한다. -->
+    <CModel id="SC2TeamZealotTaldarimDeathModel" parent="ZealotDeath">
+        <Model value="Assets\Units\Protoss\Zealot_Taldarim_Death\Zealot_Taldarim_Death.m3" />
+    </CModel>
+    <CModel id="SC2TeamZealotTaldarimPortraitModel" parent="Portrait" Race="Protoss">
+        <Image value="Assets\Textures\Zealot_Taldarim_Collection_Portrait_Static.dds" />
+    </CModel>
+    <CModel id="SC2TeamStalkerTaldarimDeathModel" parent="StalkerDeath">
+        <Model value="Assets\Units\Protoss\Stalker_TalDarim_Death\Stalker_TalDarim_Death.m3" />
+    </CModel>
+    <CModel id="SC2TeamStalkerTaldarimPortraitModel" parent="Portrait" Race="Protoss">
+        <Image value="Assets\Textures\stalker_taldarim_static.dds" />
+    </CModel>
+
+    <!-- 탈다림: 불멸자 -->
+    <CModel id="SC2TeamImmortalTaldarimDeathModel" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Immortal_Taldarim_Death\Immortal_Taldarim_Death.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamImmortalTaldarimWarpInModel" parent="OneShotSpellFX">
+        <Model value="Assets\Units\Protoss\Immortal_Taldarim_WarpIn\Immortal_Taldarim_WarpIn.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamImmortalTaldarimPortraitModel" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Immortal_TalDarim_Portrait\Immortal_TalDarim_Portrait.m3" />
+        <Image value="Assets\Textures\taldarimimmortalportrait_static.dds" />
+    </CModel>
+    <CModel id="SC2TeamImmortalTaldarimPlacementModel" parent="Placement" Race="Protoss">
+        <Model value="Assets\Units\Protoss\ImmortalTaldarim_Placement\ImmortalTaldarim_Placement.m3" />
+    </CModel>
+
+    <!-- 탈다림: 거신 -->
+    <CModel id="SC2TeamColossusTaldarimDeathModel" parent="UnitDeath" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Colossus_Taldarim_Death\Colossus_Taldarim_Death.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamColossusTaldarimWarpInModel" parent="OneShotSpellFX">
+        <Model value="Assets\Units\Protoss\Colossus_Taldarim_WarpIn\Colossus_Taldarim_WarpIn.m3" />
+        <Occlusion value="Show" />
+    </CModel>
+    <CModel id="SC2TeamColossusTaldarimPortraitModel" parent="Portrait" Race="Protoss">
+        <Model value="Assets\Portraits\Protoss\Taldarim_Colossus_Portrait\Taldarim_Colossus_Portrait.m3" />
+        <Image value="Assets\Textures\taldarimcolossusportrait_static.dds" />
+    </CModel>
+    <CModel id="SC2TeamColossusTaldarimPlacementModel" parent="Placement" Race="Protoss">
+        <Model value="Assets\Units\Protoss\Colossus_Taldarim_Placement\Colossus_Taldarim_Placement.m3" />
     </CModel>
     <CModel id="DragoonWeapon" parent="MissileFX">
         <Model value="Assets\Effects\Protoss\DragoonEX2_Missile\DragoonEX2_Missile.m3" />

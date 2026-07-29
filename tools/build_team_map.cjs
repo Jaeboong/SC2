@@ -3,6 +3,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { Archive } = require("@jamiephan/stormlib");
+const { parseMapInfoPlayers } = require("./build/mapinfo.cjs");
+const { readMapCapabilities } = require("./build/map_capabilities.cjs");
 
 const RESOURCE_REPLACEMENTS = new Map([
   ["MineralField", "RichMineralField"],
@@ -15,48 +17,6 @@ const RESOURCE_REPLACEMENTS = new Map([
 ]);
 
 const RESOURCE_AMOUNT = 50000;
-const SEVEN_V_SEVEN_ATTRIBUTES = `<?xml version="1.0" encoding="utf-8"?>
-<Attributes>
-    <DefaultVariants Value="0"/>
-    <Variant>
-        <Id Value="1"/>
-        <CategoryId Value="6"/>
-        <ModeId Value="1"/>
-        <ModeName Value="Variant001/ModeName"/>
-        <ModeDesc Value="Variant001/ModeDesc"/>
-        <MaxTeamSize Value="7"/>
-        <AttributeHidden Namespace="999" Id="3006"/>
-        <Attribute Namespace="999" Id="1001">
-            <Default>
-                <Slot Id="Global"/>
-                <Value Id="28271"/>
-            </Default>
-        </Attribute>
-        <Attribute Namespace="999" Id="2000">
-            <Default>
-                <Slot Id="Global"/>
-                <Value Id="29746"/>
-            </Default>
-        </Attribute>
-        <Attribute Namespace="999" Id="2011">
-            <Default><Slot Id="0"/><Value Id="21553"/></Default>
-            <Default><Slot Id="1"/><Value Id="21553" Index="1"/></Default>
-            <Default><Slot Id="2"/><Value Id="21553" Index="2"/></Default>
-            <Default><Slot Id="3"/><Value Id="21553" Index="3"/></Default>
-            <Default><Slot Id="4"/><Value Id="21553" Index="4"/></Default>
-            <Default><Slot Id="5"/><Value Id="21553" Index="5"/></Default>
-            <Default><Slot Id="6"/><Value Id="21553" Index="6"/></Default>
-            <Default><Slot Id="7"/><Value Id="21554"/></Default>
-            <Default><Slot Id="8"/><Value Id="21554" Index="1"/></Default>
-            <Default><Slot Id="9"/><Value Id="21554" Index="2"/></Default>
-            <Default><Slot Id="10"/><Value Id="21554" Index="3"/></Default>
-            <Default><Slot Id="11"/><Value Id="21554" Index="4"/></Default>
-            <Default><Slot Id="12"/><Value Id="21554" Index="5"/></Default>
-            <Default><Slot Id="13"/><Value Id="21554" Index="6"/></Default>
-        </Attribute>
-    </Variant>
-</Attributes>
-`;
 const RICH_RESOURCE_TYPES = new Set([
   "RichMineralField",
   "RichMineralField750",
@@ -66,7 +26,6 @@ const RICH_RESOURCE_TYPES = new Set([
 
 const REQUIRED_ARCHIVE_FILES = [
   "Objects",
-  "Base.SC2Data\\GameData\\UnitData.xml",
   "MapInfo",
   "MapScript.galaxy",
 ];
@@ -74,13 +33,27 @@ const REQUIRED_ARCHIVE_FILES = [
 function usage() {
   console.log(
     "Usage: node tools/build_team_map.cjs <source.SC2Map> <output.SC2Map> " +
-      "[--allow-non-14]"
+      "[--players N]"
   );
 }
 
 function parseArgs(argv) {
-  const allowNon14 = argv.includes("--allow-non-14");
-  const positional = argv.filter((value) => !value.startsWith("--"));
+  let players = null;
+  const positional = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const value = argv[index];
+    if (value === "--allow-non-14") {
+      console.warn("WARNING: --allow-non-14 is obsolete and ignored; use --players N");
+    } else if (value === "--players") {
+      players = Number(argv[++index]);
+    } else if (value.startsWith("--players=")) {
+      players = Number(value.slice("--players=".length));
+    } else if (value.startsWith("--")) {
+      throw new Error(`Unknown option: ${value}`);
+    } else {
+      positional.push(value);
+    }
+  }
   if (positional.length !== 2) {
     usage();
     process.exitCode = 2;
@@ -89,7 +62,7 @@ function parseArgs(argv) {
   return {
     source: path.resolve(positional[0]),
     output: path.resolve(positional[1]),
-    allowNon14,
+    players,
   };
 }
 
@@ -111,13 +84,15 @@ function extractStartLocations(objectsXml) {
   return points;
 }
 
-function chooseSideLocations(startLocations) {
-  const ordered = [...startLocations].sort((a, b) => a.x - b.x || a.y - b.y);
-  const west = ordered.slice(0, 7).sort((a, b) => a.y - b.y);
-  const east = ordered.slice(-7).sort((a, b) => a.y - b.y);
-  if (west.length !== 7 || east.length !== 7) {
-    throw new Error("At least fourteen start locations are required for 7v7");
+function chooseSideLocations(startLocations, playerCount) {
+  if (startLocations.length < playerCount) {
+    throw new Error(`At least ${playerCount} start locations are required`);
   }
+  const ordered = [...startLocations].sort((a, b) => a.x - b.x || a.y - b.y);
+  const westSize = Math.ceil(playerCount / 2);
+  const eastSize = Math.floor(playerCount / 2);
+  const west = ordered.slice(0, westSize).sort((a, b) => a.y - b.y);
+  const east = ordered.slice(-eastSize).sort((a, b) => a.y - b.y);
   return { west, east };
 }
 
@@ -171,71 +146,9 @@ function makeDefaultUnitDataWithWorkerFoodZero() {
 `;
 }
 
-function parseMapInfoPlayers(buffer) {
-  let offset = 0;
-  const readU8 = () => buffer.readUInt8(offset++);
-  const readU16 = () => {
-    const value = buffer.readUInt16LE(offset);
-    offset += 2;
-    return value;
-  };
-  const readU32 = () => {
-    const value = buffer.readUInt32LE(offset);
-    offset += 4;
-    return value;
-  };
-  const readCString = () => {
-    const end = buffer.indexOf(0, offset);
-    if (end < 0) throw new Error(`Unterminated MapInfo string at ${offset}`);
-    const value = buffer.subarray(offset, end).toString("utf8");
-    offset = end + 1;
-    return value;
-  };
-  const skip = (length) => {
-    offset += length;
-    if (offset > buffer.length) throw new Error("MapInfo is truncated");
-  };
-
-  if (buffer.subarray(0, 4).toString("ascii") !== "IpaM") {
-    throw new Error("Unsupported MapInfo magic");
-  }
-  offset = 4;
-  const version = readU32();
-  if (version !== 0x27) {
-    throw new Error(`Unsupported MapInfo version 0x${version.toString(16)}`);
-  }
-  readU32(); readU32(); readU32(); readU32();
-  let previewType = readU32();
-  if (previewType === 2) readCString();
-  previewType = readU32();
-  if (previewType === 2) readCString();
-  readCString(); readCString(); readU32(); readU32(); readCString(); readCString();
-  for (let index = 0; index < 5; index += 1) readU32();
-  const loadScreenType = readU32();
-  if (loadScreenType === 2) readCString();
-  skip(readU16());
-  for (let index = 0; index < 8; index += 1) readU32();
-  skip(8); skip(9); skip(4); skip(8);
-
-  const playerCount = readU32();
-  if (playerCount < 15 || playerCount > 16) {
-    throw new Error(`Unexpected MapInfo player count: ${playerCount}`);
-  }
-  const players = [];
-  for (let index = 0; index < playerCount; index += 1) {
-    const id = readU8();
-    readU32(); readU32(); readCString(); readU32();
-    const startPointOffset = offset;
-    readU32(); readU32(); readCString();
-    players.push({ id, startPointOffset });
-  }
-  return players;
-}
-
-function patchFixedPlayerStarts(mapInfo, west, east) {
+function patchFixedPlayerStarts(mapInfo, assigned) {
   const players = parseMapInfoPlayers(mapInfo);
-  const assigned = [...west, ...east];
-  for (let player = 1; player <= 14; player += 1) {
+  for (let player = 1; player <= assigned.length; player += 1) {
     const record = players.find((item) => item.id === player);
     if (!record) throw new Error(`MapInfo player ${player} is missing`);
     mapInfo.writeUInt32LE(assigned[player - 1].id, record.startPointOffset);
@@ -266,17 +179,70 @@ function setLocalizedLines(content, replacements) {
   return updated.join(newline);
 }
 
-function patchLobbyVariant(archive) {
-  archive.addString("Attributes", SEVEN_V_SEVEN_ATTRIBUTES, { encoding: "utf8" });
+function makeLobbyAttributes(playerCount) {
+  const westSize = Math.ceil(playerCount / 2);
+  const defaults = [];
+  for (let slot = 0; slot < playerCount; slot += 1) {
+    const west = slot < westSize;
+    const index = west ? slot : slot - westSize;
+    const valueId = west ? "21553" : "21554";
+    const indexAttribute = index === 0 ? "" : ` Index="${index}"`;
+    defaults.push(
+      `            <Default><Slot Id="${slot}"/><Value Id="${valueId}"${indexAttribute}/></Default>`
+    );
+  }
+  return `<?xml version="1.0" encoding="utf-8"?>
+<Attributes>
+    <DefaultVariants Value="0"/>
+    <Variant>
+        <Id Value="1"/>
+        <CategoryId Value="6"/>
+        <ModeId Value="1"/>
+        <ModeName Value="Variant001/ModeName"/>
+        <ModeDesc Value="Variant001/ModeDesc"/>
+        <MaxTeamSize Value="${westSize}"/>
+        <AttributeHidden Namespace="999" Id="3006"/>
+        <Attribute Namespace="999" Id="1001">
+            <Default>
+                <Slot Id="Global"/>
+                <Value Id="28271"/>
+            </Default>
+        </Attribute>
+        <Attribute Namespace="999" Id="2000">
+            <Default>
+                <Slot Id="Global"/>
+                <Value Id="29746"/>
+            </Default>
+        </Attribute>
+        <Attribute Namespace="999" Id="2011">
+${defaults.join("\n")}
+        </Attribute>
+    </Variant>
+</Attributes>
+`;
+}
+
+function patchLobbyVariant(archive, playerCount) {
+  archive.addString("Attributes", makeLobbyAttributes(playerCount), { encoding: "utf8" });
+
+  const westSize = Math.ceil(playerCount / 2);
+  const eastSize = Math.floor(playerCount / 2);
+  const koreanCount = ["", "한", "두", "세", "네", "다섯", "여섯", "일곱"];
+  const koreanDescription = playerCount === 14
+    ? "두 팀이 각각 일곱 명으로 나뉘어 싸우는 섬멸전입니다."
+    : `두 팀이 각각 ${koreanCount[westSize]} 명과 ${koreanCount[eastSize]} 명으로 나뉘어 싸우는 섬멸전입니다.`;
+  const englishDescription = playerCount === 14
+    ? "Two teams of seven players fight a melee match."
+    : `Teams of ${westSize} and ${eastSize} players fight a melee match.`;
 
   const localized = {
     koKR: {
-      "Variant001/ModeName": "7 대 7",
-      "Variant001/ModeDesc": "두 팀이 각각 일곱 명으로 나뉘어 싸우는 섬멸전입니다.",
+      "Variant001/ModeName": `${westSize} 대 ${eastSize}`,
+      "Variant001/ModeDesc": koreanDescription,
     },
     enUS: {
-      "Variant001/ModeName": "7 vs 7",
-      "Variant001/ModeDesc": "Two teams of seven players fight a melee match.",
+      "Variant001/ModeName": `${westSize} vs ${eastSize}`,
+      "Variant001/ModeDesc": englishDescription,
     },
   };
 
@@ -291,18 +257,19 @@ function patchLobbyVariant(archive) {
   }
 }
 
-function makeGalaxySupport() {
+function makeGalaxySupport(playerCount) {
+  const westSize = Math.ceil(playerCount / 2);
   return `
 // SC2TEAM_CUSTOM_BEGIN
-// Fixed starts are stored in MapInfo. Player 1-7: west; Player 8-14: east.
+// Fixed starts are stored in MapInfo. Player 1-${westSize}: west; Player ${westSize + 1}-${playerCount}: east.
 void sc2team_Initialize7v7 () {
     int firstPlayer;
     int secondPlayer;
 
-    for (firstPlayer = 1; firstPlayer <= 14; firstPlayer += 1) {
-        for (secondPlayer = firstPlayer + 1; secondPlayer <= 14; secondPlayer += 1) {
-            if ((firstPlayer <= 7 && secondPlayer <= 7) ||
-                (firstPlayer >= 8 && secondPlayer >= 8)) {
+    for (firstPlayer = 1; firstPlayer <= ${playerCount}; firstPlayer += 1) {
+        for (secondPlayer = firstPlayer + 1; secondPlayer <= ${playerCount}; secondPlayer += 1) {
+            if ((firstPlayer <= ${westSize} && secondPlayer <= ${westSize}) ||
+                (firstPlayer >= ${westSize + 1} && secondPlayer >= ${westSize + 1})) {
                 libNtve_gf_SetAlliance(firstPlayer, secondPlayer, libNtve_ge_AllianceSetting_AllyWithSharedVision);
             }
             else {
@@ -316,12 +283,12 @@ void sc2team_Initialize7v7 () {
 `;
 }
 
-function patchMapScript(mapScript) {
+function patchMapScript(mapScript, playerCount) {
   if (mapScript.includes("SC2TEAM_CUSTOM_BEGIN")) {
     throw new Error("The source map is already patched by this tool");
   }
 
-  const support = makeGalaxySupport();
+  const support = makeGalaxySupport(playerCount);
   const includeLine = 'include "TriggerLibs/NativeLib"';
   if (!mapScript.includes(includeLine)) {
     throw new Error("MapScript.galaxy does not include TriggerLibs/NativeLib");
@@ -348,13 +315,27 @@ function formatPoint(point) {
   return `(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`;
 }
 
-function buildMap({ source, output, allowNon14 }) {
+function buildMap({ source, output, players: requestedPlayers }) {
   if (!fs.existsSync(source)) {
     throw new Error(`Source map not found: ${source}`);
   }
   if (source === output) {
     throw new Error("Source and output paths must be different");
   }
+  const capabilities = readMapCapabilities(source);
+  if (!capabilities.readable) {
+    throw new Error(`Cannot read map capabilities: ${capabilities.reason}`);
+  }
+  const playerCount = requestedPlayers === null ? capabilities.maxPlayers : requestedPlayers;
+  if (!Number.isInteger(playerCount) || playerCount < 2 || playerCount > 14) {
+    throw new Error("--players must be an integer between 2 and 14");
+  }
+  if (playerCount > capabilities.maxPlayers) {
+    throw new Error(
+      `Map supports ${capabilities.maxPlayers} players but --players requested ${playerCount}`
+    );
+  }
+
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.copyFileSync(source, output);
 
@@ -368,13 +349,8 @@ function buildMap({ source, output, allowNon14 }) {
 
     const objectsXml = archive.readFileAsString("Objects", "utf8");
     const startLocations = extractStartLocations(objectsXml);
-    if (startLocations.length < 14 && !allowNon14) {
-      throw new Error(
-        `Expected at least 14 start locations, found ${startLocations.length}. ` +
-          "Use the exact 유럽 섬멸전_2 source map."
-      );
-    }
-    const { west, east } = chooseSideLocations(startLocations);
+    const { west, east } = chooseSideLocations(startLocations, playerCount);
+    const assigned = [...west, ...east];
     const resourceResult = makeAllResourcesRich(objectsXml);
 
     const unitDataName = "Base.SC2Data\\GameData\\UnitData.xml";
@@ -385,17 +361,18 @@ function buildMap({ source, output, allowNon14 }) {
     archive.addString(unitDataName, makeDefaultUnitDataWithWorkerFoodZero(), {
       encoding: "utf8",
     });
-    archive.addBuffer("MapInfo", patchFixedPlayerStarts(mapInfo, west, east));
-    archive.addString("MapScript.galaxy", patchMapScript(mapScript), {
+    archive.addBuffer("MapInfo", patchFixedPlayerStarts(mapInfo, assigned));
+    archive.addString("MapScript.galaxy", patchMapScript(mapScript, playerCount), {
       encoding: "utf8",
     });
-    patchLobbyVariant(archive);
+    patchLobbyVariant(archive, playerCount);
     archive.compact();
 
     console.log(`Built: ${output}`);
     console.log(`Start locations preserved: ${startLocations.length}`);
-    console.log(`West team (players 1-7): ${west.map(formatPoint).join(", ")}`);
-    console.log(`East team (players 8-14): ${east.map(formatPoint).join(", ")}`);
+    console.log(`Players prepared: ${playerCount}`);
+    console.log(`West team (players 1-${west.length}): ${west.map(formatPoint).join(", ")}`);
+    console.log(`East team (players ${west.length + 1}-${playerCount}): ${east.map(formatPoint).join(", ")}`);
     console.log("Resource replacements:");
     for (const [replacement, count] of Object.entries(resourceResult.counts)) {
       console.log(`  ${replacement}: ${count}`);
@@ -406,21 +383,29 @@ function buildMap({ source, output, allowNon14 }) {
     console.log("Map-level unit overrides removed: all normal melee defaults restored");
     console.log("Worker supply: Drone=0, Probe=0, SCV=0");
     console.log("Player start points: fixed in MapInfo (no unit teleport)");
-    console.log("Lobby variant: melee 7 vs 7 (two teams, seven slots per team)");
+    console.log(`Lobby variant: melee ${west.length} vs ${east.length} (two teams)`);
   } finally {
     archive.close();
   }
 }
 
-const args = parseArgs(process.argv.slice(2));
-if (args) {
+if (require.main === module) {
+  let args;
   try {
-    buildMap(args);
+    args = parseArgs(process.argv.slice(2));
+    if (args) buildMap(args);
   } catch (error) {
-    if (fs.existsSync(args.output)) {
+    if (args && fs.existsSync(args.output)) {
       fs.rmSync(args.output, { force: true });
     }
     console.error(`ERROR: ${error.message}`);
     process.exitCode = 1;
   }
 }
+
+module.exports = {
+  chooseSideLocations,
+  makeGalaxySupport,
+  makeLobbyAttributes,
+  patchFixedPlayerStarts,
+};

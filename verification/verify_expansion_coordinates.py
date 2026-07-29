@@ -37,7 +37,7 @@ from sc2team.protocol import Sc2Connection
 from sc2team.strategy_controller import GAME_LOOPS_PER_SECOND, StrategyController
 from verification.analyze_expansion_layout import EXPECTED_STARTS
 
-BASE_MAP = PROJECT_ROOT / "maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
+BASE_MAP = PROJECT_ROOT / "map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 PROBE_MAP = PROJECT_ROOT / "runtime/maps/expansion-coordinate-probe.SC2Map"
 CONFIG_PATH = PROJECT_ROOT / "runtime/custom_ai_settings.json"
 LAYOUT_PATH = PROJECT_ROOT / "tools/build/expansion-layout.json"

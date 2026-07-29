@@ -1,0 +1,183 @@
+//--------------------------------------------------------------------------------------------------
+//  V3 Terran Mechanic (build 102)
+//
+//  The 35/25/25/15 Goliath/Cyclone/Siege Tank/Thor intent is expressed as six interleaved tiers.
+//  Full-tier cumulative targets exceed the 800-supply ceiling and therefore never cap production.
+//--------------------------------------------------------------------------------------------------
+
+void V3MechanicArmyMinimum (int player) {
+    AISetStockUnitNext(player, 2, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 1, c_TU_Cyclone, c_stockAlways);
+}
+
+void V3MechanicArmyBase (int player) {
+    AISetStockUnitNext(player, 1, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 3, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 2, c_TU_Cyclone, c_stockAlways);
+}
+
+void V3MechanicArmySmall (int player) {
+    AISetStockUnitNext(player, 2, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 1, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 4, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 5, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 3, c_TU_Cyclone, c_stockAlways);
+}
+
+void V3MechanicArmyMedium (int player) {
+    AISetStockUnitNext(player, 3, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 6, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 10, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 7, c_TU_Cyclone, c_stockAlways);
+}
+
+void V3MechanicArmyLarge (int player) {
+    AISetStockUnitNext(player, 4, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 3, c_TB_FactoryTechLab, c_stockIdle);
+    AISetStockUnitNext(player, 10, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 4, c_TU_Thor, c_stockAlways);
+    AISetStockUnitNext(player, 16, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 11, c_TU_Cyclone, c_stockAlways);
+}
+
+void V3MechanicArmyFull (int player) {
+    // Approved mixed escalation: no single large target can starve the other unit types.
+    AISetStockUnitNext(player, 8, c_TU_Thor, c_stockAlways);
+    AISetStockUnitNext(player, 30, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 22, c_TU_Cyclone, c_stockAlways);
+    AISetStockUnitNext(player, 22, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 12, c_TU_Thor, c_stockAlways);
+    AISetStockUnitNext(player, 45, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 32, c_TU_Cyclone, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 18, c_TU_Thor, c_stockAlways);
+    AISetStockUnitNext(player, 70, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 50, c_TU_Cyclone, c_stockAlways);
+    AISetStockUnitNext(player, 50, c_TU_SiegeTank, c_stockAlways);
+    AISetStockUnitNext(player, 26, c_TU_Thor, c_stockAlways);
+    AISetStockUnitNext(player, 105, "SC2TeamGoliath", c_stockAlways);
+    AISetStockUnitNext(player, 75, c_TU_Cyclone, c_stockAlways);
+    AISetStockUnitNext(player, 75, c_TU_SiegeTank, c_stockAlways);
+}
+
+void V3MechanicUpgrades (int player) {
+    int vehicleCount;
+    int factoryTechLabs;
+    int armoryCount = 0;
+
+    if (AIHighCurrentlyUnderHeavyAttack(player)) {
+        return;
+    }
+
+    vehicleCount =
+        AITechCount(player, "SC2TeamGoliath", c_techCountInProgressOrBetter) +
+        AITechCount(player, c_TU_Cyclone, c_techCountInProgressOrBetter) +
+        AITechCount(player, c_TU_SiegeTank_Alias, c_techCountInProgressOrBetter) +
+        AITechCount(player, c_TU_Thor, c_techCountInProgressOrBetter);
+    factoryTechLabs = AITechCount(player, c_TB_FactoryTechLab, c_techCountInProgressOrBetter);
+
+    if (vehicleCount >= 10) {
+        AINewTechStock(player);
+        AITechStockAdd(c_TR_VehicleWeapons1);
+        AITechStockAdd(c_TR_VehicleWeapons2);
+        AITechStockAdd(c_TR_VehicleWeapons3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        armoryCount = armoryCount + 1;
+
+        AINewTechStock(player);
+        AITechStockAdd(c_TR_MechPlating1);
+        AITechStockAdd(c_TR_MechPlating2);
+        AITechStockAdd(c_TR_MechPlating3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        armoryCount = armoryCount + 1;
+    }
+    if (armoryCount > 0) {
+        AISetStockUnitNext(player, armoryCount, c_TB_Armory, c_stockAlways);
+    }
+    if (factoryTechLabs >= 1 &&
+        AITechCount(player, c_TU_Cyclone, c_techCountInProgressOrBetter) >= 6) {
+        AISetStock(player, 1, c_TR_CycloneDamage);
+    }
+}
+
+void V3TerranMechanicStock (int player, int phase) {
+    int openingArmy;
+    int workerCap;
+    int factoryTarget;
+    int orbitalTarget;
+
+    openingArmy =
+        AITechCount(player, "SC2TeamGoliath", c_techCountInProgressOrBetter) +
+        AITechCount(player, c_TU_Cyclone, c_techCountInProgressOrBetter) +
+        AITechCount(player, c_TU_SiegeTank, c_techCountInProgressOrBetter);
+    if (phase > 0 && openingArmy < 6) {
+        phase = 0;
+    }
+
+    if (phase <= 0) {
+        workerCap = 45;
+        factoryTarget = 3;
+        orbitalTarget = 2;
+    }
+    else if (phase == 1) {
+        workerCap = 60;
+        factoryTarget = 7;
+        orbitalTarget = 3;
+    }
+    else {
+        workerCap = 85;
+        factoryTarget = 16;
+        orbitalTarget = 6;
+    }
+
+    AIClearStock(player);
+    AISetTechLimitLevels(player);
+
+    // Recovery minimums.
+    AISetStock(player, 1, c_TB_CommandCenter_Alias);
+    AISetStock(player, V3WorkerTarget(player, 1), c_TU_SCV);
+    AISetStockFarms(player, c_TB_SupplyDepot, c_stockNeededFarms);
+    AISetStock(player, V3WorkerTarget(player, 12), c_TU_SCV);
+
+    // Preserve the original one-time natural bootstrap and its production-bank latch.
+    if (AIGetUserInt(player, 144) == 0) {
+        if (AITechCount(player, c_TB_CommandCenter_Alias, c_techCountQueuedOrBetter) >= 2) {
+            AISetUserInt(player, 144, 1);
+        }
+        else {
+            if (!AIIsExpandingOrHasExpanded(player) &&
+                AIHasNearbyOpenExpansion(player) &&
+                AIHasRes(player, 400, 0)) {
+                AIExpand(player, AIGetTownLocation(player, c_townMain), c_TB_CommandCenter);
+            }
+            V3TerranDefaultEconomy(player);
+            return;
+        }
+    }
+
+    AISetStockFarms(player, c_TB_SupplyDepot, c_stockNormalFarms);
+    V3MechanicArmyMinimum(player);
+    AISetStockPeons(player, V3WorkerTarget(player, workerCap), c_TU_SCV, c_stockMinPeons, c_stockAlways);
+    V3MechanicArmyBase(player);
+    V3TerranDefaultEconomy(player);
+    V3SetTerranOrbitalTarget(player, orbitalTarget);
+
+    V3MechanicArmySmall(player);
+
+    V3SetTerranTownProduction(player, factoryTarget, c_TB_Factory);
+    AISetStockUnitNext(player, 1, c_TB_Barracks, c_stockIdle);
+    AISetStockUnitNext(player, 3, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, 2, c_TB_FactoryTechLab, c_stockIdle);
+
+    V3MechanicArmyMedium(player);
+    V3MechanicUpgrades(player);
+    V3MechanicArmyLarge(player);
+
+    AISetStockUnitNext(player, factoryTarget, c_TB_Factory, c_stockIdle);
+    AISetStockUnitNext(player, (factoryTarget + 1) / 2, c_TB_FactoryTechLab, c_stockIdle);
+
+    V3MechanicArmyFull(player);
+}

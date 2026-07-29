@@ -27,8 +27,8 @@ from sc2team.protocol import Sc2Connection
 SETTINGS_FILE = PROJECT_ROOT / "runtime" / "custom_ai_settings.json"
 BASE_MAP_FILE = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 OUTPUT_MAP = PROJECT_ROOT / "runtime" / "maps" / "diagnostic-melee-only-6v6.SC2Map"

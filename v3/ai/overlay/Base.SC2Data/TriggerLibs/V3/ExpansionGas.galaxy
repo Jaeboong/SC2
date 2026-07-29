@@ -1,0 +1,319 @@
+//--------------------------------------------------------------------------------------------------
+//  V3 expansion economy policy
+//
+//  Raw gas spots describe geysers at the town, including unbuilt ones.  Harvestable spots describe
+//  completed gas structures.  Keep those two facts separate: town-local stock claims every raw
+//  geyser, while the worker override is raised only after a refinery/assimilator/extractor exists.
+//--------------------------------------------------------------------------------------------------
+void V3SetExpansionGasPolicy (int player, string townHallType, string gasType) {
+    int town = 0;
+    int mainTown = AIGetMainTown(player);
+    int rawGas;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(player, town, townHallType, c_techCountCompleteOnly) > 0) {
+            rawGas = AIGetRawGasNumSpots(player, town);
+            if (town != mainTown && rawGas > 0) {
+                // c_makeDefault is the upstream town-local stock placement mode.  Do not use a
+                // global total here: an already-satisfied main-base goal must not hide this town.
+                AISetStockEx(player, town, rawGas, gasType, c_makeDefault, 0);
+            }
+
+        }
+        town = town + 1;
+    }
+}
+
+// Call after AIEnableStock.  This is the upstream stock/harvest ordering: the
+// stock executor first makes the town's economy decisions, then the harvest
+// engine receives its final per-town gas target for this tick.
+void V3SetGasWorkerDistribution (int player, string townHallType, string gasType) {
+    int town = 0;
+    int rawGas;
+    int harvestableGas;
+    int completedGas;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(player, town, townHallType, c_techCountCompleteOnly) > 0) {
+            rawGas = AIGetRawGasNumSpots(player, town);
+            harvestableGas = AIGetHarvestableGasNumSpots(player, town);
+            completedGas = AIGetBuildingCountInTown(player, town, gasType, c_techCountCompleteOnly);
+            if (completedGas > harvestableGas) {
+                harvestableGas = completedGas;
+            }
+            if (harvestableGas == 0 && rawGas > 0) {
+                harvestableGas = rawGas;
+            }
+            AISetGasPeonCountOverride(player, town, harvestableGas * 3);
+            AIHarvest(player, town);
+        }
+        town = town + 1;
+    }
+}
+
+// Optimal workers are two per remaining mineral patch plus three per completed
+// gas structure.  Counting established towns directly avoids the engine's
+// absolute max-peon value, which may include inefficient third mineral workers.
+int V3MiningWorkerCapacity (int player) {
+    int town = 0;
+    int mineralSpots;
+    int gasSpots;
+    int capacity = 0;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished) {
+            mineralSpots = AIGetMineralNumSpots(player, town);
+            if (mineralSpots > 0) {
+                gasSpots = AIGetHarvestableGasNumSpots(player, town);
+                capacity = capacity + (mineralSpots * 2) + (gasSpots * 3);
+            }
+        }
+        town = town + 1;
+    }
+    return capacity;
+}
+
+// Keep every scripted worker milestone below the optimal capacity of the
+// currently established mining towns. Only the upper bound is applied here so
+// the ordered opening milestones keep their original pacing.
+int V3WorkerTarget (int player, int requested) {
+    int capacity = V3MiningWorkerCapacity(player);
+
+    if (capacity > 0 && requested > capacity) {
+        return capacity;
+    }
+    return requested;
+}
+
+// (V3ArmySupply / V3AttackSupplyForPhase were removed: the SuppliesUsed-minus-
+//  workers measure did not behave as expected inside the AI mod scope, and two
+//  runs with halved thresholds produced byte-identical zero-attack results.)
+
+// Rejoin only morph-born combat types.  Units hatched from larvae are handled
+// by AINewUnit*, while broad adoption could steal AIGrabUnit scouts and other
+// intentional detachments.  Respect both wave-exclusion predicates, and cap
+// work at eight merges per tick to protect trigger operation cost.
+int V3RejoinStragglersOfType (int player, string unitType, int budget) {
+    unitgroup units;
+    unit u;
+    wave main;
+    int index;
+    int merged;
+
+    if (budget <= 0) {
+        return 0;
+    }
+    main = AIWaveGet(player, c_waveMain);
+    if (main == null) {
+        return 0;
+    }
+    units = UnitGroup(unitType, player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    merged = 0;
+    index = UnitGroupCount(units, c_unitCountAlive);
+    for (;; index -= 1) {
+        u = UnitGroupUnitFromEnd(units, index);
+        if (u == null || merged >= budget) {
+            break;
+        }
+        if (AIUnitGetWave(u) != null) {
+            continue;
+        }
+        if (AIIsNotUsableInWaves(u)) {
+            continue;
+        }
+        if (AIIsIgnoredByWave(u)) {
+            continue;
+        }
+        AIMergeUnit(player, u, main);
+        merged += 1;
+    }
+    return merged;
+}
+
+void V3ZergRejoinMorphStragglers (int player) {
+    int budget = 8;
+
+    budget = budget - V3RejoinStragglersOfType(player, c_ZU_Baneling, budget);
+    budget = budget - V3RejoinStragglersOfType(player, c_ZU_Ravager, budget);
+    budget = budget - V3RejoinStragglersOfType(player, c_ZU_Ultralisk, budget);
+}
+
+// Attack-wave readiness by development phase (0/1/2).  Returns the army SUPPLY a
+// slot should mass before launching an attack wave; V3SetWaveTargets converts it
+// to a per-unit count.  Escalating early->late means bigger committed waves as
+// the game develops -- and because the target is supply-normalized, a slot that
+// has not actually massed that army yet simply does not attack (so "phase" acts
+// as an ambition ceiling, not a clock-triggered suicide charge).
+int V3WaveSupplyForPhase (int phase) {
+    if (phase >= 2) {
+        return 20;
+    }
+    if (phase == 1) {
+        return 12;
+    }
+    return 6;
+}
+
+// Set a unit's attack-wave thresholds from SUPPLY targets, so the same army
+// "weight" triggers regardless of unit cost (20 Zerglings != 20 Ultralisks).
+// foodTenths is the unit's supply x10 (Zergling 5, Roach/Marauder/Zealot 20,
+// SiegeTank/Goliath/Cyclone 30, Immortal 40, Thor 60, Ultralisk 80, Marine 10).
+// minSelf = solo-attack army; minAlly = army needed to join an ally's ongoing
+// attack (kept small via a low allySupply so support commits quickly).
+void V3SetWaveTargets (int player, string unitType, int foodTenths, int waveSupply, int allySupply) {
+    int minSelf = (waveSupply * 10 + foodTenths / 2) / foodTenths;
+    int minAlly = (allySupply * 10 + foodTenths / 2) / foodTenths;
+
+    if (minSelf < 1) {
+        minSelf = 1;
+    }
+    if (minAlly < 1) {
+        minAlly = 1;
+    }
+    AISetAttackStatus(player, unitType, minAlly, minSelf, c_continuousMerge);
+}
+
+// §88 포트(V3 내부 커스텀): 보급 선제 건설. V3는 임베디드 AI라 이 AIBuild는
+// "AI가 자기 빌드 매니저에 내는 자기 주문"이다(V1식 외부 덮어쓰기 아님).
+// Terran SupplyDepot / Protoss Pylon 공용. 사용자 지시: 여유있게, 2~3개씩,
+// 임박(10~20) 전부터 미리. 저그는 대상 아님(오버로드는 네이티브 NormalFarms).
+void V3BuildProactiveSupply (int player, string supplyType) {
+    int made;
+    int used;
+    int headroom;
+    int threshold;
+    int building;
+    int deficit;
+
+    // §83 오프닝 보호 + 턴제로 정지 방지: 사용량 32 미만이거나 보급 구조물이
+    // 한 번도 완성된 적 없으면 발주하지 않는다(오프닝은 멜리 계획 소유).
+    used = PlayerGetPropertyInt(player, c_playerPropSuppliesUsed);
+    if (used < 32) {
+        return;
+    }
+    if (AITechCount(player, supplyType, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    // §91.10: 여유분은 Made - Used 다(Limit은 800 천장이라 금지). made < 800
+    // 이면 최대 보급에서의 무한 발주를 막는다.
+    made = PlayerGetPropertyInt(player, c_playerPropSuppliesMade);
+    if (made >= 800) {
+        return;
+    }
+    headroom = made - used;
+
+    // 선제 임계값은 소모량에 비례해 키운다(후반 폭발 대비, 미리미리).
+    threshold = 20;
+    if (made >= 100) {
+        threshold = 26;
+    }
+    if (made >= 200) {
+        threshold = 32;
+    }
+    if (headroom >= threshold) {
+        return;
+    }
+
+    // 동시 건설 3개 상한(사용자 "2~3개씩"). 부족분을 한 번에 발주하고, 매 틱
+    // 재평가하되 상한으로 중복 폭주를 막는다.
+    building = AITechCount(player, supplyType, c_techCountQueuedOrBetter)
+             - AITechCount(player, supplyType, c_techCountCompleteOnly);
+    deficit = 3 - building;
+    if (deficit <= 0) {
+        return;
+    }
+    AIBuild(player, c_makePriorityTown, AIGetMainTown(player), supplyType, deficit, c_nearChokePoint);
+}
+
+// Unlike the ordered milestones, this continuous target fills every completed
+// mining town to its exact mineral/gas capacity as new expansions come online.
+void V3SetMiningWorkerStock (int player, string workerType) {
+    int capacity = V3MiningWorkerCapacity(player);
+
+    if (capacity > 0) {
+        AISetStockPeons(
+            player,
+            capacity,
+            workerType,
+            c_stockMaxPeons,
+            c_stockAlways
+        );
+    }
+}
+
+// Expansion progress is driven by town state rather than game time.
+//
+// * The first expansion is handled by each opening policy.  Every later
+//   expansion waits until the current mining economy has reached two workers
+//   per mineral and three per completed gas, so a new base never drains gas
+//   workers from an under-saturated economy.
+// * Never have more than one Claimed/Building expansion at a time.
+//
+// Macro production buildings do not create a new town and towns without
+// mineral spots are not counted as mining expansions.
+void V3EnsureMiningExpansion (int player, string townHallType, string expandType, int expandMinerals, int maximumTowns) {
+    int town = 0;
+    int state;
+    int established = 0;
+    int currentWorkers;
+    int requiredWorkers;
+    bool pending = false;
+    bool shouldExpand = false;
+
+    if (AIGetUserInt(player, 144) == 0) {
+        return;
+    }
+
+    // §98 재발 방지: 자원 없는 곳에 지어진 타운홀은 아래 established(광물 스팟>0)
+    // 카운트에 안 잡혀 종료 조건이 영영 안 걸린다. 자원 유무와 무관하게 전체
+    // 타운홀 건물 수를 상한으로 걸어 본진 난건축 폭주를 끊는다. maximumTowns가
+    // c_townMax(=32)인 저그는 이 상한이 실질적으로 안 걸려 기존 동작을 유지한다.
+    // 주문을 추가하는 게 아니라 발주를 건너뛰는 것이라 빌드 매니저 정지(§83) 위험 없음.
+    if (AITechCount(player, townHallType, c_techCountInProgressOrBetter) >= maximumTowns) {
+        return;
+    }
+
+    while (town < c_townMax) {
+        state = AIGetTownState(player, town);
+        if (state == c_townStateClaimed || state == c_townStateBuilding) {
+            pending = true;
+        }
+        else if (state == c_townStateEstablished &&
+                 AIGetMineralNumSpots(player, town) > 0 &&
+                 AIGetBuildingCountInTown(
+                     player,
+                     town,
+                     townHallType,
+                     c_techCountCompleteOnly
+                 ) > 0) {
+            established = established + 1;
+        }
+        town = town + 1;
+    }
+
+    if (established < maximumTowns) {
+        currentWorkers = AIGetCurPeonCount(player, c_townMax);
+        // Use the native economy saturation value for expansion timing.
+        // The manual worker-production cap above is intentionally conservative
+        // (two mineral workers plus gas workers), but its spot accounting is
+        // not the stock engine's own saturation threshold on every map.
+        // Blizzard's economy helpers use AIGetMinPeonCount for this decision.
+        requiredWorkers = AIGetMinPeonCount(player, c_townMax);
+        if (requiredWorkers > 0 && currentWorkers >= requiredWorkers) {
+            shouldExpand = true;
+        }
+    }
+
+    if (shouldExpand && !pending && AIHasNearbyOpenExpansion(player)) {
+        // Match the upstream expand state machine: stock the next town hall
+        // before attempting the native claim.  This reserves its minerals
+        // against continuous unit production; AIExpand then registers the
+        // actual town only once the money is present.
+        AISetStockExpand(player, expandType, established + 1);
+        if (AIHasRes(player, expandMinerals, 0)) {
+            AIExpand(player, AIGetTownLocation(player, c_townMain), expandType);
+        }
+    }
+}

@@ -117,7 +117,7 @@ def parse_args() -> argparse.Namespace:
         "map",
         nargs="?",
         type=Path,
-        default=PROJECT_ROOT / "maps" / "generated" / "europe-melee-2-Pro-Bot_test.SC2Map",
+        default=PROJECT_ROOT / "map" / "source" / "europe-melee-2-Pro-Bot_test.SC2Map",
     )
     parser.add_argument("--seconds", type=float, default=5.0)
     parser.add_argument("--api-port", type=int, default=14100)

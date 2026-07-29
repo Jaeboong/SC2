@@ -1,0 +1,22 @@
+// V3 Phase 1 bootstrap only.
+//
+// This declaration is inserted into MapScript.galaxy by patch_v3_ai.cjs.  The
+// patcher replaces V3AI_PLAYER_CALLS with explicit runtime player IDs from its
+// build plan; this file deliberately does not discover or scan players.
+
+// V3AI_BOOTSTRAP_BEGIN
+bool[16] gv_v3ai_PlayerBootstrapped;
+
+void v3ai_InitializePlayer (int player) {
+    if (gv_v3ai_PlayerBootstrapped[player]) {
+        return;
+    }
+    gv_v3ai_PlayerBootstrapped[player] = true;
+
+// V3AI_MODE_BODY
+}
+
+void v3ai_InitializeAll () {
+// V3AI_PLAYER_CALLS
+}
+// V3AI_BOOTSTRAP_END

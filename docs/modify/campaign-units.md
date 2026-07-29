@@ -97,6 +97,20 @@ Ability mechanics and original manual/autocast flags are preserved. The project 
 
 Do not wire the Aiur Dragoon to Stalker Blink: its Blink slot is deliberately removed. Do not rename pure faction abilities to standard melee IDs merely to influence AI behavior. `BlinkShieldRestore`, `BlinkMultiple`, `BlinkSlayer`, and `PhaseBlinkDamage` retain their retail IDs and data chains.
 
+### Faction model scale is not optional (§115, 2026-07-27)
+
+A campaign asset is authored at a different native size than its melee counterpart, so Blizzard's own `CModel` records scale it down: Zealot Aiur/Nerazim `0.9`, Purifier Stalker `0.69`, Immortal Nerazim/Taldarim `0.75`, Colossus Taldarim `0.75` (Purifier Zealot and the Tal'darim Zealot/Stalker carry no scale, i.e. `1.0`). The `SC2Team*Model` records shipped without those values, so those units rendered oversized.
+
+The visible symptom was reported for the Immortal barrier. The barrier is **not** part of the unit model: it is a separate `ModelAddition` actor, `ImmortalOverload` → `Assets\Effects\Protoss\ImmortalShield\ImmortalShield.m3`, created on `Behavior.ImmortalOverload.On` and sized for the retail Immortal body. An oversized faction body therefore wears a too-small standard shell. `verify.cjs` now asserts each scale so this cannot silently regress.
+
+**No faction variant of the barrier shell exists in Blizzard data.** The campaign faction Immortals (`ImmortalShakuras`, `ImmortalTaldarim`, `ImmortalAiur`) have no barrier ability at all — their actors carry no `Behavior.ImmortalBarrierBase` events — and no `SkinData` replacement anywhere touches `ImmortalShield`/`ImmortalOverload`. Restoring the body scale is the fit correction; do not go looking for a Nerazim barrier asset.
+
+### Swapped units carry their faction's full visual set (§115)
+
+Replacing only `<Model>` on a standard actor leaves the death model, warp-in effect, portrait, wireframes, and unit icon as the standard Protoss ones. Each swapped unit now links its faction set, sourced from the matching campaign actor (`ZealotAiur`, `ZealotShakuras`, `ImmortalShakuras`, `ZealotPurifier`, `StalkerPurifier`, `ImmortalTaldarim`, `ColossusTaldarim`) and, for the Tal'darim Zealot/Stalker which have no campaign actor, from the `TaldarimSkin` replacement table.
+
+Two deliberate omissions when porting those records: campaign `Lighting` ids (portrait lighting) and campaign-only `LowQualityModel` ids are dropped, because a link to an id absent from the melee catalog is a data-load hazard. Where the campaign itself reuses a standard visual — the Aiur Zealot death, the Nerazim Stalker's entire set, the Purifier Stalker warp-in — the standard one is kept on purpose.
+
 ## Why a roster unit renders as a gray sphere
 
 Three separate defects all produce the same gray placeholder sphere, and none of

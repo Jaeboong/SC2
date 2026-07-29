@@ -7,9 +7,46 @@
         <On Terms="Behavior.ShadowCharging.On" Send="ModelSuddenMotionStart" />
         <On Terms="Behavior.ShadowCharging.Off" Send="ModelSuddenMotionStop" />
         <UnitIcon value="Assets\Textures\btn-unit-protoss-zealot-nerazim.dds" />
+        <!-- §115: ZealotShakuras 원본 액터와 같은 링크. -->
+        <DeathArray index="Normal" ModelLink="SC2TeamZealotNerazimDeathModel" SoundLink="Zealot_DeathFX" />
+        <BuildModel value="SC2TeamZealotNerazimWarpInModel" />
+        <PortraitModel value="SC2TeamZealotNerazimPortraitModel" />
+        <PlacementModel value="SC2TeamZealotNerazimPlacementModel" />
+        <HeroIcon value="Assets\Textures\btn-unit-protoss-zealot-nerazim.dds" />
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-nerazim.dds" />
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-nerazim.dds" />
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-nerazim-shield01.dds" />
+            <Image value="Assets\Textures\wireframe-protoss-zealot-nerazim-shield02.dds" />
+            <Image value="Assets\Textures\wireframe-protoss-zealot-nerazim-shield03.dds" />
+        </WireframeShield>
     </CActorUnit>
     <CActorUnit id="Immortal">
         <Model value="SC2TeamImmortalNerazimModel" />
+        <!-- §115: ImmortalShakuras 원본 액터와 같은 링크.  보호막 껍데기
+             (ImmortalOverload = ImmortalShield.m3)는 부족 변형이 원본에 존재하지 않아
+             기본 것을 그대로 쓴다 — 대신 위 모델의 0.75 스케일 복원으로 몸-껍데기
+             크기 관계를 원본과 같게 맞췄다. -->
+        <DeathArray index="Normal" ModelLink="SC2TeamImmortalNerazimDeathModel" SoundLink="" />
+        <BuildModel value="SC2TeamImmortalNerazimWarpInModel" />
+        <PortraitModel value="SC2TeamImmortalNerazimPortraitModel" />
+        <PlacementModel value="SC2TeamImmortalNerazimPlacementModel" />
+        <UnitIcon value="Assets\Textures\BTN-Unit-Protoss-Immortal-Nerazim.dds" />
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-immortal-nerazim.dds" />
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-immortal-nerazim.dds" />
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Protoss-Immortal-Nerazim-Shield01.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Immortal-Nerazim-Shield02.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Immortal-Nerazim-Shield03.dds" />
+        </WireframeShield>
     </CActorUnit>
     <CActorModel id="VoidZealotShadowCharge" parent="ModelAnimationStyleContinuous">
         <On Terms="Behavior.ShadowCharging.On" Send="Create" />

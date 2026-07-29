@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "map": "maps\\generated\\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map",
+  "map": "map\\source\\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map",
   "expansion_gap_threshold": 15.0,
   "candidates": [
     {

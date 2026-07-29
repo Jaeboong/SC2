@@ -65,8 +65,8 @@ from sc2team_v2.runtime import build_v2_map
 APP_VERSION = "2.0.0"
 BASE_MAP_FILE = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 RUNTIME_MAP_FILE = (

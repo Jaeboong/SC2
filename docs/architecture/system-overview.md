@@ -1,4 +1,13 @@
-# System overview
+# System overview (V1 — 비활성)
+
+> **이 문서는 V1 런처(`start_custom_ai.cmd`)의 구조다. 현재 플레이에 쓰이지 않는다.**
+> 현재 시스템은 V3다 → [`../../v3/docs/architecture.md`](../../v3/docs/architecture.md)
+>
+> 아래에서 **살아 있는 부분**은 플레이어 매핑(Participant → 런타임 P1)과 맵 빌더 계층뿐이고,
+> V3도 그대로 쓴다 → [`../rules/map-layer.md`](../rules/map-layer.md)
+>
+> **죽은 부분:** Python 전략 컨트롤러, 비콘 커맨드 브릿지, MapScript AI 트리거.
+> 그 규율은 [`../history/v1-ai-rules.md`](../history/v1-ai-rules.md)에 보존돼 있다.
 
 ## Purpose
 
@@ -112,7 +121,7 @@ GUI SlotConfig
 The original cached map is `maps/source/europe-melee-2-original.SC2Map`. Historical builders produced the stable fixed-team base map:
 
 ```text
-maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
+map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
 ```
 
 The current launcher always derives a per-run map from that base. Runtime maps are generated artifacts, not editable sources.

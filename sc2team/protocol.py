@@ -47,6 +47,33 @@ class GamePlayerSetup:
     player_name: str = ""
 
 
+def _interface_options(*, command_card: bool = False) -> sc_pb.InterfaceOptions:
+    """이 런처가 참가할 때 요청하는 인터페이스 표면.
+
+    기본값은 raw 전용이다 — 모든 검증 프로브가 이 경로를 쓰므로 기본을 바꾸면
+    전부에 영향이 간다. `command_card=True`는 라이브 관측 브리지 전용 옵트인으로,
+    관측에 `ui_data`(선택 패널)와 `abilities`(명령카드에 실제로 떠 있는 버튼)를
+    채우기 위한 것이다. 이 둘은 spatial 인터페이스가 붙어 있어야만 채워진다.
+
+    해상도는 최소로 잡는다. 우리가 원하는 건 픽셀이 아니라 UI 페이로드이고,
+    feature layer 자체는 쓰지 않는다.
+    """
+
+    options = sc_pb.InterfaceOptions(
+        raw=True,
+        score=True,
+        show_cloaked=True,
+        show_burrowed_shadows=True,
+    )
+    if command_card:
+        options.feature_layer.width = 24
+        options.feature_layer.resolution.x = 32
+        options.feature_layer.resolution.y = 32
+        options.feature_layer.minimap_resolution.x = 32
+        options.feature_layer.minimap_resolution.y = 32
+    return options
+
+
 class Sc2Connection:
     def __init__(self, websocket: ClientConnection, api_port: int) -> None:
         self.websocket = websocket
@@ -208,14 +235,14 @@ class Sc2Connection:
         race: int,
         player_name: str,
         ports: MultiplayerPorts | None,
+        *,
+        command_card: bool = False,
     ) -> int:
-        options = sc_pb.InterfaceOptions(
-            raw=True,
-            score=True,
-            show_cloaked=True,
-            show_burrowed_shadows=True,
+        join = sc_pb.RequestJoinGame(
+            race=race,
+            options=_interface_options(command_card=command_card),
+            player_name=player_name,
         )
-        join = sc_pb.RequestJoinGame(race=race, options=options, player_name=player_name)
         if ports is not None:
             join.shared_port = ports.shared_port
             join.server_ports.game_port = ports.server.game_port
@@ -235,21 +262,19 @@ class Sc2Connection:
             )
         return response.player_id
 
-    async def join_as_observer(self, player_name: str = "Observer") -> int:
+    async def join_as_observer(
+        self, player_name: str = "Observer", *, command_card: bool = False
+    ) -> int:
         """§66 옵저버 참가: 게임에 플레이어가 아니라 관전자로 들어간다.
 
         RequestCreateGame의 player_setup에 Observer 항목이 있어야 하고,
         participation 필드로 race 대신 observed_player_id를 보낸다(0 = 전체
         관전). 응답 player_id는 관전자에게 배정된 ID다."""
 
-        options = sc_pb.InterfaceOptions(
-            raw=True,
-            score=True,
-            show_cloaked=True,
-            show_burrowed_shadows=True,
-        )
         join = sc_pb.RequestJoinGame(
-            observed_player_id=0, options=options, player_name=player_name
+            observed_player_id=0,
+            options=_interface_options(command_card=command_card),
+            player_name=player_name,
         )
         request = sc_pb.Request()
         request.join_game.CopyFrom(join)

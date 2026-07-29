@@ -10,3 +10,6 @@ tools/node_modules/
 .claude/
 vendor/
 *.lnk
+
+# 검증 실행이 남기는 임시 mod 산출물
+v3/ai/.*.SC2Mod

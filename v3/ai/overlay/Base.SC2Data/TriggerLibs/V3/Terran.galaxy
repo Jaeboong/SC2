@@ -1,0 +1,170 @@
+// Register a production-building target directly with the town stock engine.
+// The main town receives at most floor(total / 2); remaining targets exist
+// only after an expansion has reached the upstream Established state.
+void V3SetTerranTownProduction (int player, int total, string aliasType) {
+    int mainTown = AIGetMainTown(player);
+    int town = 0;
+    int established = 0;
+    int homeTarget = total / 2;
+    int remaining = total - homeTarget;
+    int each;
+    int extra;
+    int index = 0;
+    int desired;
+    int inTown;
+    int selectedTown = c_townInvalid;
+    int selectedCount = 9999;
+    int selectedDesired = 0;
+
+    while (town < c_townMax) {
+        if (town != mainTown && AIGetTownState(player, town) == c_townStateEstablished) {
+            established = established + 1;
+        }
+        town = town + 1;
+    }
+    if (established == 0) {
+        // There is no future-town reservation before an expansion exists,
+        // but the opening still needs one real producer in the main town.
+        // Keep this town-local so the normal target cannot race the later
+        // distributed StockEx request in the same pass.
+        AISetStockEx(player, mainTown, 1, aliasType, c_makeDefault, 0);
+        return;
+    }
+
+    each = remaining / established;
+    extra = remaining - (each * established);
+
+    // Keep one same-type request per stock pass: the native executor keeps
+    // only one active same-type request. Its count is the selected town's
+    // local target, matching the upstream StockEx contract.
+    if (AIGetTownState(player, mainTown) == c_townStateEstablished) {
+        inTown = AIGetBuildingCountInTown(player, mainTown, aliasType, c_techCountInProgressOrBetter);
+        if (inTown < homeTarget) {
+            selectedTown = mainTown;
+            selectedCount = inTown;
+            selectedDesired = homeTarget;
+        }
+    }
+    town = 0;
+    while (town < c_townMax) {
+        if (town != mainTown && AIGetTownState(player, town) == c_townStateEstablished) {
+            desired = each;
+            if (index < extra) {
+                desired = desired + 1;
+            }
+            inTown = AIGetBuildingCountInTown(player, town, aliasType, c_techCountInProgressOrBetter);
+            if (inTown < desired && inTown < selectedCount) {
+                selectedTown = town;
+                selectedCount = inTown;
+                selectedDesired = desired;
+            }
+            index = index + 1;
+        }
+        town = town + 1;
+    }
+    if (selectedTown != c_townInvalid) {
+        AISetStockEx(player, selectedTown, selectedDesired, aliasType, c_makeDefault, 0);
+    }
+}
+
+include "TriggerLibs/V3/ExpansionGas"
+
+// Keep the shared V3 economy policy at the upstream full-economy rung.  Each
+// Terran build calls this after its Base army tier so later stock cannot starve
+// the worker/refinery economy.
+void V3TerranDefaultEconomy (int player) {
+    AIDefaultEconomy(
+        player,
+        c_TB_CommandCenter_Alias,
+        c_TB_Refinery,
+        c_TB_SupplyDepot,
+        c_TU_SCV,
+        V3MiningWorkerCapacity(player),
+        c_stockAlways
+    );
+}
+
+// Clamp Orbital morph stock to the Command-Center family already present.
+// Expansion remains the only source of new town halls.
+void V3SetTerranOrbitalTarget (int player, int scheduled) {
+    int halls = AITechCount(player, c_TB_CommandCenter_Alias, c_techCountInProgressOrBetter);
+    if (scheduled > halls) {
+        scheduled = halls;
+    }
+    if (scheduled >= 1) {
+        AISetStock(player, scheduled, c_TB_OrbitalCommand);
+    }
+}
+
+include "TriggerLibs/V3/TerranBionic"
+include "TriggerLibs/V3/TerranMechanic"
+
+bool V3RunTerranBuild (int player, int phase) {
+    int build = AIGetUserInt(player, 142);
+    if (build != 101 && build != 102) {
+        return false;
+    }
+    // These campaign units are connected to real producer abilities by the
+    // map catalog. Register the same maker commands with Blizzard's stock
+    // requirement resolver once per AI player so AISetStock can train them.
+    if (AIGetUserInt(player, 143) == 0) {
+        AIReqAddSpecialMaker("SC2TeamMedic", c_TB_Barracks, "BarracksTrain", 19);
+        AIReqAddSpecialMaker("SC2TeamGoliath", c_TB_Factory, "FactoryTrain", 19);
+        AISetUserInt(player, 143, 1);
+    }
+    if (phase == 0 && AIGetTime() >= 300) {
+        AISetMainState(player, e_mainState_Mid, e_mainSubState_Build);
+        phase = 1;
+    }
+    if (phase == 1 && AIGetTime() >= 720) {
+        AISetMainState(player, e_mainState_Late, e_mainSubState_Build);
+        phase = 2;
+    }
+    // 업스트림 규칙: 각 단계의 개시자는 정확히 하나, 나머지는 minSelf=999 호위다
+    // (TerranOpenTimingMariSiegeVyHd = 해병 999 + 공성전차 1/2,
+    //  TerranMidPowerSiegeThorVyHd = 해병 999 + 토르 1/2).  minSelf 는 단독
+    //  개시선, minAlly 는 아군 교전 중 합류선이며, 어느 쪽이 발동하든 AIWaveMerge 가
+    //  c_waveMain 전체를 공격 웨이브로 옮긴다(유닛별 참가 명단이 아니다).
+    //  종전 보급 환산 다이얼은 주력 전 종류에 개시선을 줘서 메카닉이 토르 1기에
+    //  오프닝 전군 출격하는 상태였다.
+    if (build == 101) {
+        V3TerranBionicStock(player, phase);
+        // 사용자 지정: bio 의 핵심은 공성전차. 해병·불곰·메딕은 호위.
+        AISetAttackStatus(player, c_TU_Marine, 4, 999, c_continuousMerge);
+        AISetAttackStatus(player, c_TU_Marauder, 2, 999, c_continuousMerge);
+        AISetAttackStatus(player, "SC2TeamMedic", 2, 999, c_continuousMerge);
+        if (phase >= 2) {
+            AISetAttackStatus(player, c_TU_SiegeTank, 2, 8, c_continuousMerge);
+        }
+        else if (phase == 1) {
+            AISetAttackStatus(player, c_TU_SiegeTank, 2, 4, c_continuousMerge);
+        }
+        else {
+            AISetAttackStatus(player, c_TU_SiegeTank, 1, 2, c_continuousMerge);
+        }
+    }
+    else {
+        V3TerranMechanicStock(player, phase);
+        // 사용자 지정: mech 의 핵심은 공성전차 + 토르.  초·중반은 공성전차가
+        // 시계를 쥐고, 토르가 갖춰지는 후반에는 토르로 넘긴다.  골리앗·사이클론은
+        // 물량 호위라 개시 판단에서 뺀다.  토르가 아직 없으면 공성전차 개시선을
+        // 유지해 "개시자가 존재하지 않는 구간"이 생기지 않게 한다.
+        AISetAttackStatus(player, "SC2TeamGoliath", 2, 999, c_continuousMerge);
+        AISetAttackStatus(player, c_TU_Cyclone, 2, 999, c_continuousMerge);
+        if (phase >= 2 && AITechCount(player, c_TU_Thor, c_techCountCompleteOnly) >= 2) {
+            AISetAttackStatus(player, c_TU_SiegeTank, 2, 999, c_continuousMerge);
+            AISetAttackStatus(player, c_TU_Thor, 1, 4, c_continuousMerge);
+        }
+        else {
+            AISetAttackStatus(player, c_TU_Thor, 1, 999, c_continuousMerge);
+            AISetAttackStatus(player, c_TU_SiegeTank, 2, 4, c_continuousMerge);
+        }
+    }
+    V3BuildProactiveSupply(player, c_TB_SupplyDepot);
+    V3SetExpansionGasPolicy(player, c_TB_CommandCenter_Alias, c_TB_Refinery);
+    V3SetMiningWorkerStock(player, c_TU_SCV);
+    V3EnsureMiningExpansion(player, c_TB_CommandCenter_Alias, c_TB_CommandCenter, 400, 6);
+    AIEnableStock(player);
+    V3SetGasWorkerDistribution(player, c_TB_CommandCenter_Alias, c_TB_Refinery);
+    return true;
+}

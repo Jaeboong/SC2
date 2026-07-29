@@ -1,0 +1,186 @@
+//==================================================================================================
+// V3 Protoss gateway army policy
+//
+// Army targets rise through six interleaved priority tiers.  The deliberately
+// unreachable Full targets let the 800-supply ceiling, rather than this list,
+// stop production while keeping Zealots numerically ahead of Sentries.
+// The standard melee IDs deliberately allow the map's faction replacement and
+// default-Protoss fallback data to select the concrete faction variants.
+//==================================================================================================
+
+void V3ProtossMergeArchons (int player) {
+    unitgroup templars;
+    unit first;
+    unit partner;
+    order archonOrder;
+    unitgroup partnerGroup;
+    int idx;
+    int idleCount;
+    int reserve;
+    int mergeLimit;
+    int merged;
+
+    templars = UnitGroup(c_PU_HighTemplar, player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    idleCount = 0;
+    idx = UnitGroupCount(templars, c_unitCountAlive);
+    for (;; idx -= 1) {
+        first = UnitGroupUnitFromEnd(templars, idx);
+        if (first == null) { break; }
+        if (UnitOrderCount(first) == 0) { idleCount += 1; }
+    }
+    reserve = 4;
+    mergeLimit = (idleCount - reserve) / 2;
+    if (mergeLimit > 2) { mergeLimit = 2; }
+    if (mergeLimit <= 0) { return; }
+
+    archonOrder = AICreateOrder(player, c_AB_ArchonWarp, 1);
+    merged = 0;
+    idx = UnitGroupCount(templars, c_unitCountAlive);
+    for (;; idx -= 1) {
+        first = UnitGroupUnitFromEnd(templars, idx);
+        if (first == null || merged >= mergeLimit) { break; }
+        if (UnitOrderCount(first) != 0) { continue; }
+        partnerGroup = UnitGroupSearch(c_PU_HighTemplar, player, UnitGetPosition(first), 5.0, UnitFilter((1 << c_targetFilterSelf), 0, 0, 0), c_noMaxCount);
+        partner = OrderGetTargetUnit( AIUnitGroupGetValidOrder(partnerGroup, archonOrder, first, c_forwards) );
+        if (partner == null) { continue; }
+        if (UnitOrderCount(partner) != 0) { continue; }
+        UnitIssueOrder(first,   OrderTargetingUnit(AbilityCommand(c_AB_ArchonWarp, 1), partner), c_orderQueueAddToEnd);
+        UnitIssueOrder(partner, OrderTargetingUnit(AbilityCommand(c_AB_ArchonWarp, 1), first),   c_orderQueueAddToEnd);
+        AISetUnitScriptControlled(first, false);
+        AISetUnitScriptControlled(partner, false);
+        merged += 1;
+    }
+}
+
+void V3ProtossGatewayMinimum (int player) {
+    AISetStockUnitNext(player, 2, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewayBase (int player) {
+    AISetStockUnitNext(player, 4, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewaySmall (int player) {
+    AISetStockUnitNext(player, 8, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 4, c_PU_Sentry, c_stockAlways);
+}
+
+void V3ProtossGatewayMedium (int player) {
+    AISetStockUnitNext(player, 12, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 2, c_PU_HighTemplar, c_stockAlways);
+}
+
+void V3ProtossGatewayLarge (int player) {
+    AISetStockUnitNext(player, 24, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 10, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 4, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 6, c_PU_HighTemplar, c_stockAlways);
+}
+
+void V3ProtossGatewayFull (int player) {
+    AISetStockUnitNext(player, 12, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 40, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 14, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 16, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 20, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 70, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 22, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 26, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 110, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 32, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 40, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 50, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 164, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 50, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 60, c_PU_HighTemplar, c_stockAlways);
+    AISetStockUnitNext(player, 70, c_PU_Archon, c_stockAlways);
+    AISetStockUnitNext(player, 240, c_PU_Zealot, c_stockAlways);
+    AISetStockUnitNext(player, 70, c_PU_Sentry, c_stockAlways);
+    AISetStockUnitNext(player, 94, c_PU_HighTemplar, c_stockAlways);
+}
+
+void V3ProtossGatewayStock (int player, int phase) {
+    int gatewayTarget;
+    int openingArmy;
+
+    openingArmy =
+        AITechCount(player, c_PU_Zealot, c_techCountInProgressOrBetter) +
+        AITechCount(player, c_PU_Sentry, c_techCountInProgressOrBetter);
+    if (phase > 0 && openingArmy < 10) {
+        phase = 0;
+    }
+    if (phase <= 0) {
+        gatewayTarget = 4;
+    }
+    else if (phase == 1) {
+        gatewayTarget = 8;
+    }
+    else {
+        gatewayTarget = 16;
+    }
+
+    AIClearStock(player);
+    AISetTechLimitLevels(player);
+
+    // Recovery minimums precede every discretionary army or technology rung.
+    AISetStock(player, 1, c_PB_Nexus);
+    AISetStock(player, V3WorkerTarget(player, 1), c_PU_Probe);
+    AISetStock(player, 1, c_PB_Pylon);
+    AISetStockPeons(player, V3WorkerTarget(player, 12), c_PU_Probe, c_stockMinPeons, c_stockAlways);
+    AISetStockFarms(player, c_PB_Pylon, c_stockNormalFarms);
+
+    if (AIGetUserInt(player, 144) == 0) {
+        if (AITechCount(player, c_PB_Nexus, c_techCountQueuedOrBetter) >= 2) {
+            AISetUserInt(player, 144, 1);
+        }
+        else {
+            if (!AIIsExpandingOrHasExpanded(player) &&
+                AIHasNearbyOpenExpansion(player) &&
+                AIHasRes(player, 400, 0)) {
+                AIExpand(player, AIGetTownLocation(player, c_townMain), c_PB_Nexus);
+            }
+            AIDefaultEconomy(player, c_PB_Nexus, c_PB_Assimilator, c_PB_Pylon, c_PU_Probe, 70, c_stockAlways);
+            V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
+            V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
+            return;
+        }
+    }
+
+    V3ProtossGatewayMinimum(player);
+    AISetStockPeons(player, V3WorkerTarget(player, 24), c_PU_Probe, c_stockMinPeons, c_stockAlways);
+    V3ProtossGatewayBase(player);
+    AIDefaultEconomy(player, c_PB_Nexus, c_PB_Assimilator, c_PB_Pylon, c_PU_Probe, 70, c_stockAlways);
+    V3ProtossGatewaySmall(player);
+
+    AISetStockUnitNext(player, 1, c_PB_Gateway, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_CyberneticsCore, c_stockAlways);
+    // 2026-07-27 회귀 수정.  사용자 실측: 2v2(빈 확장이 많은 배치)에서 극초반에
+    // 4확장까지 갔는데 그 뒤로 관문이 1개에서 늘지 않았고, 확장 여유가 적은
+    // 4v4 에서는 정상이었다.  원인은 관문 목표가 (a) 파워 게이트에 걸린 타운
+    // 등록과 (b) Large 군대 티어 **뒤**의 단일 룽에만 걸려 있었던 것이다.
+    // 업스트림처럼 전역 목표를 군대 티어 사이에 계단식으로 깐다.
+    V3ProtossProductionRung(player, 2, gatewayTarget, c_PB_Gateway);
+    AISetStockUnitNext(player, 1, c_PB_TwilightCouncil, c_stockAlways);
+    AISetStockUnitNext(player, 1, c_PB_TemplarArchives, c_stockAlways);
+    V3EnsureProtossExpansionPower(player);
+    V3SetProtossTownProduction(player, gatewayTarget, c_PB_Gateway);
+
+    V3ProtossGatewayMedium(player);
+    V3ProtossProductionRung(player, 4, gatewayTarget, c_PB_Gateway);
+    V3ProtossUpgradeStock(player, 201);
+    V3ProtossGatewayLarge(player);
+    V3ProtossProductionRung(player, 8, gatewayTarget, c_PB_Gateway);
+
+    // V3 has no separate Protoss defense stock call; preserve that policy.
+    AISetStockUnitNext(player, gatewayTarget, c_PB_Gateway, c_stockIdle);
+    V3ProtossGatewayFull(player);
+
+    V3SetExpansionGasPolicy(player, c_PB_Nexus, c_PB_Assimilator);
+    V3EnsureMiningExpansion(player, c_PB_Nexus, c_PB_Nexus, 400, 6);
+    V3ProtossMergeArchons(player);
+}

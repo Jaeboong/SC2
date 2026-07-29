@@ -54,6 +54,21 @@ function makeStockTargets(activeSlots) {
   return { version: 1, slots };
 }
 
+function assertMapInfoCapacity(source, activeSlots) {
+  const archive = Archive.open(source);
+  try {
+    const playerSlots = parseMapInfoPlayers(archive.readFile("MapInfo"))
+      .filter((player) => player.id >= 1 && player.id <= 14);
+    if (playerSlots.length < activeSlots.length) {
+      fail(
+        `MapInfo has ${playerSlots.length} player slots but the configuration needs ${activeSlots.length}`
+      );
+    }
+  } finally {
+    archive.close();
+  }
+}
+
 function main() {
   const [sourceArg, outputArg, configArg] = process.argv.slice(2);
   if (!sourceArg || !outputArg || !configArg) {
@@ -87,6 +102,7 @@ function main() {
     }
     activeSlots[0] = { ...human, controller: "custom_ai" };
   }
+  assertMapInfoCapacity(source, activeSlots);
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "sc2-custom-runtime-"));
   const staged = path.join(tempDir, "map.SC2Map");

@@ -54,12 +54,32 @@ npm install --prefix .\tools
 
 ## 맵 빌드
 
+> **맵은 루트 `map/` 아래 두 곳으로 나뉜다.**
+>
+> | | |
+> | --- | --- |
+> | `map/source/` | 런처가 고를 수 있는 플레이용 맵. 새 맵은 여기 넣는다. |
+> | `map/img/<맵이름>/` | `tools/make_map_previews.py` 가 만드는 미니맵 프리뷰 PNG. 맵마다 디렉터리 하나. |
+>
+> 중간 산출물을 `map/source/` 에 쓰지 않는다 — 그 디렉터리는 런처 맵 목록이다.
+> 아래 파이프라인을 다시 돌릴 때는 `runtime/maps/` 같은 작업 경로를 출력으로 쓰고,
+> 완성본만 `map/source/` 로 옮긴다.
+>
+> 원본·중간 산출물·후보 맵은 작업 트리에서 제거했다. 다시 필요하면 옛 경로 그대로
+> git 히스토리에서 꺼낸다:
+>
+> ```powershell
+> git checkout cbd61c0 -- maps/source/europe-melee-2-original.SC2Map
+> ```
+>
+> PowerShell 의 `>` 리다이렉트는 바이너리를 깨뜨리므로 `git show` 대신 `git checkout` 을 쓴다.
+
 확보한 정확한 원본으로 다음과 같이 다시 빌드할 수 있다.
 
 ```powershell
 node .\tools\build_team_map.cjs `
   .\maps\source\europe-melee-2-original.SC2Map `
-  .\maps\generated\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
+  .\map\source\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
 ```
 
 빌더는 시작 지점 후보가 14개 이상인지 검사한다. 정확한 원본에는 14개 플레이어 슬롯과 20개 시작 지점 후보가 있으며, 이를 모두 그대로 둔 채 가장 서쪽의 7곳과 가장 동쪽의 7곳을 실제 플레이 위치로 사용한다. 중앙의 나머지 6곳에는 플레이어를 강제 배치하지 않는다. 원본의 벙커·관문 데이터 변경도 제거하여 일반 섬멸전 기본값으로 되돌리고, 세 일꾼의 보급 비용 0만 유지한다.
@@ -70,28 +90,64 @@ node .\tools\build_team_map.cjs `
 
 ```powershell
 node .\tools\expand_to_7v7.cjs `
-  .\maps\generated\europe-melee-2-4v4-rich-50000-melee.SC2Map `
-  .\maps\generated\europe-melee-2-7v7-rich-50000.SC2Map
+  .\runtime\maps\europe-melee-2-4v4-rich-50000-melee.SC2Map `
+  .\runtime\maps\europe-melee-2-7v7-rich-50000.SC2Map
 
 node .\tools\fix_player_starts.cjs `
-  .\maps\generated\europe-melee-2-7v7-rich-50000.SC2Map `
-  .\maps\generated\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
+  .\runtime\maps\europe-melee-2-7v7-rich-50000.SC2Map `
+  .\map\source\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
 ```
 
-에디터에서 열고 Battle.net에 게시할 파일은 `maps/generated/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map`이다.
+에디터에서 열고 Battle.net에 게시할 파일은 `map/source/europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map`이다.
+
+## 맵 추가 — 넣고 런처를 켜면 끝
+
+`map/source/` 에 `.SC2Map` 을 넣고 런처를 켜면 **시작할 때 알아서 동기화한다.**
+
+| 상황 | 런처가 하는 일 |
+| --- | --- |
+| 준비 안 된 새 맵 | 준비하고 프리뷰까지 만든다 |
+| 프리뷰만 없는 맵 | 프리뷰를 만든다 |
+| 사라진 맵 | 남은 `map/img/<맵이름>/` 을 지운다. 그 맵을 고르고 있었으면 기본 맵으로 돌아간다 |
+| 준비할 수 없는 맵 | 손대지 않는다. 목록에는 남고 시작만 막힌다 |
+
+무엇을 했는지는 상태 줄에 남는다 —
+`맵 동기화 완료 — 준비 1 (asia), 프리뷰 1, 정리 1, 준비 불가 0`.
+
+> **준비는 원본 `.SC2Map` 을 덮어쓴다.** 시작 지점을 고정하고 로비 Attributes 와 팀 동맹을
+> 넣으며, **모든 광물·가스를 rich 50000 으로 바꾼다.** 원본을 남기고 싶으면 다른 곳에
+> 복사해 두고 넣어라.
+
+프리뷰는 `map/img/<맵이름>/` 에 맵마다 디렉터리 하나로 들어간다 — `terrain.png` (마커 없음)
+와 팀 모드별 `2team.png`·`3team.png`·`4team.png`. 각 시작 지점에 `P1`, `P2` … 라벨을 팀
+색상으로 찍고, 맵이 받아주는 팀 수까지만 만든다 (2인 맵이면 2팀까지). 런처 오른쪽 패널이
+이 PNG 를 그대로 띄운다.
+
+손으로 돌리고 싶으면:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\make_map_previews.py          # 없는 것만
+.\.venv\Scripts\python.exe .\tools\make_map_previews.py --force  # 다시 만들기
+```
+
+맵이 무엇을 받아줄 수 있는지만 보려면:
+
+```powershell
+node .\tools\map_capabilities.cjs .\map\source
+```
 
 게시 전에 맵 내부의 섬멸전 범주, 14개 팀 슬롯, 순간이동 코드 제거 상태를 빠르게 확인할 수 있다.
 
 ```powershell
 node .\tools\verify_team_archive.cjs `
-  .\maps\generated\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
+  .\map\source\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
 ```
 
 ## 엔진 검증
 
 ```powershell
 .\.venv\Scripts\python.exe -u .\verification\verify_team_map.py `
-  .\maps\generated\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
+  .\map\source\europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map
 ```
 
 검증기는 SC2를 로컬에서 열어 사람 Participant 1명과 내장 AI 13명을 넣은 뒤 다음을 검사한다.

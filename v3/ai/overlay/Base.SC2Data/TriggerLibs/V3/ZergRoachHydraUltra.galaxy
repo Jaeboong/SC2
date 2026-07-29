@@ -1,0 +1,630 @@
+//==================================================================================================
+//  V3 Zerg ground policy: Roach / Hydralisk / Ultralisk
+//
+//  Core army supply pacing checkpoints culminate in unreachable final increments (no army cap).
+//  Ultralisk tech begins on the phase-1 continuous track; phase 2 retains its late-game steps.
+//
+//  Before phase 2 the 45:40 Roach/Hydralisk weights are normalized over the two available units.
+//  Phase 2 is the first phase with the full Ultralisk stock and upgrade sequence.
+//  Overlords are supply providers and Queens are production support; neither is part of the core
+//  army-supply target above. No air combat unit is stocked by this policy.
+//==================================================================================================
+
+fixed[16] gv_v3CavernGraceUntil;
+fixed[16] gv_v3CavernDroneDeadline;
+
+// UltraliskCavern만 멜리 AI가 Stock·AIBuild 둘 다 무시하는 게 측정됐다(18분 12슬롯
+// ling/bane 미러: Hive 도달 10/12, 케이븐/울트라 0/12).  구조물이라 모프 대상이 아니라서
+// "실패 시에만" 개입하는 폴백을 둔다: Hive가 완성됐는데도 유예(90s — 사용자 관측 '보통
+// 하이브 후 2분 내 생김')가 지나도록 케이븐이 착공(InProgressOrBetter)조차 0이면, 그때만
+// 유휴가 아닌 드론 하나에 직접 ZergBuild 7(=UltraliskCavern; 벤더 Build8 실측, N-1=7)을
+// 발주한다.  멜리 AI(또는 기존 AIBuild)가 스스로 지으면 케이븐 count>0이 되어 이 블록엔
+// 아예 들어오지 않는다.  주문/배치는 야생저그 하태리 재건과 동일 형식
+// (AIGetBuildingPlacement + OrderTargetingPoint) — 오버레이 네이티브로 검증된 경로다.
+void V3EnsureUltraliskCavernDrone (int player) {
+    point townPoint;
+    point buildPoint;
+    order buildOrder;
+    unitgroup drones;
+    unit drone;
+    unit chosen;
+    int index;
+
+    // Hive 없으면 대상 아님(유예 초기화).
+    if (AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) < 1) {
+        gv_v3CavernGraceUntil[player] = 0.0;
+        return;
+    }
+    // 이미 착공/완성 → 정상 경로가 해냈다. 개입하지 않는다.
+    if (AITechCount(player, c_ZB_UltraliskCavern, c_techCountInProgressOrBetter) >= 1) {
+        return;
+    }
+    // 실패 판정용 유예 시작(Hive 완성 + 케이븐 0을 처음 본 시점 + 90s).
+    if (gv_v3CavernGraceUntil[player] == 0.0) {
+        gv_v3CavernGraceUntil[player] = AIGetTime() + 90.0;
+    }
+    if (AIGetTime() < gv_v3CavernGraceUntil[player]) {
+        return;
+    }
+    // 드론이 건설지로 걸어가는 동안 매 틱 재발주하지 않도록 스로틀.
+    if (AIGetTime() < gv_v3CavernDroneDeadline[player]) {
+        return;
+    }
+    if (!AIHasRes(player, 150, 200)) {
+        return;
+    }
+
+    townPoint = AIGetTownLocation(player, AIGetMainTown(player));
+    buildPoint = AIGetBuildingPlacement(
+        player,
+        townPoint,
+        c_ZB_UltraliskCavern,
+        c_makeCenter | c_ignoreDanger
+    );
+    if (buildPoint == null || DistanceBetweenPoints(buildPoint, townPoint) > 18.0) {
+        return;
+    }
+    buildOrder = OrderTargetingPoint(AbilityCommand("ZergBuild", 7), buildPoint);
+
+    // 유휴 드론은 저그에서 드물다.  주문 유효성만 보고 채굴 드론 하나를 뽑아
+    // 건설로 돌린다(드론은 건설 착수 시 구조물로 소모됨 = 정상 비용).
+    drones = UnitGroup("Drone", player, RegionCircle(townPoint, 30.0), UnitFilter(0, 0, 0, 0), 0);
+    chosen = c_nullUnit;
+    index = UnitGroupCount(drones, c_unitCountAlive);
+    for (;; index -= 1) {
+        drone = UnitGroupUnitFromEnd(drones, index);
+        if (drone == c_nullUnit) {
+            break;
+        }
+        if (UnitOrderIsValid(drone, buildOrder)) {
+            chosen = drone;
+            break;
+        }
+    }
+    if (chosen == c_nullUnit) {
+        return;
+    }
+    UnitIssueOrder(chosen, buildOrder, c_orderQueueReplace);
+    gv_v3CavernDroneDeadline[player] = AIGetTime() + 45.0;
+}
+
+// 바퀴 일부를 궤멸충(Ravager)으로 직접 모프한다.  업스트림은 AISetStock으로 하지만
+// 이 빌드(울트라 병행)에선 그 방식이 0~4마리만 나와(실측 24분 12슬롯 미러), 사용자
+// 지시로 맹독충과 동일한 직접 모프를 쓴다.  RoachWarren 완성 + 바퀴 12기+ 일 때 본진
+// 반경 바퀴만 틱당 3기 모프해 바퀴/궤멸충 혼합·바퀴 풀을 유지한다(전량 전환·전선 바퀴
+// 징발 방지).  유휴 조건은 출격이 시작되면 모프 대상을 없애므로 위치 기준을 쓴다.
+// MorphToRavager는 CAbilMorph, Execute=0(MorphToBaneling·UpgradeToHive와
+// 동일 구조; 맹독충 모프로 이미 검증됨).  궤멸충은 RoachWarren 필요.
+void V3RoachMorphRavagers (int player) {
+    unitgroup roaches;
+    unit roach;
+    order ravagerOrder;
+    int index;
+    int roachCount;
+    int ravagerCount;
+    int issued;
+    point townPoint;
+
+    townPoint = AIGetTownLocation(player, AIGetMainTown(player));
+    if (townPoint == null) {
+        return;
+    }
+    if (AITechCount(player, c_ZB_RoachWarren, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    roachCount = AITechCount(player, c_ZU_Roach, c_techCountCompleteOnly);
+    ravagerCount = AITechCount(player, c_ZU_Ravager, c_techCountQueuedOrBetter);
+    if (roachCount >= 12 && ravagerCount * 2 < roachCount) {
+        ravagerOrder = Order(AbilityCommand("MorphToRavager", 0));
+        roaches = UnitGroup("Roach", player, RegionCircle(townPoint, 25.0), UnitFilter(0, 0, 0, 0), 0);
+        issued = 0;
+        index = UnitGroupCount(roaches, c_unitCountAlive);
+        for (;; index -= 1) {
+            roach = UnitGroupUnitFromEnd(roaches, index);
+            if (roach == c_nullUnit || issued >= 3) {
+                break;
+            }
+            if (UnitOrderIsValid(roach, ravagerOrder)) {
+                AIRemoveUnitFromAnyWaves(roach);
+                UnitIssueOrder(roach, ravagerOrder, c_orderQueueReplace);
+                issued += 1;
+            }
+        }
+    }
+}
+
+fixed[16] gv_v3RoachHydraArmyBatchDue;
+
+// === 업스트림 병력 생산 모델 (AIAddToStockArmy) ===
+//
+// 업스트림은 병력을 AISetStockUnitNext 사다리로 쌓지 않는다.  "다음 공격 한 번
+// 분량의 조합"을 주기마다 army stock 에 얹고, 그것이 모이면 출격한다.  API 사용량이
+// 그 차이를 그대로 보여준다:
+//
+//                        우리(이전)   업스트림
+//   AISetStock              70         13195
+//   AISetStockUnitNext     302          1696
+//   AIAddToStockArmy         0          2630     <- 병력용 API.  우리는 안 썼다.
+//
+// 기계는 MeleeLowAI.galaxy 에 이미 있다(고정 54파일).  우리가 ZergOpen/Mid/Late 에서
+// 조기 반환해 난이도별 빌드로 안 내려가는 바람에 잠들어 있었을 뿐이다.  동작:
+//
+//   AIAddToStockArmy(player, type, n)   -> UserString/UserInt 슬롯 1..32 에 누적
+//   AISetStockArmyScale(player, scale)  -> 그 슬롯들을 읽어 AISetStock 으로 materialize
+//
+// 배치가 **UserInt 슬롯에 살아 있으므로** 스톡 함수 맨 위의 AIClearStock(매 틱)에
+// 지워지지 않는다.  매 틱 AISetStockArmyScale 이 사다리의 원하는 위치에 다시 깔아준다.
+// 슬롯 1..32 는 우리가 쓰는 142~148 과 겹치지 않는다.
+//
+// **업스트림과 의도적으로 다른 점 하나** — 업스트림은 주기마다 AIClearStockArmy 로
+// 초기화한다.  AISetStock 은 절대 목표라서 초기화하면 병력이 한 배치 크기에서
+// 정체하고(교전 손실만큼만 재생산), 그건 이 프로젝트의 상시 규칙 "커스텀 AI 슬롯에
+// 병력 상한 없음"과 충돌한다.  그래서 **초기화하지 않고 누적**한다 — 조합은 업스트림
+// 배치 방식, 총량은 계속 증가.  이전 6티어 사다리의 역할을 시간이 대신하는 셈이다.
+void V3RoachHydraArmyBatch (int player, int phase) {
+    // 업스트림은 MeleeLowAI.galaxy:24 에서 이 전역 스케일을 세팅하는데, 그 경로는
+    // 난이도별 빌드 안이라 V3 가 조기 반환으로 우회한다.  세팅이 없으면
+    // AIAddToStockArmy("Scale & Override logic") 의 증분이 0 으로 접혀 병력이
+    // 전혀 안 나온다(6분 스모크 실측: 로치·히드라·궤멸충 전부 0).  매번 불러도
+    // 안전하다 — 네이티브 주석에 "doesn t change current army" 로 명시돼 있다.
+    AISetStockArmyDefaultScale(player, c_ldArmyStockScale);
+
+    if (AIGetTime() < gv_v3RoachHydraArmyBatchDue[player]) {
+        return;
+    }
+    // 첫 호출은 즉시 한 배치를 얹는다(0.0 초기값).
+    gv_v3RoachHydraArmyBatchDue[player] = AIGetTime() + 60.0;
+
+    if (phase == 0) {
+        AIAddToStockArmy(player, c_ZU_Roach, 3);
+        AIAddToStockArmy(player, c_ZU_Queen, 1);
+        return;
+    }
+    if (phase == 1) {
+        AIAddToStockArmy(player, c_ZU_Roach, 4);
+        AIAddToStockArmy(player, c_ZU_Hydralisk, 2);
+        AIAddToStockArmy(player, c_ZU_Ravager, 1);
+        AIAddToStockArmy(player, "SC2TeamAberration", 1);
+        AIAddToStockArmy(player, c_ZU_Queen, 1);
+        return;
+    }
+    // 후반: 울트라리스크가 배치에 들어간다.  케이븐이 없으면 AISetStock 이 그냥
+    // 대기하므로 게이트를 따로 두지 않는다(업스트림도 같은 방식).
+    AIAddToStockArmy(player, c_ZU_Roach, 5);
+    AIAddToStockArmy(player, c_ZU_Hydralisk, 3);
+    AIAddToStockArmy(player, c_ZU_Ravager, 2);
+    AIAddToStockArmy(player, "SC2TeamAberration", 2);
+    AIAddToStockArmy(player, c_ZU_Ultralisk, 1);
+    AIAddToStockArmy(player, c_ZU_Queen, 1);
+}
+
+// 아래 6티어 사다리는 **호출하지 않는다.**  위 배치 모델로 대체됐다.  죽은 코드가
+// 아니라 복구 경로다(조합 비율과 aberrationBoost 실측 근거를 보존하는 유일한 곳).
+// 지우려면 먼저 커밋할 것 — 현재 전부 미커밋이다.
+void V3RoachHydraUltraArmyTier (int player, int tier) {
+    // 변종(SC2TeamAberration, 200/75, 인구 3, 감염 구덩이만 요구)은 이 빌드의 중반
+    // 중장갑 축이다. 울트라리스크(300/200, 인구 6)는 Hive + 케이븐까지 필요해 실측상
+    // 후반에야 나오므로 그 공백을 메운다. 후반에는 울트라리스크를 당장 살 수 없는
+    // 순간에만 목표치를 올려 같은 라바를 더 싼 중장갑으로 돌린다.
+    //
+    // 실측 참고: 변종 스톡을 빼면 울트라 11.2 -> 4.0, 히드라 9.4 -> 17.0, 병력보급
+    // 135.5 -> 118.4로 조합이 크게 흔들린다. 이 스톡은 조합의 축이지 장식이 아니다.
+    //
+    // `aberrationBoost`는 rich 맵에서 거의 걸리지 않는다(실측: 후반 변종이 오히려
+    // 감소). 자원이 아니라 테크 기준으로 바꿔야 실효가 있다 — 미해결.
+    int aberrationBoost = 0;
+
+    if (!AIHasRes(player, 300, 200)) {
+        aberrationBoost = 12;
+    }
+
+    if (tier == e_armyTypeMinimum) {
+        AISetStockUnitNext(player, 3, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 1, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeBase) {
+        AISetStockUnitNext(player, 4, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 2, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 6, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 2, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeSmall) {
+        AISetStockUnitNext(player, 2, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 3 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 8, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 4, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 12, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 3, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeMedium) {
+        AISetStockUnitNext(player, 4, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 6 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 14, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 7, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 20, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 4, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeLarge) {
+        AISetStockUnitNext(player, 8, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 10 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 24, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 12, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 32, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 5, c_ZU_Queen, c_stockAlways);
+        return;
+    }
+    if (tier == e_armyTypeFull) {
+        // Keep every unbounded step expensive-to-cheap so its small high-tech
+        // milestones complete before the cheap Roach volume absorbs the remainder.
+        AISetStockUnitNext(player, 14, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 16 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 45, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 20, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 60, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 6, c_ZU_Queen, c_stockAlways);
+        AISetStockUnitNext(player, 20, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 24 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 75, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 35, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 100, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 30, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 36 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 120, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 55, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 160, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 45, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 52 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 180, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 85, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 240, c_ZU_Roach, c_stockAlways);
+        AISetStockUnitNext(player, 60, c_ZU_Ultralisk, c_stockAlways);
+        AISetStockUnitNext(player, 70 + aberrationBoost, "SC2TeamAberration", c_stockAlways);
+        AISetStockUnitNext(player, 380, c_ZU_Hydralisk, c_stockAlways);
+        AISetStockUnitNext(player, 160, c_ZU_Ravager, c_stockAlways);
+        AISetStockUnitNext(player, 470, c_ZU_Roach, c_stockAlways);
+    }
+}
+
+void V3RoachHydraUltraUpgrades (int player) {
+    int evoCount = 1;
+    int roachHydraCount;
+
+    if (AIHighCurrentlyUnderHeavyAttack(player)) {
+        return;
+    }
+
+    // 근접 공격업 게이트에 변종을 포함한다.  울트라리스크 단독 3기 조건이었는데,
+    // 변종 잠복 변신 결함을 고친 뒤로 진짜 울트라는 15분에야 1.5기라 이 게이트가
+    // 사실상 열리지 않는다.  이 빌드의 중반 근접 기갑 축은 사용자 설계상 변종이므로
+    // (울트라를 대신하는 것이 변종의 도입 목적) 둘을 합산하는 것이 맞다.
+    if (AITechCount(player, c_ZU_Ultralisk, c_techCountInProgressOrBetter) +
+        AITechCount(player, "SC2TeamAberration", c_techCountInProgressOrBetter) >= 3) {
+        AINewTechStock(player);
+        AITechStockAdd(c_ZR_MeleeAttacks1);
+        AITechStockAdd(c_ZR_MeleeAttacks2);
+        AITechStockAdd(c_ZR_MeleeAttacks3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        evoCount += 1;
+    }
+
+    roachHydraCount = AITechCount(player, c_ZU_Roach, c_techCountInProgressOrBetter) +
+                      AITechCount(player, c_ZU_Hydralisk, c_techCountInProgressOrBetter);
+    if (roachHydraCount >= 10) {
+        AINewTechStock(player);
+        AITechStockAdd(c_ZR_MissileAttacks1);
+        AITechStockAdd(c_ZR_MissileAttacks2);
+        AITechStockAdd(c_ZR_MissileAttacks3);
+        AISetStockTechNextUnCap(player, 1000, 1000);
+        evoCount += 1;
+    }
+
+    AINewTechStock(player);
+    AITechStockAdd(c_ZR_GroundCarapace1);
+    AITechStockAdd(c_ZR_GroundCarapace2);
+    AITechStockAdd(c_ZR_GroundCarapace3);
+    AISetStockTechNextUnCap(player, 1000, 1000);
+    AISetStockUnitNext(player, evoCount, c_ZB_EvolutionChamber, c_stockAlways);
+
+    if (AITechCount(player, c_ZU_Roach, c_techCountInProgressOrBetter) >= 8) {
+        AISetStock(player, 1, c_ZR_RoachSpeed);
+    }
+    if (AITechCount(player, c_ZU_Hydralisk, c_techCountInProgressOrBetter) >= 8) {
+        AISetStock(player, 1, c_ZR_HydraliskRange);
+        AISetStock(player, 1, c_ZR_HydraliskSpeed);
+    }
+    // 울트라 방업(키틴질 도금)은 케이븐이 완성되면 바로 건다.  울트라 4기 조건
+    // 이었는데 변신 결함 수정 뒤 울트라는 15분에 1.5기라 게이트가 열리지 않았다.
+    // 연구는 케이븐에서 하고 케이븐이 곧 울트라 생산 시작점이므로, 유닛 수가 아니라
+    // 건물 완성이 옳은 조건이다.
+    if (AITechCount(player, c_ZB_UltraliskCavern, c_techCountCompleteOnly) >= 1) {
+        AISetStock(player, 1, c_ZR_UltraliskArmor);
+    }
+}
+
+// 유휴 라바에 모프 주문을 상한까지 발행하고 실제 발행 수를 돌려준다.
+int V3RoachHydraMorphOne (unitgroup larvae, order morphOrder, int limit) {
+    unit larva;
+    int index;
+    int issued;
+
+    if (limit <= 0) {
+        return 0;
+    }
+    issued = 0;
+    index = UnitGroupCount(larvae, c_unitCountAlive);
+    for (;; index -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, index);
+        if (larva == null || issued >= limit) {
+            break;
+        }
+        if (UnitOrderCount(larva) != 0) {
+            continue;
+        }
+        if (UnitOrderIsValid(larva, morphOrder)) {
+            UnitIssueOrder(larva, morphOrder, c_orderQueueAddToEnd);
+            issued += 1;
+        }
+    }
+    return issued;
+}
+
+// 이 빌드에서 직접 라바 주문을 가진 유닛은 울트라리스크 하나뿐이었다.  18분 12슬롯
+// 미러 실측에서 그 비대칭이 그대로 드러났다: 스톡 목표 45인 히드라가 슬롯당 7.7기
+// (목표의 17%)인 반면, 목표 14인 울트라리스크는 16.5기(118%)였고, 스톡 전용인 변종은
+// 1.0기에 그쳤다.  스톡 단독이 직접 주문에 밀린다는 §63/§71/§87의 결론이 이 빌드에서
+// 다시 나온 수치다.  그래서 히드라와 변종에도 직접 경로를 준다.
+//
+// 라바는 유한하므로 전체 맵 스캔은 한 번만 하고 공용 예산을 유닛별 상한으로 나눈다
+// (틱마다 세 번 스캔하면 트리거 연산 예산이 위험하다).  발행 순서가 곧 우선순위다.
+//
+// LarvaTrain 인덱스: 울트라 6(Train7), 히드라 3(Train4 — 302에서 사용 중), 변종
+// 27(Train28 — roster/AbilData.xml).  잘못된 인덱스는 에러가 아니라 조용한 오작동이므로
+// 벤더 InfoArray에서 재유도하지 않고 고치지 말 것.
+void V3RoachHydraDirectMorph (int player) {
+    unitgroup larvae;
+    unit larva;
+    order morphOrder;
+    int index;
+    int idleLarvaCount;
+    int budget;
+    int limit;
+
+    larvae = UnitGroup("Larva", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    idleLarvaCount = 0;
+    index = UnitGroupCount(larvae, c_unitCountAlive);
+    for (;; index -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, index);
+        if (larva == null) {
+            break;
+        }
+        if (UnitOrderCount(larva) == 0) {
+            idleLarvaCount += 1;
+        }
+    }
+    // 멜리 AI가 드론·대군주를 뽑을 라바 3기는 남긴다(§87 규칙).
+    budget = idleLarvaCount - 3;
+    if (budget <= 0) {
+        return;
+    }
+
+    // 울트라리스크 먼저(케이븐이 있을 때만 = 사실상 후반), 그다음 중반 가교인 변종,
+    // 마지막이 개시자 히드라.  유닛별 상한이 있어 뒤 순서가 굶지 않는다.
+    if (AITechCount(player, c_ZB_UltraliskCavern, c_techCountCompleteOnly) >= 1) {
+        limit = 4;
+        if (limit > budget) {
+            limit = budget;
+        }
+        morphOrder = Order(AbilityCommand("LarvaTrain", 6));
+        budget -= V3RoachHydraMorphOne(larvae, morphOrder, limit);
+    }
+    if (budget > 0 &&
+        AITechCount(player, c_ZB_InfestationPit, c_techCountCompleteOnly) >= 1) {
+        limit = 2;
+        if (limit > budget) {
+            limit = budget;
+        }
+        morphOrder = Order(AbilityCommand("LarvaTrain", 27));
+        budget -= V3RoachHydraMorphOne(larvae, morphOrder, limit);
+    }
+    if (budget > 0 &&
+        AITechCount(player, c_ZB_HydraliskDen_Alias, c_techCountCompleteOnly) >= 1) {
+        limit = 3;
+        if (limit > budget) {
+            limit = budget;
+        }
+        morphOrder = Order(AbilityCommand("LarvaTrain", 3));
+        budget -= V3RoachHydraMorphOne(larvae, morphOrder, limit);
+    }
+}
+
+void V3ZergRoachHydraUltraStock (int player, int phase) {
+    int macroHatcheryTarget;
+    int workerTarget;
+
+    if (phase < 0 || phase > 2) {
+        return;
+    }
+    if (phase == 0) {
+        macroHatcheryTarget = 1;
+    }
+    else if (phase == 1) {
+        macroHatcheryTarget = 2;
+    }
+    else {
+        macroHatcheryTarget = 4;
+    }
+    if (phase == 0) {
+        workerTarget = 40;
+    }
+    else if (phase == 1) {
+        workerTarget = 72;
+    }
+    else {
+        workerTarget = 100;
+    }
+
+    AIClearStock(player);
+    AISetTechLimitLevels(player);
+
+    // Recovery has absolute priority over every army, tech, or macro target.
+    AISetStock(player, 1, c_ZB_Hatchery_Alias);
+    AISetStock(player, V3WorkerTarget(player, 1), c_ZU_Drone);
+    AISetStockFarms(player, c_ZU_Overlord, c_stockNeededFarms);
+    AISetStock(player, V3WorkerTarget(player, 12), c_ZU_Drone);
+    AISetStockFarms(player, c_ZU_Overlord, c_stockNormalFarms);
+
+    // Preserve the original one-time natural bootstrap and its production-bank latch.
+    if (AIGetUserInt(player, 144) == 0) {
+        if (AITechCount(player, c_ZB_Hatchery_Alias, c_techCountQueuedOrBetter) >= 2) {
+            AISetUserInt(player, 144, 1);
+        }
+        else {
+            if (!AIIsExpandingOrHasExpanded(player) &&
+                AIHasNearbyOpenExpansion(player) &&
+                AIHasRes(player, 300, 0)) {
+                AIExpand(player, AIGetTownLocation(player, c_townMain), c_ZB_Hatchery);
+            }
+            return;
+        }
+    }
+
+    AISetStock(player, 1, c_ZB_SpawningPool);
+    AISetStock(player, 2, c_ZB_Extractor);
+    V3RoachHydraUltraArmyTier(player, e_armyTypeMinimum);
+    AISetStockPeons(player, V3WorkerTarget(player, 16), c_ZU_Drone, c_stockMinPeons, c_stockAlways);
+    AISetStock(player, 1, c_ZB_RoachWarren);
+    AISetStock(player, 1, c_ZB_Lair_Alias);
+    AISetStock(player, 1, c_ZB_HydraliskDen_Alias);
+    // 진화장 1호는 여기, 다른 테크 구조물과 같은 줄에 둔다.  V3RoachHydraUltraUpgrades
+    // 안에만 있었을 때는 Medium 티어 뒤에 묻혀서 그 위 사다리(Medium까지 대략 9000
+    // 자원어치)가 먼저 채워져야 차례가 왔고, 라바가 병목이라 그 차례가 15분까지
+    // 오지 않았다.  18분 12슬롯 실측: 진화장 슬롯당 1.58개, 공격 업그레이드 평균
+    // 0.17, 방어 0.08 — 사실상 전 슬롯 0업이었다.  같은 파일에서 AISetStock 으로
+    // 맨 위에 둔 산란못·바퀴굴·레어·히드라굴은 전부 6분 안에 100% 완성된다.
+    // 2·3호는 아래 Upgrades()의 evoCount 가 계속 담당한다.
+    AISetStock(player, 1, c_ZB_EvolutionChamber);
+    V3RoachHydraUltraArmyTier(player, e_armyTypeBase);
+
+    AIDefaultEconomy(
+        player,
+        c_ZB_Hatchery_Alias,
+        c_ZB_Extractor,
+        c_ZU_Overlord,
+        c_ZU_Drone,
+        V3MiningWorkerCapacity(player),
+        c_stockAlways
+    );
+    AISetStockPeons(player, V3WorkerTarget(player, workerTarget), c_ZU_Drone,
+        c_stockMaxPeons, c_stockAlways);
+    V3SetMiningWorkerStock(player, c_ZU_Drone);
+
+    if (phase >= 1) {
+        AISetStock(player, 1, c_ZB_InfestationPit);
+        AISetStock(player, 1, c_ZB_Hive);
+        AISetStock(player, 1, c_ZB_UltraliskCavern);
+    }
+    // 업그레이드는 Small 티어 **앞**이다.  세 위치를 각각 15분 12슬롯 미러로
+    // 실측했다 (15분 공격업 / 방어업 / 병력보급):
+    //
+    //   Medium 뒤(원래)   0.25 / 0.00 / 90.2   진화장은 6분에 섰는데 연구가 9분을 놂
+    //   Small~Medium      0.42 / 0.08 / 91.3   병력은 완전 회복, 업그레이드가 -64%
+    //   Small 앞 (채택)   1.17 / 0.33 / 80.1   업그레이드 확보, 병력 -11%
+    //
+    // 흡수량이 사다리 앞쪽에 몰려 있다 — Medium 을 아래로 밀어내는 것으로는 아무
+    // 효과가 없고 Small 위로 올라가야만 연구가 자금을 받는다.  절충 지점이 없다.
+    // 병력 -11% 를 내주고 공격 1업 + 방어 0.33업을 산 것이며, 공격 1업이 대략
+    // +10~17% 피해라 남는 거래로 판단했다.  조건당 1회 측정이므로 5% 안쪽 차이는
+    // 편차로 읽을 것.
+    //
+    // 연구 자체는 라바를 쓰지 않고 맵이 rich 라 자원도 병목이 아니다.  그런데도
+    // 위치가 이만큼 지배적인 이유는 스톡 사다리가 위에서부터 자금을 대기 때문이다.
+    // === 업스트림 배치 모델(AIAddToStockArmy) 시도 -> 실패, 되돌림 (2026-07-26) ===
+    // 6티어 사다리를 AIAddToStockArmy + AISetStockArmyScale 로 교체했더니 병력이
+    // 전혀 나오지 않았다.  6분 스모크 2회 실측: 301 로스터(로치/궤멸충/히드라/울트라)
+    // 전부 0, 302 저글링 2~4·맹독충 0.  일꾼은 15 -> 30 으로 늘었다 — 병력 목표가
+    // 비어서 라바가 전부 드론으로 간 것이다.  즉 슬롯에 얹은 배치가 AISetStock 으로
+    // materialize 되지 않았다.  AISetStockArmyDefaultScale(MeleeLowAI:24 의 초기화,
+    // 난이도 VeryEasy~Hard 에서만 도는 것) 을 직접 불러도 결과가 같았다.
+    // 원인 미확정 — 재시도 전에 슬롯 값이 실제로 쌓이는지부터 계측할 것.
+    // 업그레이드는 Small 티어 **앞**이다.  세 위치를 각각 15분 12슬롯 미러로 실측했다
+    // (15분 공격업 / 방어업 / 병력보급):
+    //
+    //   Medium 뒤(원래)   0.25 / 0.00 / 90.2   진화장은 6분에 섰는데 연구가 9분을 놂
+    //   Small~Medium      0.42 / 0.08 / 91.3   병력은 완전 회복, 업그레이드가 -64%
+    //   Small 앞 (채택)   1.17 / 0.33 / 80.1   업그레이드 확보, 병력 -11%
+    //
+    // 흡수량이 사다리 앞쪽에 몰려 있다 — Medium 을 아래로 밀어내는 것으로는 효과가
+    // 없고 Small 위로 올라가야만 연구가 자금을 받는다.  절충 지점이 없다.
+    //
+    // 2026-07-27 재추가: 배치 모델 실험을 되돌릴 때 이 호출이 통째로 빠져 있었다.
+    // 사용자 라이브 13분 관측 "저그가 테크·공방업을 일절 안 함" 의 직접 원인이다.
+    V3RoachHydraUltraUpgrades(player);
+    V3RoachHydraUltraArmyTier(player, e_armyTypeSmall);
+
+    V3RoachHydraUltraArmyTier(player, e_armyTypeMedium);
+    AISetStockPeons(player, V3WorkerTarget(player, workerTarget), c_ZU_Drone,
+        c_stockMinPeons, c_stockAlways);
+    V3RoachHydraUltraArmyTier(player, e_armyTypeLarge);
+
+    ZergBasicDefenseStock(player);
+    ZergHDEmergencyDetectionAntiAir(player);
+    V3SetZergMainMacroHatcheries(player, macroHatcheryTarget);
+    AISetStockUnitNext(player, 1 + macroHatcheryTarget, c_ZB_Hatchery_Alias, c_stockIdle);
+    V3RoachHydraUltraArmyTier(player, e_armyTypeFull);
+
+    V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+    V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
+
+    if (phase >= 1) {
+        // 케이븐 직접건설만 남긴다.  이건 유닛 모프가 아니라 구조물 건설이고,
+        // Stock·AIBuild 둘 다 케이븐을 무시하는 것이 실측된 실패-시-폴백이다.
+        V3EnsureUltraliskCavernDrone(player);
+        V3RoachMorphRavagers(player);
+
+        // (되돌림) 위 궤멸충 모프 재활성. 아래는 해제 시도 당시의 기록이다:
+        // V3RoachMorphRavagers 를 호출하지 않으면 (사용자 지시, 2026-07-26).
+        // 궤멸충도 업스트림은 그냥 스톡이다 — AISetStock(player,4,c_ZU_Ravager) /
+        // AIAddToStockArmy(player,c_ZU_Ravager,2).  MorphToRavager 는 업스트림에
+        // 0회 등장한다.  이제 위 배치 모델이 궤멸충을 담당한다.
+        //
+        // 부수 효과로 AIRemoveUnitFromAnyWaves(roach) 가 사라진다.  업스트림은 그
+        // 네이티브를 한 번도 호출하지 않으며(AI.galaxy:418 선언만), 웨이브에서 뺀
+        // 유닛은 변태가 태그를 유지할 경우 AINewUnitZerg 콜백을 못 받아 영구
+        // 낙오한다 — 302 에서 같은 줄을 없앴을 때 away 가 +17% 올랐다.
+        //
+        // 되살릴 때의 근거: cbd61c0 실측 스톡 0~4마리 vs 모프 12~33마리.  단 그
+        // 측정은 6티어 사다리 시절이라 배치 모델에는 적용되지 않는다.
+    }
+
+    // === 라바 배분은 전적으로 Stock이 한다 (사용자 결정, 2026-07-26) ===
+    // 이 빌드는 직접 LarvaTrain 주문을 **하나도** 발행하지 않는다.  울트라리스크가
+    // 갖고 있던 것까지 뺐다.  우회 실험으로 측정한 결과다(18분 12슬롯 미러, 슬롯당):
+    //
+    //                울트라   변종   궤멸충   바퀴   히드라   병력보급
+    //   직접모프 ON    16.5    1.0     3.8     7.8    7.7      144.2
+    //   Stock 전용     11.2    2.7     6.8    10.4    9.4      135.5
+    //
+    // 직접 주문을 가진 유닛이 라바를 독식한다는 것이 확인됐다.  그것을 없애자 나머지
+    // 넷이 전부 올라갔다(+23~82%).  사용자 판단: "총 병력보다 조합이 중요하다".
+    // 총 병력 -6%는 조건당 1회 측정이라 오차인지 실제인지 미확정이며, 조합 변화만
+    // 근거가 탄탄하다(네 유닛이 같은 방향, 효과 크기도 큼).
+    //
+    // 주의 1: §87은 "Stock만으로는 울트라리스크를 안정적으로 못 만든다"고 측정해 직접
+    // 모프를 넣었다.  그 결론이 뒤집힌 게 아니라 전제가 바뀐 것이다 — §108의 6티어
+    // 사다리가 깔린 뒤에야 Stock 단독으로 11.2기가 나온다.  **사다리를 재작업하면
+    // 울트라리스크가 조용히 무너질 수 있다.**  그때는 아래 두 함수의 호출을 되살리는
+    // 것이 첫 번째 복구 수단이다.
+    //
+    // 주의 2: V3RoachHydraMorphOne / V3RoachHydraDirectMorph 는 **의도적으로 호출하지
+    // 않는다.**  죽은 코드가 아니라 검증된 복구 경로이고, LarvaTrain 인덱스(울트라 6 /
+    // 변종 27 / 히드라 3)를 보존하는 유일한 곳이다.  지우려면 먼저 커밋할 것 —
+    // 현재 이 작업은 전부 미커밋이라 삭제하면 되찾을 수 없다.
+    //
+    // 라바를 쓰지 않는 직접 주문 둘은 그대로 유지한다:
+    //   V3RoachMorphRavagers        기존 바퀴 -> 궤멸충 변태
+    //   V3EnsureUltraliskCavernDrone 드론으로 케이븐 건설 (302도 호출하는 공유 함수)
+}

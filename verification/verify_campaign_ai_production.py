@@ -17,7 +17,7 @@ from sc2team.process import discover_sc2_executable, launch_sc2, stop_process
 from sc2team.protocol import Sc2Connection
 
 
-BASE_MAP_FILE = PROJECT_ROOT / "maps" / "generated" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
+BASE_MAP_FILE = PROJECT_ROOT / "map" / "source" / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 RUNTIME_MAP_FILE = PROJECT_ROOT / "runtime" / "maps" / "campaign-ai-production-probe.SC2Map"
 PORT = 14117
 STEP = 448

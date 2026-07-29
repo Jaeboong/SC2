@@ -1,10 +1,45 @@
 <?xml version='1.0' encoding='utf-8'?>
 <Catalog>
+    <!-- §115: ZealotPurifier / StalkerPurifier 원본 액터와 같은 링크로 죽음·소환·
+         초상화·와이어프레임·아이콘을 채운다.  정화자 광전사의 죽음 모델은 이 카탈로그에
+         이미 있는 ZealotPurifierDeath 를 재사용한다(부활 시체용으로 정의돼 있다).
+         정화자 추적자의 소환·배치는 원본도 표준 StalkerWarpIn/StalkerPlacement 다. -->
     <CActorUnit id="Zealot">
         <Model value="SC2TeamZealotPurifierModel" />
+        <DeathArray index="Normal" ModelLink="ZealotPurifierDeath" SoundLink="Zealot_DeathFX" />
+        <BuildModel value="SC2TeamZealotPurifierWarpInModel" />
+        <PortraitModel value="SC2TeamZealotPurifierPortraitModel" />
+        <PlacementModel value="SC2TeamZealotPurifierPlacementModel" />
+        <UnitIcon value="Assets\Textures\btn-unit-protoss-zealot-purifier.dds" />
+        <Wireframe>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-purifier.dds" />
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-purifier.dds" />
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\wireframe-protoss-zealot-purifier-shield01.dds" />
+            <Image value="Assets\Textures\wireframe-protoss-zealot-purifier-shield02.dds" />
+            <Image value="Assets\Textures\wireframe-protoss-zealot-purifier-shield03.dds" />
+        </WireframeShield>
     </CActorUnit>
     <CActorUnit id="Stalker">
         <Model value="SC2TeamStalkerPurifierModel" />
+        <DeathArray index="Normal" ModelLink="SC2TeamStalkerPurifierDeathModel" SoundLink="" />
+        <PortraitModel value="SC2TeamStalkerPurifierPortraitModel" />
+        <UnitIcon value="Assets\Textures\BTN-Unit-Protoss-Stalker-Purifier.dds" />
+        <HeroIcon value="Assets\Textures\BTN-Unit-Protoss-Stalker-Purifier.dds" />
+        <Wireframe>
+            <Image value="Assets\Textures\Wireframe-Protoss-Stalker-Purifier.dds" />
+        </Wireframe>
+        <GroupIcon>
+            <Image value="Assets\Textures\Wireframe-Protoss-Stalker-Purifier.dds" />
+        </GroupIcon>
+        <WireframeShield>
+            <Image value="Assets\Textures\Wireframe-Protoss-Stalker-Purifier-Shield01.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Stalker-Purifier-Shield02.dds" />
+            <Image value="Assets\Textures\Wireframe-Protoss-Stalker-Purifier-Shield03.dds" />
+        </WireframeShield>
     </CActorUnit>
     <CActorSound id="SentryPhasingModeSound" parent="SoundOneShot">
         <On Terms="AbilMorph.*.Start; MorphTo SentryPhasing" Send="Create" />

@@ -43,8 +43,8 @@ from sc2team_v2.runtime import build_v2_map  # noqa: E402
 
 BASE_MAP = (
     PROJECT_ROOT
-    / "maps"
-    / "generated"
+    / "map"
+    / "source"
     / "europe-melee-2-7v7-rich-50000-fixed-teams.SC2Map"
 )
 PORT = 14133

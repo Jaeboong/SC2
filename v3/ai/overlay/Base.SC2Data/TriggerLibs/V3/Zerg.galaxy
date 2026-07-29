@@ -1,0 +1,1302 @@
+// Mining Hatcheries come from the normal expansion engine.  Extra Hatcheries
+// are macro production at the main town; Zerg expansions are already larva
+// production and deliberately have no six-base cap here.
+void V3SetZergMainMacroHatcheries (int player, int macroTotal) {
+    int mainTown = AIGetMainTown(player);
+    int inTown;
+    int desired = 1 + macroTotal;
+
+    if (AIGetTownState(player, mainTown) == c_townStateEstablished) {
+        inTown = AIGetBuildingCountInTown(player, mainTown, c_ZB_Hatchery_Alias, c_techCountInProgressOrBetter);
+        if (inTown < desired) {
+            // Match the upstream StockEx town-local target contract. Do not use
+            // c_makeDefault: that maps Hatchery to the occupied resource
+            // center; macro Hatcheries need ordinary placement on main creep.
+        AISetStockEx(
+            player,
+            mainTown,
+            desired,
+            c_ZB_Hatchery_Alias,
+            c_makeStandard,
+            0
+        );
+        }
+    }
+}
+
+include "TriggerLibs/V3/ExpansionGas"
+include "TriggerLibs/V3/ZergRoachHydraUltra"
+include "TriggerLibs/V3/ZergLingBaneUltra"
+
+// P15 is bootstrapped once by MapScript, but every recurring decision below
+// belongs to this embedded V3 policy.  The campaign inspiration is explicit:
+// each established town stocks its own defenses and keeps a GuardHome wave,
+// while surplus units alone join Blizzard's normal attack wave.
+const int c_v3WildZergBuild = 315;
+const int c_v3WildAttackRelease = 540;
+wave[32] gv_v3WildGarrisonWave;
+wave[32] gv_v3WildTruceWave;
+int gv_v3WildUltraIssued = 0;
+int gv_v3WildUltraMainIssued = 0;
+int gv_v3WildUltraLocalCursor = 0;
+int gv_v3WildArmyTownCursor = 0;
+int gv_v3WildArmyRotation = 0;
+int gv_v3WildRavagerTownCursor = 0;
+fixed gv_v3WildNextRavager = 0.0;
+point gv_v3WildAlphaPoint;
+int gv_v3WildAlphaTown = 0;
+unit gv_v3WildAlphaBuilder;
+fixed gv_v3WildAlphaBuilderDeadline = 0.0;
+fixed gv_v3WildAlphaNextBuild = 0.0;
+bool gv_v3WildAlphaRecoveryActive = false;
+bool gv_v3WildAlphaTownLost = false;
+
+void V3WildRememberAlpha (int player) {
+    if (gv_v3WildAlphaPoint != null) {
+        return;
+    }
+    gv_v3WildAlphaPoint = PlayerStartLocation(player);
+    gv_v3WildAlphaTown = AIGetClosestTown(player, gv_v3WildAlphaPoint);
+    if (gv_v3WildAlphaTown < 0 || gv_v3WildAlphaTown >= c_townMax) {
+        gv_v3WildAlphaTown = AIGetMainTown(player);
+    }
+}
+
+int V3WildGetAlphaTown (int player) {
+    V3WildRememberAlpha(player);
+    return gv_v3WildAlphaTown;
+}
+
+int V3WildAlphaUnitCount (int player, string unitType, int countType) {
+    return UnitGroupCount(
+        UnitGroup(
+            unitType,
+            player,
+            RegionCircle(gv_v3WildAlphaPoint, 32.0),
+            UnitFilter(0, 0, 0, 0),
+            0
+        ),
+        countType
+    );
+}
+
+int V3WildAlphaHallCount (int player, int countType) {
+    return V3WildAlphaUnitCount(player, c_ZB_Hatchery, countType) +
+           V3WildAlphaUnitCount(player, c_ZB_Lair, countType) +
+           V3WildAlphaUnitCount(player, c_ZB_Hive, countType);
+}
+
+int V3WildSurvivingLocalTownCount (int player) {
+    int town = 0;
+    int alphaTown = V3WildGetAlphaTown(player);
+    int count = 0;
+
+    while (town < c_townMax) {
+        if (town != alphaTown &&
+            AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetMineralNumSpots(player, town) > 0 &&
+            AIGetBuildingCountInTown(
+                player,
+                town,
+                c_ZB_Hatchery_Alias,
+                c_techCountCompleteOnly
+            ) > 0) {
+            count = count + 1;
+        }
+        town = town + 1;
+    }
+    return count;
+}
+
+unit V3WildFindLocalRebuildDrone (int player) {
+    unitgroup drones = UnitGroup(c_ZU_Drone, player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unit drone;
+    unit best = c_nullUnit;
+    int droneIndex = UnitGroupCount(drones, c_unitCountAlive);
+    int droneTown;
+    fixed distance;
+    fixed bestDistance = 999999.0;
+
+    for (;; droneIndex -= 1) {
+        drone = UnitGroupUnitFromEnd(drones, droneIndex);
+        if (drone == c_nullUnit) {
+            break;
+        }
+        droneTown = AIGetClosestTown(player, UnitGetPosition(drone));
+        if (droneTown == gv_v3WildAlphaTown ||
+            droneTown < 0 || droneTown >= c_townMax ||
+            AIGetTownState(player, droneTown) != c_townStateEstablished ||
+            AIGetBuildingCountInTown(
+                player,
+                droneTown,
+                c_ZB_Hatchery_Alias,
+                c_techCountCompleteOnly
+            ) < 1 ||
+            AIIsScriptControlled(drone) ||
+            AIPathingCostUnit(drone, gv_v3WildAlphaPoint, true) < 0) {
+            continue;
+        }
+        distance = DistanceBetweenPoints(UnitGetPosition(drone), gv_v3WildAlphaPoint);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = drone;
+        }
+    }
+    return best;
+}
+
+void V3WildReleaseAlphaBuilder () {
+    if (gv_v3WildAlphaBuilder != c_nullUnit) {
+        if (UnitIsAlive(gv_v3WildAlphaBuilder)) {
+            AISetUnitScriptControlled(gv_v3WildAlphaBuilder, false);
+        }
+        gv_v3WildAlphaBuilder = c_nullUnit;
+        gv_v3WildAlphaBuilderDeadline = 0.0;
+    }
+}
+
+void V3WildTryStartAlphaHatchery (int player) {
+    point buildPoint;
+    order buildOrder;
+    unit builder;
+
+    if (V3WildSurvivingLocalTownCount(player) < 1) {
+        return;
+    }
+    if (gv_v3WildAlphaBuilder != c_nullUnit) {
+        if (!UnitIsAlive(gv_v3WildAlphaBuilder) ||
+            V3WildAlphaHallCount(player, c_unitCountAll) > 0 ||
+            AIGetTime() >= gv_v3WildAlphaBuilderDeadline) {
+            V3WildReleaseAlphaBuilder();
+        }
+        else {
+            return;
+        }
+    }
+    if (V3WildAlphaHallCount(player, c_unitCountAll) > 0 ||
+        !AIHasRes(player, 300, 0)) {
+        return;
+    }
+
+    builder = V3WildFindLocalRebuildDrone(player);
+    if (builder == c_nullUnit) {
+        return;
+    }
+    buildPoint = AIGetBuildingPlacement(
+        player,
+        gv_v3WildAlphaPoint,
+        c_ZB_Hatchery,
+        c_makeCenter | c_ignoreDanger
+    );
+    if (buildPoint == null ||
+        DistanceBetweenPoints(buildPoint, gv_v3WildAlphaPoint) > 18.0) {
+        return;
+    }
+    buildOrder = OrderTargetingPoint(AbilityCommand("ZergBuild", 0), buildPoint);
+    if (!UnitOrderIsValid(builder, buildOrder)) {
+        return;
+    }
+    AISetUnitScriptControlled(builder, true);
+    UnitIssueOrder(builder, buildOrder, c_orderQueueReplace);
+    gv_v3WildAlphaBuilder = builder;
+    gv_v3WildAlphaBuilderDeadline = AIGetTime() + 180.0;
+}
+
+unit V3WildFindIdleAlphaStructure (int player, string unitType, order morphOrder) {
+    unitgroup structures = UnitGroup(
+        unitType,
+        player,
+        RegionCircle(gv_v3WildAlphaPoint, 32.0),
+        UnitFilter(0, 0, 0, 0),
+        0
+    );
+    unit structure;
+    int structureIndex = UnitGroupCount(structures, c_unitCountAlive);
+
+    for (;; structureIndex -= 1) {
+        structure = UnitGroupUnitFromEnd(structures, structureIndex);
+        if (structure == c_nullUnit) {
+            break;
+        }
+        if (UnitOrderCount(structure) == 0 && UnitOrderIsValid(structure, morphOrder)) {
+            return structure;
+        }
+    }
+    return c_nullUnit;
+}
+
+bool V3WildTryMorphAlpha (int player, string unitType, string abilityName) {
+    order morphOrder = Order(AbilityCommand(abilityName, 0));
+    unit structure = V3WildFindIdleAlphaStructure(player, unitType, morphOrder);
+
+    if (structure == c_nullUnit) {
+        return false;
+    }
+    UnitIssueOrder(structure, morphOrder, c_orderQueueReplace);
+    gv_v3WildAlphaNextBuild = AIGetTime() + 30.0;
+    return true;
+}
+
+void V3WildBuildAlphaTech (int player, string unitType, int count, int flags) {
+    AIBuild(player, c_makePriorityTown, gv_v3WildAlphaTown, unitType, count, flags);
+    gv_v3WildAlphaNextBuild = AIGetTime() + 30.0;
+}
+
+bool V3WildAlphaRecoveryComplete (int player) {
+    return V3WildAlphaHallCount(player, c_unitCountAll) >= 3 &&
+           V3WildAlphaUnitCount(player, c_ZB_Hive, c_unitCountAll) >= 1 &&
+           V3WildAlphaUnitCount(player, c_ZB_SpawningPool, c_unitCountAll) >= 1 &&
+           V3WildAlphaUnitCount(player, c_ZB_RoachWarren, c_unitCountAll) >= 1 &&
+           V3WildAlphaUnitCount(player, c_ZB_HydraliskDen, c_unitCountAll) >= 1 &&
+           V3WildAlphaUnitCount(player, c_ZB_Spire, c_unitCountAll) >= 1 &&
+           V3WildAlphaUnitCount(player, c_ZB_EvolutionChamber, c_unitCountAll) >= 2 &&
+           V3WildAlphaUnitCount(player, c_ZB_InfestationPit, c_unitCountAll) >= 1 &&
+           V3WildAlphaUnitCount(player, c_ZB_UltraliskCavern, c_unitCountAll) >= 1 &&
+           V3WildAlphaUnitCount(player, c_ZB_SpineCrawler, c_unitCountAll) >= 6 &&
+           V3WildAlphaUnitCount(player, c_ZB_SporeCrawler, c_unitCountAll) >= 4;
+}
+
+// If the 1-o'clock alpha is lost while any local economy survives, one local
+// Drone walks back and rebuilds it through real Zerg orders.  The old alpha
+// town identity is retained across destruction so a surviving local never
+// becomes the permanent main by accident.  Tech restoration is prerequisite
+// gated and issues at most one build/morph request per 30 seconds.
+void V3WildRecoverAlpha (int player) {
+    int halls;
+    int lairTech;
+
+    V3WildRememberAlpha(player);
+    halls = V3WildAlphaHallCount(player, c_unitCountAll);
+    if (halls == 0 ||
+        V3WildAlphaUnitCount(player, c_ZB_Hive, c_unitCountAll) == 0) {
+        gv_v3WildAlphaRecoveryActive = true;
+    }
+    if (!gv_v3WildAlphaRecoveryActive) {
+        return;
+    }
+    if (halls == 0) {
+        gv_v3WildAlphaTownLost = true;
+        V3WildTryStartAlphaHatchery(player);
+        return;
+    }
+
+    V3WildReleaseAlphaBuilder();
+    if (gv_v3WildAlphaTownLost) {
+        AIDeclareTown(player, gv_v3WildAlphaTown, gv_v3WildAlphaPoint);
+        AISetMainTown(player, gv_v3WildAlphaTown);
+        AIHarvest(player, gv_v3WildAlphaTown);
+        gv_v3WildAlphaTownLost = false;
+    }
+
+    // The rebuilt core is exactly Hive + two Hatcheries.  This also restores
+    // the alpha larva pool used by distributed defense and army production.
+    AISetStockEx(player, gv_v3WildAlphaTown, 3, c_ZB_Hatchery_Alias, c_makeStandard, 0);
+    if (V3WildAlphaRecoveryComplete(player)) {
+        gv_v3WildAlphaRecoveryActive = false;
+        return;
+    }
+    if (AIGetTime() < gv_v3WildAlphaNextBuild) {
+        return;
+    }
+
+    if (V3WildAlphaUnitCount(player, c_ZB_SpawningPool, c_unitCountAll) < 1) {
+        V3WildBuildAlphaTech(player, c_ZB_SpawningPool, 1, c_makeCreep);
+        return;
+    }
+    if (AITechCount(player, c_ZB_SpawningPool, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_RoachWarren, c_unitCountAll) < 1) {
+        V3WildBuildAlphaTech(player, c_ZB_RoachWarren, 1, c_makeCreep);
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_EvolutionChamber, c_unitCountAll) < 2) {
+        V3WildBuildAlphaTech(player, c_ZB_EvolutionChamber, 2, c_makeCreep);
+        return;
+    }
+
+    lairTech = V3WildAlphaUnitCount(player, c_ZB_Lair, c_unitCountAll) +
+               V3WildAlphaUnitCount(player, c_ZB_Hive, c_unitCountAll);
+    if (lairTech < 1 &&
+        AITechCount(player, c_ZB_SpawningPool, c_techCountCompleteOnly) > 0 &&
+        V3WildTryMorphAlpha(player, c_ZB_Hatchery, "UpgradeToLair")) {
+        return;
+    }
+    if (lairTech < 1) {
+        return;
+    }
+    if (AITechCount(player, c_ZB_Lair_Alias, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_HydraliskDen, c_unitCountAll) < 1) {
+        V3WildBuildAlphaTech(player, c_ZB_HydraliskDen, 1, c_makeCreep);
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_Spire, c_unitCountAll) < 1) {
+        V3WildBuildAlphaTech(player, c_ZB_Spire, 1, c_makeCreep);
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_InfestationPit, c_unitCountAll) < 1) {
+        V3WildBuildAlphaTech(player, c_ZB_InfestationPit, 1, c_makeCreep);
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_Hive, c_unitCountAll) < 1 &&
+        AITechCount(player, c_ZB_InfestationPit, c_techCountCompleteOnly) > 0 &&
+        V3WildTryMorphAlpha(player, c_ZB_Lair, "UpgradeToHive")) {
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_Hive, c_unitCountAll) < 1) {
+        return;
+    }
+    if (AITechCount(player, c_ZB_Hive, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    if (V3WildAlphaUnitCount(player, c_ZB_UltraliskCavern, c_unitCountAll) < 1) {
+        V3WildBuildAlphaTech(player, c_ZB_UltraliskCavern, 1, c_makeCreep);
+    }
+}
+
+bool V3WildIsGarrisonUnit (string unitType) {
+    return unitType == c_ZU_Zergling ||
+           unitType == c_ZU_Baneling ||
+           unitType == c_ZU_Roach ||
+           unitType == c_ZU_Ravager ||
+           unitType == c_ZU_Hydralisk ||
+           unitType == c_ZU_Lurker ||
+           unitType == c_ZU_Ultralisk;
+}
+
+int V3WildTownGarrisonMinimum (int player, int town) {
+    if (town == V3WildGetAlphaTown(player)) {
+        return 32;
+    }
+    return 10;
+}
+
+wave V3WildGetTownGarrisonWave (int player, int town) {
+    wave result = gv_v3WildGarrisonWave[town];
+    point gather;
+
+    if (result == c_nullWave) {
+        gather = AIWaveTargetGatherDPoint(player, town);
+        result = AIWaveCreate(AIWaveInfoCreate(), player, gather);
+        AIWaveSetType(result, c_waveStateGuardHome, AIWaveTargetGatherD(player, town));
+        gv_v3WildGarrisonWave[town] = result;
+    }
+    return result;
+}
+
+wave V3WildGetTownTruceWave (int player, int town) {
+    wave result = gv_v3WildTruceWave[town];
+    point gather;
+
+    if (result == c_nullWave) {
+        gather = AIWaveTargetGatherDPoint(player, town);
+        result = AIWaveCreate(AIWaveInfoCreate(), player, gather);
+        AIWaveSetType(result, c_waveStateGuardHome, AIWaveTargetGatherD(player, town));
+        gv_v3WildTruceWave[town] = result;
+    }
+    return result;
+}
+
+// Called from the generated Zerg new-unit hook.  Returning false deliberately
+// falls through to Blizzard's normal wave allocator, so local garrisons are a
+// minimum reserve rather than an army-composition cap.
+bool V3WildAssignLocalGarrison (int player, unit newUnit) {
+    string unitType;
+    int town;
+    wave localWave;
+
+    if (player != 15 || AIGetUserInt(player, 142) != c_v3WildZergBuild) {
+        return false;
+    }
+    unitType = UnitGetType(newUnit);
+    if (!V3WildIsGarrisonUnit(unitType)) {
+        return false;
+    }
+    town = AIGetClosestTown(player, UnitGetPosition(newUnit));
+    if (town < 0 || town >= c_townMax ||
+        AIGetTownState(player, town) != c_townStateEstablished) {
+        town = V3WildGetAlphaTown(player);
+    }
+    if (town < 0 || town >= c_townMax) {
+        return false;
+    }
+    localWave = V3WildGetTownGarrisonWave(player, town);
+    if (AIWaveUnitCount(localWave) < V3WildTownGarrisonMinimum(player, town)) {
+        AIWaveAddUnitPriority(localWave, newUnit, c_prioWavePeon);
+        return true;
+    }
+    // Wait alone does not recall a wave that AIMeleeStart already launched.
+    // Before 9:00 every surplus combat unit therefore lives in a separate
+    // town-local GuardHome wave instead of falling through to c_waveMain.
+    if (AIGetTime() < c_v3WildAttackRelease) {
+        localWave = V3WildGetTownTruceWave(player, town);
+        AIWaveAddUnitPriority(localWave, newUnit, c_prioWavePeon);
+        return true;
+    }
+    return false;
+}
+
+// At 9:00 release only the surplus truce waves.  The permanent minimum
+// garrisons stay in GuardHome, while every local nest launches its own force.
+void V3WildReleaseTruceWaves (int player) {
+    int town = 0;
+    wave truceWave;
+
+    while (town < c_townMax) {
+        truceWave = gv_v3WildTruceWave[town];
+        if (truceWave != c_nullWave) {
+            AIWaveSetType(truceWave, c_waveStateAttack, AIWaveTargetMelee(player));
+            AIWaveSetDeleteWhenEmpty(truceWave, true);
+            gv_v3WildTruceWave[town] = c_nullWave;
+        }
+        town = town + 1;
+    }
+}
+
+// AIMeleeStart sees the preplaced wildlife before build 315 is stamped.  Adopt
+// those combat units once from inside V3 so every existing nest starts with a
+// genuinely separate local reserve as well as receiving future reinforcements.
+void V3WildAdoptPreplacedGarrisons (int player) {
+    unitgroup wildUnits;
+    unit currentUnit;
+    int unitIndex;
+    int alphaTown;
+    bool adoptedAny = false;
+
+    if (AIGetUserInt(player, 148) != 0) {
+        return;
+    }
+    alphaTown = V3WildGetAlphaTown(player);
+    if (alphaTown < 0 || alphaTown >= c_townMax) {
+        return;
+    }
+    wildUnits = UnitGroup(null, player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unitIndex = UnitGroupCount(wildUnits, c_unitCountAlive);
+    for (;; unitIndex -= 1) {
+        currentUnit = UnitGroupUnitFromEnd(wildUnits, unitIndex);
+        if (currentUnit == c_nullUnit) {
+            break;
+        }
+        if (V3WildAssignLocalGarrison(player, currentUnit)) {
+            adoptedAny = true;
+        }
+    }
+    if (adoptedAny) {
+        AISetUserInt(player, 148, 1);
+    }
+}
+
+int V3WildResourceTownCount (int player) {
+    int town = 0;
+    int count = 0;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetMineralNumSpots(player, town) > 0 &&
+            AIGetBuildingCountInTown(
+                player,
+                town,
+                c_ZB_Hatchery_Alias,
+                c_techCountCompleteOnly
+            ) > 0) {
+            count = count + 1;
+        }
+        town = town + 1;
+    }
+    return count;
+}
+
+// Keep six completed resource-bearing local towns in addition to the alpha
+// main.  Initial wildlife can exceed this reserve; replacement expansion only
+// begins after destruction drops the surviving local count below six.
+void V3EnsureWildLocalBases (int player) {
+    int town = 0;
+    int mainTown = V3WildGetAlphaTown(player);
+    int localTowns = 0;
+    int resourceTowns = 0;
+    int state;
+    bool pending = false;
+
+    while (town < c_townMax) {
+        state = AIGetTownState(player, town);
+        if (state == c_townStateClaimed || state == c_townStateBuilding) {
+            pending = true;
+        }
+        else if (state == c_townStateEstablished &&
+                 AIGetMineralNumSpots(player, town) > 0 &&
+                 AIGetBuildingCountInTown(
+                     player,
+                     town,
+                     c_ZB_Hatchery_Alias,
+                     c_techCountCompleteOnly
+                 ) > 0) {
+            resourceTowns = resourceTowns + 1;
+            if (town != mainTown) {
+                localTowns = localTowns + 1;
+            }
+        }
+        town = town + 1;
+    }
+
+    if (localTowns >= 6 || pending || !AIHasNearbyOpenExpansion(player)) {
+        return;
+    }
+    AISetStockExpand(player, c_ZB_Hatchery, resourceTowns + 1);
+    if (AIHasRes(player, 300, 0)) {
+        AIExpand(player, AIGetTownLocation(player, mainTown), c_ZB_Hatchery);
+    }
+}
+
+void V3SetWildTownPolicy (int player, bool trainArmy) {
+    int town = 0;
+    int mainTown = V3WildGetAlphaTown(player);
+    int spineTarget;
+    int sporeTarget;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) != c_townStateEstablished ||
+            AIGetBuildingCountInTown(
+                player,
+                town,
+                c_ZB_Hatchery_Alias,
+                c_techCountCompleteOnly
+            ) < 1) {
+            town = town + 1;
+            continue;
+        }
+
+        // Upstream high Zerg uses 3/4 at main and 2/2 elsewhere.  The alpha
+        // nest deliberately receives the stronger 6/4 wild-Zerg version.
+        if (town == mainTown) {
+            spineTarget = 6;
+            sporeTarget = 4;
+        }
+        else {
+            spineTarget = 4;
+            sporeTarget = 2;
+        }
+        if (AITechCount(player, c_ZB_SpawningPool, c_techCountCompleteOnly) > 0) {
+            AISetStockEx(player, town, spineTarget, c_ZB_SpineCrawler, c_makeDefense, 0);
+            AISetStockEx(player, town, sporeTarget, c_ZB_SporeCrawler, c_makeResourceDefense, 0);
+        }
+
+        // These are town-local minimums feeding the GuardHome reserves above;
+        // the large global stock below remains unbounded until the single
+        // player-wide 400-supply gate closes.
+        if (trainArmy) {
+            if (town == mainTown) {
+                AISetStockEx(player, town, 16, c_ZU_Zergling, c_makeDefense, 0);
+                if (AITechCount(player, c_ZB_RoachWarren, c_techCountCompleteOnly) > 0) {
+                    AISetStockEx(player, town, 8, c_ZU_Roach, c_makeDefense, 0);
+                }
+                if (AITechCount(player, c_ZB_HydraliskDen_Alias, c_techCountCompleteOnly) > 0) {
+                    AISetStockEx(player, town, 6, c_ZU_Hydralisk, c_makeDefense, 0);
+                }
+            }
+            else {
+                AISetStockEx(player, town, 6, c_ZU_Zergling, c_makeDefense, 0);
+                if (AITechCount(player, c_ZB_RoachWarren, c_techCountCompleteOnly) > 0) {
+                    AISetStockEx(player, town, 3, c_ZU_Roach, c_makeDefense, 0);
+                }
+                if (AITechCount(player, c_ZB_HydraliskDen_Alias, c_techCountCompleteOnly) > 0) {
+                    AISetStockEx(player, town, 2, c_ZU_Hydralisk, c_makeDefense, 0);
+                }
+            }
+        }
+        town = town + 1;
+    }
+}
+
+// The attacked town keeps its own permanent garrison and receives the two
+// closest surviving local garrisons.  Other towns remain on GuardHome; when
+// the threat group disappears, every dispatched wave returns to its own town.
+void V3WildDispatchLocalSupport (int player) {
+    int town = 0;
+    int mainTown = V3WildGetAlphaTown(player);
+    int threatenedTown = -1;
+    int threatCount = 0;
+    int largestThreat = 0;
+    int firstHelper = -1;
+    int secondHelper = -1;
+    fixed distance;
+    fixed firstDistance = 999999.0;
+    fixed secondDistance = 999999.0;
+    unitgroup threats;
+    unitgroup targetThreats;
+    wave localWave;
+
+    while (town < c_townMax) {
+        if (AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(
+                player,
+                town,
+                c_ZB_Hatchery_Alias,
+                c_techCountCompleteOnly
+            ) > 0) {
+            threats = AIGetTownThreats(player, town);
+            threatCount = UnitGroupCount(threats, c_unitCountAlive);
+            if (threatCount > largestThreat) {
+                largestThreat = threatCount;
+                threatenedTown = town;
+                targetThreats = threats;
+            }
+        }
+        town = town + 1;
+    }
+
+    if (threatenedTown >= 0) {
+        town = 0;
+        while (town < c_townMax) {
+            if (town != mainTown && town != threatenedTown &&
+                gv_v3WildGarrisonWave[town] != c_nullWave &&
+                AIWaveUnitCount(gv_v3WildGarrisonWave[town]) > 0 &&
+                AIGetTownState(player, town) == c_townStateEstablished) {
+                distance = DistanceBetweenPoints(
+                    AIGetTownLocation(player, town),
+                    AIGetTownLocation(player, threatenedTown)
+                );
+                if (distance <= 40.0) {
+                    if (distance < firstDistance) {
+                        secondDistance = firstDistance;
+                        secondHelper = firstHelper;
+                        firstDistance = distance;
+                        firstHelper = town;
+                    }
+                    else if (distance < secondDistance) {
+                        secondDistance = distance;
+                        secondHelper = town;
+                    }
+                }
+            }
+            town = town + 1;
+        }
+    }
+
+    town = 0;
+    while (town < c_townMax) {
+        localWave = gv_v3WildGarrisonWave[town];
+        if (localWave != c_nullWave) {
+            if (town == threatenedTown || town == firstHelper || town == secondHelper) {
+                AIWaveSetType(
+                    localWave,
+                    c_waveStateDefend,
+                    AIWaveTargetUnitGroup(targetThreats)
+                );
+            }
+            else if (AIWaveState(localWave) != c_waveStateGuardHome) {
+                AIWaveSetType(
+                    localWave,
+                    c_waveStateGuardHome,
+                    AIWaveTargetGatherD(player, town)
+                );
+            }
+        }
+        town = town + 1;
+    }
+}
+
+unit V3WildFindUltraLarvaAtTown (int player, int town, order morphOrder) {
+    unitgroup larvae = UnitGroup(
+        "Larva",
+        player,
+        RegionCircle(AIGetTownLocation(player, town), 14.0),
+        UnitFilter(0, 0, 0, 0),
+        0
+    );
+    int larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+    unit larva;
+
+    for (;; larvaIndex -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+        if (larva == c_nullUnit) {
+            break;
+        }
+        if (UnitOrderCount(larva) == 0 && UnitOrderIsValid(larva, morphOrder)) {
+            return larva;
+        }
+    }
+    return c_nullUnit;
+}
+
+unit V3WildFindArmyLarvaAtTown (
+    int player,
+    int town,
+    unitgroup larvae,
+    order morphOrder
+) {
+    int larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+    unit larva;
+
+    for (;; larvaIndex -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+        if (larva == c_nullUnit) {
+            break;
+        }
+        // Macro Hatcheries can sit outside the old 14-radius town circle.
+        // Dynamic closest-town ownership keeps those larvae available while
+        // preserving location-independent distributed production.
+        if (UnitOrderCount(larva) == 0 &&
+            AIGetClosestTown(player, UnitGetPosition(larva)) == town &&
+            UnitOrderIsValid(larva, morphOrder)) {
+            return larva;
+        }
+    }
+    return c_nullUnit;
+}
+
+bool V3WildTrainOneAtTown (int player, int town, unitgroup larvae) {
+    order trainOrder;
+    unit larva;
+
+    if (gv_v3WildArmyRotation == 0) {
+        trainOrder = Order(AbilityCommand("LarvaTrain", 1));
+    }
+    else if (gv_v3WildArmyRotation == 1) {
+        trainOrder = Order(AbilityCommand("LarvaTrain", 9));
+    }
+    else {
+        trainOrder = Order(AbilityCommand("LarvaTrain", 3));
+    }
+    larva = V3WildFindArmyLarvaAtTown(player, town, larvae, trainOrder);
+
+    // A town without the selected tech falls back locally instead of letting
+    // another town consume its turn in the production rotation.
+    if (larva == c_nullUnit && gv_v3WildArmyRotation == 2) {
+        trainOrder = Order(AbilityCommand("LarvaTrain", 9));
+        larva = V3WildFindArmyLarvaAtTown(player, town, larvae, trainOrder);
+    }
+    if (larva == c_nullUnit && gv_v3WildArmyRotation != 0) {
+        trainOrder = Order(AbilityCommand("LarvaTrain", 1));
+        larva = V3WildFindArmyLarvaAtTown(player, town, larvae, trainOrder);
+    }
+    if (larva == c_nullUnit) {
+        return false;
+    }
+
+    UnitIssueOrder(larva, trainOrder, c_orderQueueAddToEnd);
+    gv_v3WildArmyRotation = gv_v3WildArmyRotation + 1;
+    if (gv_v3WildArmyRotation >= 3) {
+        gv_v3WildArmyRotation = 0;
+    }
+    return true;
+}
+
+// Guaranteed mass production interleaves at least 30% alpha orders with one
+// order per local town in rotating rounds.  A completed round may start again
+// until this pass reaches its eight-order budget, so late-game losses do not
+// leave otherwise valid larvae idle.  The dispatcher remains inside embedded
+// V3, leaves three larvae for economy/supply, and the caller's player-wide
+// 400-supply gate remains authoritative.
+void V3WildTrainDistributedArmy (int player) {
+    unitgroup larvae = UnitGroup("Larva", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unit larva;
+    int larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+    int idleLarvae = 0;
+    int maxOrders;
+    int issued = 0;
+    int mainIssued = 0;
+    int checked;
+    int mainTown = V3WildGetAlphaTown(player);
+    int town = gv_v3WildArmyTownCursor;
+    bool trained;
+
+    for (;; larvaIndex -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+        if (larva == c_nullUnit) {
+            break;
+        }
+        if (UnitOrderCount(larva) == 0) {
+            idleLarvae = idleLarvae + 1;
+        }
+    }
+    maxOrders = idleLarvae - 3;
+    if (maxOrders > 8) {
+        maxOrders = 8;
+    }
+    if (maxOrders <= 0) {
+        return;
+    }
+
+    while (issued < maxOrders) {
+        trained = false;
+
+        // Same running-ratio rule as the Ultra distributor: M-L-L-M-L-L...
+        // yields three alpha orders out of eight whenever alpha larvae exist.
+        if (mainIssued * 10 < (issued + 1) * 3 &&
+            V3WildTrainOneAtTown(player, mainTown, larvae)) {
+            issued = issued + 1;
+            mainIssued = mainIssued + 1;
+            trained = true;
+        }
+
+        if (!trained) {
+            checked = 0;
+            while (checked < c_townMax) {
+                if (town >= c_townMax) {
+                    town = 0;
+                }
+                if (town != mainTown &&
+                    AIGetTownState(player, town) == c_townStateEstablished &&
+                    AIGetBuildingCountInTown(
+                        player,
+                        town,
+                        c_ZB_Hatchery_Alias,
+                        c_techCountCompleteOnly
+                    ) > 0 &&
+                    V3WildTrainOneAtTown(player, town, larvae)) {
+                    issued = issued + 1;
+                    trained = true;
+                    town = town + 1;
+                    break;
+                }
+                town = town + 1;
+                checked = checked + 1;
+            }
+        }
+
+        // If no local larva is available, use alpha instead of lowering total
+        // output.  This can raise alpha above 30%, never below the guarantee.
+        if (!trained && V3WildTrainOneAtTown(player, mainTown, larvae)) {
+            issued = issued + 1;
+            mainIssued = mainIssued + 1;
+            trained = true;
+        }
+        if (!trained) {
+            break;
+        }
+    }
+    if (town >= c_townMax) {
+        town = 0;
+    }
+    gv_v3WildArmyTownCursor = town;
+}
+
+unit V3WildFindRoachAtTown (int player, int town, order morphOrder) {
+    unitgroup roaches = UnitGroup(
+        c_ZU_Roach,
+        player,
+        RegionCircle(AIGetTownLocation(player, town), 18.0),
+        UnitFilter(0, 0, 0, 0),
+        0
+    );
+    unit roach;
+    int roachIndex = UnitGroupCount(roaches, c_unitCountAlive);
+
+    for (;; roachIndex -= 1) {
+        roach = UnitGroupUnitFromEnd(roaches, roachIndex);
+        if (roach == c_nullUnit) {
+            break;
+        }
+        if (UnitOrderIsValid(roach, morphOrder)) {
+            return roach;
+        }
+    }
+    return c_nullUnit;
+}
+
+// Ravagers are real Roach morphs, not created units.  One town gets one morph
+// turn every 30 seconds and the cursor then advances, preserving the P15
+// distributed-production contract without introducing a composition cap.
+// Blizzard's native Zerg tactical layer owns Corrosive Bile after completion.
+void V3WildMorphDistributedRavager (int player) {
+    order morphOrder = Order(AbilityCommand("MorphToRavager", 0));
+    unit roach;
+    int town = gv_v3WildRavagerTownCursor;
+    int checked = 0;
+
+    if (AIGetTime() < gv_v3WildNextRavager ||
+        AITechCount(player, c_ZB_RoachWarren, c_techCountCompleteOnly) < 1) {
+        return;
+    }
+    while (checked < c_townMax) {
+        if (town >= c_townMax) {
+            town = 0;
+        }
+        if (AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(
+                player,
+                town,
+                c_ZB_Hatchery_Alias,
+                c_techCountCompleteOnly
+            ) > 0) {
+            roach = V3WildFindRoachAtTown(player, town, morphOrder);
+            if (roach != c_nullUnit) {
+                UnitIssueOrder(roach, morphOrder, c_orderQueueReplace);
+                town = town + 1;
+                if (town >= c_townMax) {
+                    town = 0;
+                }
+                gv_v3WildRavagerTownCursor = town;
+                gv_v3WildNextRavager = AIGetTime() + 30.0;
+                return;
+            }
+        }
+        town = town + 1;
+        checked = checked + 1;
+    }
+    // No valid local Roach (or insufficient gas/supply): retry soon without
+    // burning the normal 30-second production turn.
+    gv_v3WildNextRavager = AIGetTime() + 10.0;
+}
+
+// Rotate across established non-main towns.  A town contributes at most one
+// larva before the cursor advances, so the four local members of the six-Ultra
+// reserve are born at separate nests whenever four viable nests exist.
+unit V3WildFindNextLocalUltraLarva (int player, int mainTown, order morphOrder) {
+    int checked = 0;
+    int town = gv_v3WildUltraLocalCursor;
+    unit larva;
+
+    while (checked < c_townMax) {
+        if (town >= c_townMax) {
+            town = 0;
+        }
+        if (town != mainTown &&
+            AIGetTownState(player, town) == c_townStateEstablished &&
+            AIGetBuildingCountInTown(
+                player,
+                town,
+                c_ZB_Hatchery_Alias,
+                c_techCountCompleteOnly
+            ) > 0) {
+            larva = V3WildFindUltraLarvaAtTown(player, town, morphOrder);
+            if (larva != c_nullUnit) {
+                gv_v3WildUltraLocalCursor = town + 1;
+                if (gv_v3WildUltraLocalCursor >= c_townMax) {
+                    gv_v3WildUltraLocalCursor = 0;
+                }
+                return larva;
+            }
+        }
+        town = town + 1;
+        checked = checked + 1;
+    }
+    return c_nullUnit;
+}
+
+// The melee Stock layer demonstrably ignores Ultralisk targets even with a
+// completed cavern (V3.11).  Use the same engine-validated larva morph path
+// inside this V3 policy: append-only, valid-order checked, two per AI tick,
+// and always leave three larvae for Drones and Overlords.  Production follows
+// a repeating main/local/local schedule: at least 1/3 is born at the alpha
+// town and every local order advances to a different established town.
+void V3WildMorphUltralisks (int player) {
+    unitgroup larvae = UnitGroup("Larva", player, RegionEntireMap(), UnitFilter(0, 0, 0, 0), 0);
+    unit larva;
+    order morphOrder = Order(AbilityCommand("LarvaTrain", 6));
+    int larvaIndex = UnitGroupCount(larvae, c_unitCountAlive);
+    int idleLarvae = 0;
+    int ultralisks = AITechCount(player, c_ZU_Ultralisk, c_techCountQueuedOrBetter);
+    int morphLimit;
+    int issued = 0;
+    int mainTown = V3WildGetAlphaTown(player);
+    bool useMain;
+
+    // Direct orders only fill the Stock layer's proven six-unit gap.  Beyond
+    // this minimum, the ordinary mixed army targets retain production priority.
+    if (ultralisks >= 6) {
+        return;
+    }
+
+    for (;; larvaIndex -= 1) {
+        larva = UnitGroupUnitFromEnd(larvae, larvaIndex);
+        if (larva == c_nullUnit) {
+            break;
+        }
+        if (UnitOrderCount(larva) == 0) {
+            idleLarvae = idleLarvae + 1;
+        }
+    }
+    morphLimit = idleLarvae - 3;
+    if (morphLimit > 2) {
+        morphLimit = 2;
+    }
+    if (morphLimit > 6 - ultralisks) {
+        morphLimit = 6 - ultralisks;
+    }
+    if (morphLimit <= 0) {
+        return;
+    }
+
+    for (;;) {
+        if (issued >= morphLimit) {
+            break;
+        }
+        useMain = gv_v3WildUltraMainIssued * 10 < (gv_v3WildUltraIssued + 1) * 3;
+        if (useMain) {
+            larva = V3WildFindUltraLarvaAtTown(player, mainTown, morphOrder);
+        }
+        else {
+            larva = V3WildFindNextLocalUltraLarva(player, mainTown, morphOrder);
+        }
+        // Do not fall back to another town: waiting for the intended town is
+        // what preserves both the >=30% alpha share and one-per-local spread.
+        if (larva == c_nullUnit) {
+            break;
+        }
+        UnitIssueOrder(larva, morphOrder, c_orderQueueAddToEnd);
+        gv_v3WildUltraIssued = gv_v3WildUltraIssued + 1;
+        if (useMain) {
+            gv_v3WildUltraMainIssued = gv_v3WildUltraMainIssued + 1;
+        }
+        issued = issued + 1;
+    }
+}
+
+bool V3RunWildZergCampaign (int player, int phase) {
+    int resourceTowns = V3WildResourceTownCount(player);
+    int hatcheries = AITechCount(player, c_ZB_Hatchery_Alias, c_techCountCompleteOnly);
+    int workerTarget = resourceTowns * 8;
+    int gameTime = FixedToInt(AIGetTime());
+    bool trainArmy = PlayerGetPropertyInt(15, c_playerPropSuppliesUsed) < 400;
+
+    if (player != 15) {
+        return false;
+    }
+    if (workerTarget < 8) {
+        workerTarget = 8;
+    }
+
+    AIClearStock(player);
+    V3WildRecoverAlpha(player);
+
+    // Worker production intentionally precedes army production and remains
+    // outside its gate.  Eight Drones per resource nest is the P15 contract.
+    AISetStockPeons(player, workerTarget, c_ZU_Drone, c_stockMaxPeons, c_stockAlways);
+    if (PlayerGetPropertyInt(player, c_playerPropSuppliesMade) < 448) {
+        AISetStockFarms(player, c_ZU_Overlord, c_stockNormalFarms);
+    }
+
+    AISetStock(player, 1, c_ZB_SpawningPool);
+    AISetStock(player, 1, c_ZB_Extractor);
+    V3SetZergMainMacroHatcheries(player, 2);
+    if (gameTime >= 60) {
+        AISetStock(player, 1, c_ZB_RoachWarren);
+        AISetStock(player, 1, c_ZB_EvolutionChamber);
+    }
+    if (gameTime >= 120) {
+        AISetStock(player, 1, c_ZB_Lair_Alias);
+        AISetStock(player, 1, c_ZB_HydraliskDen_Alias);
+        // Start the alpha Hive/Ultralisk chain early enough that local
+        // garrison minimums cannot consume the whole 400-supply budget first.
+        AISetStockUnitNext(player, 1, c_ZB_InfestationPit, c_stockAlways);
+        AISetStockUnitNext(player, 1, c_ZB_Hive, c_stockAlways);
+        AISetStockUnitNext(player, 1, c_ZB_UltraliskCavern, c_stockAlways);
+        AISetStock(player, 1, c_ZR_MissileAttacks1);
+        AISetStock(player, 1, c_ZR_GroundCarapace1);
+        AISetStock(player, 1, c_ZR_HydraliskRange);
+        AISetStock(player, 1, c_ZR_RoachSpeed);
+    }
+    if (gameTime >= 180) {
+        AISetStock(player, 2, c_ZB_EvolutionChamber);
+        AISetStock(player, 1, c_ZR_MissileAttacks2);
+        AISetStock(player, 1, c_ZR_GroundCarapace2);
+        AISetStock(player, 1, c_ZR_MeleeAttacks1);
+        AISetStock(player, 1, c_ZR_UltraliskArmor);
+    }
+    if (gameTime >= 360) {
+        AISetStock(player, 1, c_ZR_MissileAttacks3);
+        AISetStock(player, 1, c_ZR_GroundCarapace3);
+        AISetStock(player, 1, c_ZR_MeleeAttacks2);
+        AISetStock(player, 1, c_ZR_MeleeAttacks3);
+    }
+
+    V3SetWildTownPolicy(player, trainArmy);
+
+    if (trainArmy) {
+        AISetStockUnitNext(player, hatcheries + 1, c_ZU_Queen, c_stockAlways);
+        // Combat production is issued town-by-town below.  Keeping global
+        // combat Stock here would let Blizzard choose one producer repeatedly
+        // and defeat the distribution contract.
+    }
+
+    V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+    V3EnsureWildLocalBases(player);
+    AIEnableStock(player);
+    V3SetGasWorkerDistribution(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+    if (trainArmy) {
+        V3WildTrainDistributedArmy(player);
+        V3WildMorphDistributedRavager(player);
+    }
+    if (trainArmy &&
+        AITechCount(player, c_ZB_UltraliskCavern, c_techCountCompleteOnly) > 0) {
+        V3WildMorphUltralisks(player);
+    }
+
+    V3SetWaveTargets(player, c_ZU_Zergling, 5, 80, 20);
+    V3SetWaveTargets(player, c_ZU_Roach, 20, 96, 24);
+    AISetAttackStatus(player, c_ZU_Ravager, 1, 4, c_continuousMerge);
+    V3SetWaveTargets(player, c_ZU_Hydralisk, 20, 96, 24);
+    V3SetWaveTargets(player, c_ZU_Ultralisk, 80, 96, 24);
+
+    // Wait still permits Blizzard's town-defense wave.  Only proactive attack
+    // consideration is released at 9:00, entirely inside the V3 AI loop.
+    if (gameTime < c_v3WildAttackRelease) {
+        // Every town's custom garrison wave was created as GuardHome and is not
+        // retasked by Blizzard, so in-place nest defense continues during the
+        // truce.  The alpha 6/4 and local 2/2 Spine/Spore defenses also remain;
+        // only leaving a nest to chase threats is suppressed here.
+        AISetSpecificState(player, e_attackState, e_attackState_Wait);
+        AISetUserInt(player, c_delayNextAttack, c_v3WildAttackRelease);
+    }
+    else {
+        if (AIGetUserInt(player, 147) == 0) {
+            AISetUserInt(player, 147, 1);
+            V3WildReleaseTruceWaves(player);
+            AISetAttackState(player, e_attackState_Attack);
+        }
+        V3WildDispatchLocalSupport(player);
+    }
+
+    V3WildAdoptPreplacedGarrisons(player);
+    return true;
+}
+
+// The one intentional V3 opening deviation: keep making Drones, then start
+// the natural as soon as 300 minerals are available.  Once it exists, the
+// selected upstream build owns its stock and state machine.
+bool V3EnsureZergFirstExpansion (int player) {
+    if (AIGetUserInt(player, 144) != 0) {
+        return true;
+    }
+
+    AIClearStock(player);
+    AISetStockPeons(
+        player,
+        V3MiningWorkerCapacity(player),
+        c_ZU_Drone,
+        c_stockMaxPeons,
+        c_stockAlways
+    );
+
+    if (AITechCount(player, c_ZB_Hatchery_Alias, c_techCountQueuedOrBetter) >= 2) {
+        AISetUserInt(player, 144, 1);
+        AIEnableStock(player);
+        return true;
+    }
+
+    if (!AIIsExpandingOrHasExpanded(player) &&
+        AIHasNearbyOpenExpansion(player) &&
+        AIHasRes(player, 300, 0)) {
+        AIExpand(player, AIGetTownLocation(player, c_townMain), c_ZB_Hatchery);
+    }
+
+    AIEnableStock(player);
+    return false;
+}
+
+bool V3RunZergBuild (int player, int phase) {
+    int build = AIGetUserInt(player, 142);
+    int v3Stage;
+    if (build != 301 && build != 302 && build != 315) {
+        return false;
+    }
+
+    if (build == 315) {
+        if (phase == 0 && AIGetTime() >= 300) {
+            AISetMainState(player, e_mainState_Mid, e_mainSubState_Build);
+            phase = 1;
+        }
+        if (phase == 1 && AIGetTime() >= 720) {
+            AISetMainState(player, e_mainState_Late, e_mainSubState_Build);
+            phase = 2;
+        }
+        return V3RunWildZergCampaign(player, phase);
+    }
+
+    // Build 302 keeps Blizzard's three-stage Ling/Bane -> Ling/Bane/Roach ->
+    // macro-Ultralisk state flow.  The overlay functions retain that stock
+    // ordering and change only V3's declared economy/production targets.
+    if (build == 302) {
+        if (!V3EnsureZergFirstExpansion(player)) {
+            return true;
+        }
+
+        // The generated dispatcher can be entered with an engine main state
+        // that predates the V3 natural.  Track the copied upstream build's
+        // own done->Init transition rather than using that external phase.
+        v3Stage = AIGetUserInt(player, 146);
+        if (v3Stage <= 0) {
+            if (V3ZergLingBaneUltraOpen(player)) {
+                AISetUserInt(player, 146, 1);
+                ZergHDInitMid(player);
+            }
+        }
+        else if (v3Stage == 1) {
+            if (V3ZergLingBaneUltraMid(player)) {
+                AISetUserInt(player, 146, 2);
+                ZergHDInitLate(player);
+            }
+        }
+        else {
+            V3ZergLingBaneUltraLate(player);
+        }
+
+        V3SetGasWorkerDistribution(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+        return true;
+    }
+
+    // === 확정 실험 (§111.5): 이 등록 한 줄만 제거한 판이다 ===
+    // 변종은 맵 카탈로그가 LarvaTrain Train28(=인덱스 27)에 붙인 캠페인 유닛이라
+    // 멜리 AI의 스톡 해소기는 만드는 법을 모른다. 테란 선례(Terran.galaxy 111-112,
+    // userInt 143 래치)를 따라 아래 등록을 넣었더니, 실측에서 **9분 시점 11/12 슬롯이
+    // 레어만 갖고 하이브 0·케이븐 0인데 울트라리스크를 1~3기 보유**했다. 정상 규칙상
+    // 불가능하다. 저그는 한 생산자(Larva)가 LarvaTrain 인덱스로 여러 유닛을 만들고
+    // 울트라만 별도 구조물을 요구하는데, 거기 등록을 추가하면 같은 능력의 다른 유닛
+    // 테크 요구까지 느슨해지는 것으로 보인다(테란은 유닛별로 생산 건물이 갈려 무사).
+    //
+    // 정황 증거: 등록 이전 301 판 0/96·0/96, 등록 후 301 판 다수, 302(등록 없음) 0/72,
+    // 테란 6빌드(등록 있음) 위반 0건. 옛 301 판이 §108 사다리 최종 튜닝 이전이라
+    // 교란요인이 남아 이 한 줄만 빼고 재측정한다. 변종 스톡·티어·999 호위는 전부
+    // 그대로 두어 변수를 하나로 고정한다.
+    //
+    // 판정: 케이븐 없는 울트라가 사라지면 등록이 원인 확정 → 변종 생산 경로 재설계.
+    //       그대로면 원인은 §108 사다리 쪽이고 등록은 무죄 → 등록 복원.
+    //
+    // if (AIGetUserInt(player, 143) == 0) {
+    //     AIReqAddSpecialMaker("SC2TeamAberration", c_ZU_Larva, "LarvaTrain", 27);
+    //     AISetUserInt(player, 143, 1);
+    // }
+
+    if (phase == 0 && AIGetTime() >= 300) {
+        AISetMainState(player, e_mainState_Mid, e_mainSubState_Build);
+        phase = 1;
+    }
+    if (phase == 1 && AIGetTime() >= 720) {
+        AISetMainState(player, e_mainState_Late, e_mainSubState_Build);
+        phase = 2;
+    }
+    V3ZergRoachHydraUltraStock(player, phase);
+    V3ZergRejoinMorphStragglers(player);
+    // 업스트림 ZergMidPowerRoachHydraVyHd 형태: 바퀴는 999 호위, 히드라가 개시자.
+    // 301 은 어제까지 AISetAttackStatus 가 0개여서 e_attackState_Wait 를 벗어날
+    // 통로 자체가 없었다(구조적 공격 불가).
+    AISetAttackStatus(player, c_ZU_Roach, 2, 999, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Ravager, 1, 999, c_continuousMerge);
+    AISetAttackStatus(player, c_ZU_Ultralisk, 1, 999, c_continuousMerge);
+    // 변종도 999 호위다. 개시자는 히드라 하나로 유지한다 — 개시선을 가진 유닛이
+    // 둘 이상이면 서로 다른 조건으로 본진 웨이브를 찢는다(§108.3).
+    AISetAttackStatus(player, "SC2TeamAberration", 2, 999, c_continuousMerge);
+    if (phase >= 2) {
+        AISetAttackStatus(player, c_ZU_Hydralisk, 2, 24, c_continuousMerge);
+    }
+    else {
+        AISetAttackStatus(player, c_ZU_Hydralisk, 2, 14, c_continuousMerge);
+    }
+    AIDefaultEconomy(
+        player,
+        c_ZB_Hatchery_Alias,
+        c_ZB_Extractor,
+        c_ZU_Overlord,
+        c_ZU_Drone,
+        V3MiningWorkerCapacity(player),
+        c_stockAlways
+    );
+    V3SetExpansionGasPolicy(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+    V3EnsureMiningExpansion(player, c_ZB_Hatchery_Alias, c_ZB_Hatchery, 300, c_townMax);
+    AIEnableStock(player);
+    V3SetGasWorkerDistribution(player, c_ZB_Hatchery_Alias, c_ZB_Extractor);
+    return true;
+}

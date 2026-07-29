@@ -1,4 +1,7 @@
-# Modifying the strategy controller
+# Modifying the strategy controller (V1 — 비활성)
+
+> **현재 플레이에 쓰이지 않는다.** V3에는 외부 Python 컨트롤러가 없다 — 게임 시작 후
+> AI에 명령을 보내는 경로 자체가 없다. → [`../../v3/docs/architecture.md`](../../v3/docs/architecture.md)
 
 ## Responsibility boundary
 
